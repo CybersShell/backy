@@ -1,6 +1,10 @@
 package logging
 
-type logging struct {
-	err    error
-	output string
+type Logging struct {
+	Err    error
+	Output string
+}
+
+func logger() Logging {
+	return Logging{}
 }
