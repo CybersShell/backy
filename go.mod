@@ -1,4 +1,4 @@
-module main
+module git.andrewnw.xyz/CyberShell/backy
 
 // module git.andrewnw.xyz/CyberShell/command
 
