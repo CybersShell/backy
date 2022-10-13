@@ -5,13 +5,9 @@ import (
 
 	"github.com/melbahja/goph"
 
+	// "git.andrewnw.xyz/CyberShell/backy/cmd/logging"
 	"github.com/spf13/viper"
 )
-
-type logging struct {
-	err    error
-	output string
-}
 
 type Host struct {
 	Empty              bool
