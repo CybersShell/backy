@@ -5,7 +5,7 @@ import (
 
 	"github.com/melbahja/goph"
 
-	"git.andrewnw.xyz/CyberShell/backy/cmd/logging"
+	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 	"github.com/spf13/viper"
 )
 
@@ -38,8 +38,8 @@ type BackupConfig struct {
 
 	Cmds Commands
 
-	dstDir string
-	srcDir string
+	DstDir string
+	SrcDir string
 }
 
 func ReadConfig(backup string, config viper.Viper) (*viper.Viper, error) {
@@ -64,8 +64,8 @@ func CreateConfig(backup BackupConfig) BackupConfig {
 		Name:       backup.Name,
 		BackupType: backup.BackupType,
 
-		dstDir: backup.dstDir,
-		srcDir: backup.srcDir,
+		DstDir: backup.DstDir,
+		SrcDir: backup.SrcDir,
 
 		ConfigPath: backup.ConfigPath,
 	}
