@@ -5,7 +5,7 @@ import (
 
 	"github.com/melbahja/goph"
 
-	// "git.andrewnw.xyz/CyberShell/backy/cmd/logging"
+	"git.andrewnw.xyz/CyberShell/backy/cmd/logging"
 	"github.com/spf13/viper"
 )
 
@@ -134,55 +134,55 @@ func WriteConfig(config viper.Viper, backup BackupConfig) error {
 /*
 * Runs a backup configuration
  */
-func Run(backup BackupConfig) logging {
+func Run(backup BackupConfig) logging.Logging {
 
 	beforeConfig := backup.Cmds.Before
 	beforeOutput := runCmd(beforeConfig)
-	if beforeOutput.err != nil {
-		return logging{
-			output: beforeOutput.output,
-			err:    beforeOutput.err,
+	if beforeOutput.Err != nil {
+		return logging.Logging{
+			Output: beforeOutput.Output,
+			Err:    beforeOutput.Err,
 		}
 	}
 	backupConfig := backup.Cmds.Backup
 	backupOutput := runCmd(backupConfig)
-	if backupOutput.err != nil {
-		return logging{
-			output: backupOutput.output,
-			err:    beforeOutput.err,
+	if backupOutput.Err != nil {
+		return logging.Logging{
+			Output: beforeOutput.Output,
+			Err:    beforeOutput.Err,
 		}
 	}
 	afterConfig := backup.Cmds.After
 	afterOutput := runCmd(afterConfig)
-	if afterOutput.err != nil {
-		return logging{
-			output: afterOutput.output,
-			err:    afterOutput.err,
+	if afterOutput.Err != nil {
+		return logging.Logging{
+			Output: beforeOutput.Output,
+			Err:    beforeOutput.Err,
 		}
 	}
-	return logging{
-		output: afterOutput.output,
-		err:    nil,
+	return logging.Logging{
+		Output: afterOutput.Output,
+		Err:    nil,
 	}
 }
 
-func runCmd(cmd Command) logging {
+func runCmd(cmd Command) logging.Logging {
 	if !cmd.Empty {
 		if cmd.Remote {
 			// Start new ssh connection with private key.
 			auth, err := goph.Key(cmd.RemoteHost.PrivateKeyPath, cmd.RemoteHost.PrivateKeyPassword)
 			if err != nil {
-				return logging{
-					output: err.Error(),
-					err:    err,
+				return logging.Logging{
+					Output: err.Error(),
+					Err:    err,
 				}
 			}
 
 			client, err := goph.New(cmd.RemoteHost.User, cmd.RemoteHost.Host, auth)
 			if err != nil {
-				return logging{
-					output: err.Error(),
-					err:    err,
+				return logging.Logging{
+					Output: err.Error(),
+					Err:    err,
 				}
 			}
 
@@ -197,23 +197,23 @@ func runCmd(cmd Command) logging {
 			// Execute your command.
 			out, err := client.Run(command)
 			if err != nil {
-				return logging{
-					output: string(out),
-					err:    err,
+				return logging.Logging{
+					Output: string(out),
+					Err:    err,
 				}
 			}
 		}
 		cmdOut := exec.Command(cmd.Cmd, cmd.Args...)
 		output, err := cmdOut.Output()
 		if err != nil {
-			return logging{
-				output: string(output),
-				err:    err,
+			return logging.Logging{
+				Output: string(output),
+				Err:    err,
 			}
 		}
 	}
-	return logging{
-		output: "",
-		err:    nil,
+	return logging.Logging{
+		Output: "",
+		Err:    nil,
 	}
 }
