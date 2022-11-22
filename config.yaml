@@ -1,4 +1,0 @@
-backup:
-    mail-svr:
-        backuptype: restic
-        remote: email-svr

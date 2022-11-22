@@ -6,7 +6,6 @@ import (
 	"github.com/melbahja/goph"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
-	"github.com/spf13/viper"
 )
 
 type Host struct {
@@ -40,95 +39,6 @@ type BackupConfig struct {
 
 	DstDir string
 	SrcDir string
-}
-
-func ReadConfig(backup string, config viper.Viper) (*viper.Viper, error) {
-	err := viper.ReadInConfig()
-	if err != nil {
-		return &viper.Viper{}, err
-	}
-
-	conf := config.Sub("backup." + backup)
-
-	backupConfig := config.Unmarshal(&conf)
-	if backupConfig == nil {
-		return &viper.Viper{}, backupConfig
-	}
-
-	return conf, nil
-}
-
-// pass Name-level (i.e. "backups."+configName) to function
-func CreateConfig(backup BackupConfig) BackupConfig {
-	newBackupConfig := BackupConfig{
-		Name:       backup.Name,
-		BackupType: backup.BackupType,
-
-		DstDir: backup.DstDir,
-		SrcDir: backup.SrcDir,
-
-		ConfigPath: backup.ConfigPath,
-	}
-
-	if !backup.Cmds.Before.Empty {
-		newBackupConfig.Cmds.Before.Cmd = backup.Cmds.Before.Cmd
-		newBackupConfig.Cmds.After.Args = backup.Cmds.Before.Args
-		if backup.Cmds.Before.Remote {
-			newBackupConfig.Cmds.Before.RemoteHost.Host = backup.Cmds.Before.RemoteHost.Host
-			newBackupConfig.Cmds.Before.RemoteHost.Port = backup.Cmds.Before.RemoteHost.Port
-			newBackupConfig.Cmds.Before.RemoteHost.PrivateKeyPath = backup.Cmds.Before.RemoteHost.PrivateKeyPath
-		} else {
-			newBackupConfig.Cmds.Before.RemoteHost.Empty = true
-		}
-	}
-	if !backup.Cmds.Backup.Empty {
-		newBackupConfig.Cmds.Backup.Cmd = backup.Cmds.Backup.Cmd
-		newBackupConfig.Cmds.Backup.Args = backup.Cmds.Backup.Args
-		if backup.Cmds.Backup.Remote {
-			newBackupConfig.Cmds.Backup.RemoteHost.Host = backup.Cmds.Backup.RemoteHost.Host
-			newBackupConfig.Cmds.Backup.RemoteHost.Port = backup.Cmds.Backup.RemoteHost.Port
-			newBackupConfig.Cmds.Backup.RemoteHost.PrivateKeyPath = backup.Cmds.Backup.RemoteHost.PrivateKeyPath
-		} else {
-			newBackupConfig.Cmds.Backup.RemoteHost.Empty = true
-		}
-	}
-	if !backup.Cmds.After.Empty {
-		newBackupConfig.Cmds.After.Cmd = backup.Cmds.After.Cmd
-		newBackupConfig.Cmds.After.Args = backup.Cmds.After.Args
-		if backup.Cmds.After.Remote {
-			newBackupConfig.Cmds.After.RemoteHost.Host = backup.Cmds.After.RemoteHost.Host
-			newBackupConfig.Cmds.After.RemoteHost.Port = backup.Cmds.After.RemoteHost.Port
-			newBackupConfig.Cmds.After.RemoteHost.PrivateKeyPath = backup.Cmds.After.RemoteHost.PrivateKeyPath
-		} else {
-			newBackupConfig.Cmds.Before.RemoteHost.Empty = true
-		}
-	}
-
-	return backup
-}
-
-// writes config to file
-func WriteConfig(config viper.Viper, backup BackupConfig) error {
-	configName := "backup." + backup.Name
-	config.Set(configName+".BackupType", backup.BackupType)
-	if !backup.Cmds.After.Empty {
-		config.Set(configName+".Cmds.After.Cmd", backup.Cmds.After.Cmd)
-		config.Set(configName+".Cmds.After.Args", backup.Cmds.After.Args)
-		if backup.Cmds.Before.Remote {
-			config.Set(configName+".Cmds.After.RemoteHost.Host", backup.Cmds.After.RemoteHost.Host)
-		}
-	}
-
-	config.Set(configName+"..Cmds.backup.Cmd", backup.Cmds.Backup.Cmd)
-	if !backup.Cmds.Before.Empty {
-		config.Set(configName+"Cmds.Before.Cmd", backup.Cmds.Before.Cmd)
-		config.Set(configName+"Cmds.Before.Args", backup.Cmds.Before.Args)
-	}
-	err := config.WriteConfig()
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 /*
