@@ -11,6 +11,7 @@ import (
 type Host struct {
 	Empty              bool
 	Host               string
+	HostName           string
 	Port               uint16
 	PrivateKeyPath     string
 	PrivateKeyPassword string
