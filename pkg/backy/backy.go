@@ -1,9 +1,11 @@
 package backy
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
 	"os/exec"
-
-	"github.com/melbahja/goph"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 )
@@ -32,24 +34,22 @@ type Commands struct {
 	After  Command
 }
 
+// BackupConfig is a configuration struct that is used to define backups
 type BackupConfig struct {
 	Name       string
 	BackupType string
 	ConfigPath string
 
 	Cmds Commands
-
-	DstDir string
-	SrcDir string
 }
 
 /*
 * Runs a backup configuration
  */
-func Run(backup BackupConfig) logging.Logging {
+func (backup BackupConfig) Run() logging.Logging {
 
 	beforeConfig := backup.Cmds.Before
-	beforeOutput := runCmd(beforeConfig)
+	beforeOutput := beforeConfig.runCmd()
 	if beforeOutput.Err != nil {
 		return logging.Logging{
 			Output: beforeOutput.Output,
@@ -57,7 +57,7 @@ func Run(backup BackupConfig) logging.Logging {
 		}
 	}
 	backupConfig := backup.Cmds.Backup
-	backupOutput := runCmd(backupConfig)
+	backupOutput := backupConfig.runCmd()
 	if backupOutput.Err != nil {
 		return logging.Logging{
 			Output: beforeOutput.Output,
@@ -65,12 +65,9 @@ func Run(backup BackupConfig) logging.Logging {
 		}
 	}
 	afterConfig := backup.Cmds.After
-	afterOutput := runCmd(afterConfig)
+	afterOutput := afterConfig.runCmd()
 	if afterOutput.Err != nil {
-		return logging.Logging{
-			Output: beforeOutput.Output,
-			Err:    beforeOutput.Err,
-		}
+		return afterOutput
 	}
 	return logging.Logging{
 		Output: afterOutput.Output,
@@ -78,54 +75,68 @@ func Run(backup BackupConfig) logging.Logging {
 	}
 }
 
-func runCmd(cmd Command) logging.Logging {
-	if !cmd.Empty {
-		if cmd.Remote {
-			// Start new ssh connection with private key.
-			auth, err := goph.Key(cmd.RemoteHost.PrivateKeyPath, cmd.RemoteHost.PrivateKeyPassword)
-			if err != nil {
-				return logging.Logging{
-					Output: err.Error(),
-					Err:    err,
-				}
-			}
+func (command Command) runCmd() logging.Logging {
 
-			client, err := goph.New(cmd.RemoteHost.User, cmd.RemoteHost.Host, auth)
-			if err != nil {
-				return logging.Logging{
-					Output: err.Error(),
-					Err:    err,
-				}
-			}
+	var stdoutBuf, stderrBuf bytes.Buffer
+	var err error
+	var cmdArgs string
+	for _, v := range command.Args {
+		cmdArgs += v
+	}
 
-			// Defer closing the network connection.
-			defer client.Close()
+	var remoteHost = &command.RemoteHost
+	fmt.Printf("\n\nRunning command: " + command.Cmd + " " + cmdArgs + " on host " + command.RemoteHost.Host + "...\n\n")
+	if command.Remote {
 
-			command := cmd.Cmd
-			for _, v := range cmd.Args {
-				command += v
-			}
+		remoteHost.Port = 22
+		remoteHost.Host = command.RemoteHost.Host
 
-			// Execute your command.
-			out, err := client.Run(command)
-			if err != nil {
-				return logging.Logging{
-					Output: string(out),
-					Err:    err,
-				}
-			}
+		sshc, err := remoteHost.connectToSSHHost()
+		if err != nil {
+			panic(fmt.Errorf("ssh dial: %w", err))
 		}
-		cmdOut := exec.Command(cmd.Cmd, cmd.Args...)
-		output, err := cmdOut.Output()
+		defer sshc.Close()
+		s, err := sshc.NewSession()
+		if err != nil {
+			panic(fmt.Errorf("new ssh session: %w", err))
+		}
+		defer s.Close()
+
+		cmd := command.Cmd
+		for _, a := range command.Args {
+			cmd += " " + a
+		}
+
+		s.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+		s.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+		err = s.Run(cmd)
 		if err != nil {
 			return logging.Logging{
-				Output: string(output),
-				Err:    err,
+				Output: stdoutBuf.String(),
+				Err:    fmt.Errorf("error running " + cmd + ": " + stderrBuf.String()),
+			}
+		}
+		// fmt.Printf("Output: %s\n", string(output))
+	} else {
+		// shell := "/bin/bash"
+		localCMD := exec.Command(command.Cmd, command.Args...)
+		localCMD.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+		localCMD.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+		err = localCMD.Run()
+
+		if err != nil {
+			return logging.Logging{
+				Output: stdoutBuf.String(),
+				Err:    fmt.Errorf(stderrBuf.String()),
 			}
 		}
 	}
 	return logging.Logging{
-		Output: "",
+		Output: stdoutBuf.String(),
 		Err:    nil,
 	}
+}
+
+func New() BackupConfig {
+	return BackupConfig{}
 }

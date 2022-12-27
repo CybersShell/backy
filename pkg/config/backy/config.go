@@ -5,10 +5,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-type BackyViperOpts struct {
-	ConfigFilePath string
-}
-
 func ReadConfig(Config *viper.Viper) (*viper.Viper, error) {
 
 	backyViper := viper.New()
@@ -81,9 +77,6 @@ func CreateConfig(backup backy.BackupConfig) backy.BackupConfig {
 	newBackupConfig := backy.BackupConfig{
 		Name:       backup.Name,
 		BackupType: backup.BackupType,
-
-		DstDir: backup.DstDir,
-		SrcDir: backup.SrcDir,
 
 		ConfigPath: backup.ConfigPath,
 	}
