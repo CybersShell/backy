@@ -60,6 +60,7 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 	f, _ := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "config"))
 	cfg, _ := ssh_config.Decode(f)
 	for _, host := range cfg.Hosts {
+		var hostKey ssh.PublicKey
 		if host.Matches(remoteConfig.Host) {
 			var identityFile string
 			if remoteConfig.PrivateKeyPath == "" {
@@ -90,10 +91,10 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 						port = "22"
 					}
 					remoteConfig.HostName[index] = hostName + ":" + port
+					hostKey = getHostKey(hostName)
 					println("HostName: " + remoteConfig.HostName[0])
 				}
 			}
-			hostKey := getHostKey(remoteConfig.HostName[0])
 
 			privateKey, err := os.ReadFile(remoteConfig.PrivateKeyPath)
 			if err != nil {
