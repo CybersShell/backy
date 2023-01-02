@@ -38,7 +38,7 @@ func GetSSHConfig(host string) (SshConfig, error) {
 	return config, nil
 }
 
-func (remoteConfig *Host) connectToSSHHost() (*ssh.Client, error) {
+func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 	var sshc *ssh.Client
 	var connectErr error
 

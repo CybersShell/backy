@@ -10,10 +10,11 @@ import (
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 )
 
+// Host defines a host to which to connect
+// If not provided, the values will be looked up in the default ssh config file
 type Host struct {
 	Empty              bool
 	Host               string
-	UseSSHAgent        bool
 	HostName           string
 	Port               uint16
 	PrivateKeyPath     string
@@ -22,16 +23,10 @@ type Host struct {
 }
 
 type Command struct {
-	Empty      bool
 	Remote     bool
 	RemoteHost Host
 	Cmd        string
 	Args       []string
-}
-type Commands struct {
-	Before Command
-	Backup Command
-	After  Command
 }
 
 // BackupConfig is a configuration struct that is used to define backups
@@ -40,40 +35,12 @@ type BackupConfig struct {
 	BackupType string
 	ConfigPath string
 
-	Cmds Commands
+	Cmd Command
 }
 
 /*
 * Runs a backup configuration
  */
-func (backup BackupConfig) Run() logging.Logging {
-
-	beforeConfig := backup.Cmds.Before
-	beforeOutput := beforeConfig.runCmd()
-	if beforeOutput.Err != nil {
-		return logging.Logging{
-			Output: beforeOutput.Output,
-			Err:    beforeOutput.Err,
-		}
-	}
-	backupConfig := backup.Cmds.Backup
-	backupOutput := backupConfig.runCmd()
-	if backupOutput.Err != nil {
-		return logging.Logging{
-			Output: beforeOutput.Output,
-			Err:    beforeOutput.Err,
-		}
-	}
-	afterConfig := backup.Cmds.After
-	afterOutput := afterConfig.runCmd()
-	if afterOutput.Err != nil {
-		return afterOutput
-	}
-	return logging.Logging{
-		Output: afterOutput.Output,
-		Err:    nil,
-	}
-}
 
 func (command Command) runCmd() logging.Logging {
 
@@ -91,7 +58,7 @@ func (command Command) runCmd() logging.Logging {
 		remoteHost.Port = 22
 		remoteHost.Host = command.RemoteHost.Host
 
-		sshc, err := remoteHost.connectToSSHHost()
+		sshc, err := remoteHost.ConnectToSSHHost()
 		if err != nil {
 			panic(fmt.Errorf("ssh dial: %w", err))
 		}

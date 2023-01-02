@@ -81,39 +81,5 @@ func CreateConfig(backup backy.BackupConfig) backy.BackupConfig {
 		ConfigPath: backup.ConfigPath,
 	}
 
-	if !backup.Cmds.Before.Empty {
-		newBackupConfig.Cmds.Before.Cmd = backup.Cmds.Before.Cmd
-		newBackupConfig.Cmds.After.Args = backup.Cmds.Before.Args
-		if backup.Cmds.Before.Remote {
-			newBackupConfig.Cmds.Before.RemoteHost.Host = backup.Cmds.Before.RemoteHost.Host
-			newBackupConfig.Cmds.Before.RemoteHost.Port = backup.Cmds.Before.RemoteHost.Port
-			newBackupConfig.Cmds.Before.RemoteHost.PrivateKeyPath = backup.Cmds.Before.RemoteHost.PrivateKeyPath
-		} else {
-			newBackupConfig.Cmds.Before.RemoteHost.Empty = true
-		}
-	}
-	if !backup.Cmds.Backup.Empty {
-		newBackupConfig.Cmds.Backup.Cmd = backup.Cmds.Backup.Cmd
-		newBackupConfig.Cmds.Backup.Args = backup.Cmds.Backup.Args
-		if backup.Cmds.Backup.Remote {
-			newBackupConfig.Cmds.Backup.RemoteHost.Host = backup.Cmds.Backup.RemoteHost.Host
-			newBackupConfig.Cmds.Backup.RemoteHost.Port = backup.Cmds.Backup.RemoteHost.Port
-			newBackupConfig.Cmds.Backup.RemoteHost.PrivateKeyPath = backup.Cmds.Backup.RemoteHost.PrivateKeyPath
-		} else {
-			newBackupConfig.Cmds.Backup.RemoteHost.Empty = true
-		}
-	}
-	if !backup.Cmds.After.Empty {
-		newBackupConfig.Cmds.After.Cmd = backup.Cmds.After.Cmd
-		newBackupConfig.Cmds.After.Args = backup.Cmds.After.Args
-		if backup.Cmds.After.Remote {
-			newBackupConfig.Cmds.After.RemoteHost.Host = backup.Cmds.After.RemoteHost.Host
-			newBackupConfig.Cmds.After.RemoteHost.Port = backup.Cmds.After.RemoteHost.Port
-			newBackupConfig.Cmds.After.RemoteHost.PrivateKeyPath = backup.Cmds.After.RemoteHost.PrivateKeyPath
-		} else {
-			newBackupConfig.Cmds.Before.RemoteHost.Empty = true
-		}
-	}
-
-	return backup
+	return newBackupConfig
 }
