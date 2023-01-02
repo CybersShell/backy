@@ -1,8 +1,10 @@
 package backy
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -90,6 +92,8 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 					println("HostName: " + remoteConfig.HostName[0])
 				}
 			}
+			hostKey := getHostKey(remoteConfig.Host)
+
 			privateKey, err := os.ReadFile(remoteConfig.PrivateKeyPath)
 			if err != nil {
 				return nil, fmt.Errorf("read private key error: %w", err)
@@ -101,12 +105,13 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 			sshConfig := &ssh.ClientConfig{
 				User:            remoteConfig.User,
 				Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+				HostKeyCallback: ssh.FixedHostKey(hostKey),
 			}
 			for _, host := range remoteConfig.HostName {
 				sshClient, connectErr = ssh.Dial("tcp", host, sshConfig)
 				if connectErr != nil {
-					panic(fmt.Errorf("error when connecting to host %s: %w", host, connectErr))
+					continue
+					// panic(fmt.Errorf("error when connecting to host %s: %w", host, connectErr))
 				}
 			}
 			break
@@ -114,4 +119,37 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 
 	}
 	return sshClient, connectErr
+}
+
+func getHostKey(host string) ssh.PublicKey {
+	// parse OpenSSH known_hosts file
+	// ssh or use ssh-keyscan to get initial key
+	file, err := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	var hostKey ssh.PublicKey
+	for scanner.Scan() {
+		fields := strings.Split(scanner.Text(), " ")
+		if len(fields) != 3 {
+			continue
+		}
+		if strings.Contains(fields[0], host) {
+			var err error
+			hostKey, _, _, _, err = ssh.ParseAuthorizedKey(scanner.Bytes())
+			if err != nil {
+				log.Fatalf("error parsing %q: %v", fields[2], err)
+			}
+			break
+		}
+	}
+
+	if hostKey == nil {
+		log.Fatalf("no hostkey found for %s", host)
+	}
+
+	return hostKey
 }
