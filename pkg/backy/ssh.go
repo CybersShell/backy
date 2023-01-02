@@ -106,7 +106,7 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 			for _, host := range remoteConfig.HostName {
 				sshConnection, connectErr = ssh.Dial("tcp", host, sshConfig)
 				if connectErr != nil {
-					break
+					continue
 				}
 			}
 			break
