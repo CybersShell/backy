@@ -75,12 +75,11 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 			}
 			remoteConfig.HostName, _ = cfg.GetAll(remoteConfig.Host, "HostName")
 			if remoteConfig.HostName == nil {
-				remoteConfig.HostName[0] = remoteConfig.Host
 				port, _ := cfg.Get(remoteConfig.Host, "Port")
 				if port == "" {
 					port = "22"
 				}
-				remoteConfig.HostName[0] = remoteConfig.HostName[0] + ":" + port
+				remoteConfig.HostName[0] = remoteConfig.Host + ":" + port
 			} else {
 				for index, hostName := range remoteConfig.HostName {
 					port, _ := cfg.Get(remoteConfig.Host, "Port")
@@ -88,6 +87,7 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 						port = "22"
 					}
 					remoteConfig.HostName[index] = hostName + ":" + port
+					println("HostName: " + remoteConfig.HostName[0])
 				}
 			}
 			privateKey, err := os.ReadFile(remoteConfig.PrivateKeyPath)
