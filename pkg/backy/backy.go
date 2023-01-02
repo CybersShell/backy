@@ -59,12 +59,12 @@ func (command Command) runCmd() logging.Logging {
 		remoteHost.Port = 22
 		remoteHost.Host = command.RemoteHost.Host
 
-		sshConnection, err := remoteHost.ConnectToSSHHost()
+		sshClient, err := remoteHost.ConnectToSSHHost()
 		if err != nil {
 			panic(fmt.Errorf("ssh dial: %w", err))
 		}
-		defer sshConnection.Close()
-		s, err := sshConnection.NewSession()
+		defer sshClient.Close()
+		s, err := sshClient.NewSession()
 		if err != nil {
 			panic(fmt.Errorf("new ssh session: %w", err))
 		}

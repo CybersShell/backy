@@ -51,7 +51,7 @@ func (config SshConfig) GetSSHConfig() (SshConfig, error) {
 
 func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 
-	var sshConnection *ssh.Client
+	var sshClient *ssh.Client
 	var connectErr error
 
 	f, _ := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "config"))
@@ -104,7 +104,7 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 			}
 			for _, host := range remoteConfig.HostName {
-				sshConnection, connectErr = ssh.Dial("tcp", host, sshConfig)
+				sshClient, connectErr = ssh.Dial("tcp", host, sshConfig)
 				if connectErr != nil {
 					panic(fmt.Errorf("error when connecting to host %s: %w", host, connectErr))
 				}
@@ -113,5 +113,5 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 		}
 
 	}
-	return sshConnection, connectErr
+	return sshClient, connectErr
 }
