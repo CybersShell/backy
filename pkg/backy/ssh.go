@@ -141,6 +141,9 @@ func getHostKey(host string) ssh.PublicKey {
 		if len(fields) != 3 {
 			continue
 		}
+		for _, field := range fields {
+			log.Println(field)
+		}
 		if strings.Contains(fields[0], base64.StdEncoding.EncodeToString([]byte(host))) {
 			var err error
 			hostKey, _, _, _, err = ssh.ParseAuthorizedKey(scanner.Bytes())
