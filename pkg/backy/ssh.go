@@ -108,6 +108,7 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 				HostKeyCallback: ssh.FixedHostKey(hostKey),
 			}
 			for _, host := range remoteConfig.HostName {
+				println("Connecting to " + host)
 				sshClient, connectErr = ssh.Dial("tcp", host, sshConfig)
 				if connectErr != nil {
 					continue
