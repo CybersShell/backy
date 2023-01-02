@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/kevinburke/ssh_config"
 	"golang.org/x/crypto/ssh"
@@ -106,6 +107,7 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 				User:            remoteConfig.User,
 				Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
 				HostKeyCallback: ssh.FixedHostKey(hostKey),
+				Timeout:         5 * time.Second,
 			}
 			for _, host := range remoteConfig.HostName {
 				println("Connecting to " + host)
