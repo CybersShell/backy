@@ -11,11 +11,12 @@ import (
 )
 
 // Host defines a host to which to connect
-// If not provided, the values will be looked up in the default ssh config file
+// If not provided, the values will be looked up in the default ssh config files
 type Host struct {
+	ConfigFilePath     string
 	Empty              bool
 	Host               string
-	HostName           string
+	HostName           []string
 	Port               uint16
 	PrivateKeyPath     string
 	PrivateKeyPassword string
