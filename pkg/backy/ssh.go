@@ -93,7 +93,7 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 					println("HostName: " + remoteConfig.HostName[0])
 				}
 			}
-			hostKey := getHostKey(remoteConfig.Host)
+			hostKey := getHostKey(remoteConfig.HostName[0])
 
 			privateKey, err := os.ReadFile(remoteConfig.PrivateKeyPath)
 			if err != nil {
