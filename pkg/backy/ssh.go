@@ -30,14 +30,14 @@ type SshConfig struct {
 	host string
 
 	// host name to connect to
-	hostName []string
+	hostName string
 
 	user string
 }
 
 func (config SshConfig) GetSSHConfig() (SshConfig, error) {
-	hostNames := ssh_config.GetAll(config.host, "HostName")
-	if hostNames == nil {
+	hostNames := ssh_config.Get(config.host, "HostName")
+	if hostNames == "" {
 		return SshConfig{}, errors.New("hostname not found")
 	}
 	config.hostName = hostNames
@@ -116,22 +116,24 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 					identityFile = filepath.Join(dir, identityFile[2:])
 				}
 				remoteConfig.PrivateKeyPath = filepath.Join(identityFile)
+				log.Debug().Str("Private key path", remoteConfig.PrivateKeyPath).Send()
 			}
-			remoteConfig.HostName, _ = cfg.GetAll(remoteConfig.Host, "HostName")
-			if remoteConfig.HostName == nil {
+			remoteConfig.HostName, _ = cfg.Get(remoteConfig.Host, "HostName")
+			remoteConfig.User, _ = cfg.Get(remoteConfig.Host, "User")
+			if remoteConfig.HostName == "" {
 				port, _ := cfg.Get(remoteConfig.Host, "Port")
 				if port == "" {
 					port = "22"
 				}
-				remoteConfig.HostName[0] = remoteConfig.Host + ":" + port
+				// remoteConfig.HostName[0] = remoteConfig.Host + ":" + port
 			} else {
-				for index, hostName := range remoteConfig.HostName {
-					port, _ := cfg.Get(remoteConfig.Host, "Port")
-					if port == "" {
-						port = "22"
-					}
-					remoteConfig.HostName[index] = hostName + ":" + port
+				// for index, hostName := range remoteConfig.HostName {
+				port, _ := cfg.Get(remoteConfig.Host, "Port")
+				if port == "" {
+					port = "22"
 				}
+				remoteConfig.HostName = remoteConfig.HostName + ":" + port
+				// remoteConfig.HostName[index] = hostName + ":" + port
 			}
 
 			// TODO: Add value/option to config for host key and add bool to check for host key
@@ -151,14 +153,16 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 				User:            remoteConfig.User,
 				Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
 				HostKeyCallback: hostKeyCallback,
+				// HostKeyAlgorithms: []string{ssh.KeyAlgoECDSA256},
 			}
-			for _, host := range remoteConfig.HostName {
-				log.Info().Msgf("Connecting to host %s", host)
-				sshClient, connectErr = ssh.Dial("tcp", host, sshConfig)
-				if connectErr != nil {
-					log.Fatal().Err(connectErr).Str("host", host).Msg("error when connecting to host")
-				}
+			// for _, host := range remoteConfig.HostName {
+			log.Info().Msgf("Connecting to host %s", remoteConfig.HostName)
+
+			sshClient, connectErr = ssh.Dial("tcp", remoteConfig.HostName, sshConfig)
+			if connectErr != nil {
+				log.Fatal().Str("host", remoteConfig.HostName).Err(connectErr).Send()
 			}
+			// }
 			break
 		}
 
