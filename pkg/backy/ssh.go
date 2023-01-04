@@ -3,7 +3,6 @@ package backy
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -11,8 +10,10 @@ import (
 	"time"
 
 	"github.com/kevinburke/ssh_config"
+	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type SshConfig struct {
@@ -53,6 +54,44 @@ func (config SshConfig) GetSSHConfig() (SshConfig, error) {
 }
 
 func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
+	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+	output.FormatLevel = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+	}
+	output.FormatMessage = func(i interface{}) string {
+		return fmt.Sprintf("%s", i)
+	}
+	output.FormatFieldName = func(i interface{}) string {
+		return fmt.Sprintf("%s: ", i)
+	}
+	output.FormatFieldValue = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("%s", i))
+	}
+
+	fileLogger := &lumberjack.Logger{
+		Filename:   "./backy.log",
+		MaxSize:    500, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28,   //days
+		Compress:   true, // disabled by default
+	}
+
+	// fileOutput := zerolog.ConsoleWriter{Out: fileLogger, TimeFormat: time.RFC3339}
+	// fileOutput.FormatLevel = func(i interface{}) string {
+	// 	return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+	// }
+	// fileOutput.FormatMessage = func(i interface{}) string {
+	// 	return fmt.Sprintf("%s", i)
+	// }
+	// fileOutput.FormatFieldName = func(i interface{}) string {
+	// 	return fmt.Sprintf("%s: ", i)
+	// }
+	// fileOutput.FormatFieldValue = func(i interface{}) string {
+	// 	return strings.ToUpper(fmt.Sprintf("%s", i))
+	// }
+	zerolog.TimeFieldFormat = time.RFC1123
+	writers := zerolog.MultiLevelWriter(os.Stdout, fileLogger)
+	log := zerolog.New(writers).With().Timestamp().Logger()
 
 	var sshClient *ssh.Client
 	var connectErr error
@@ -92,35 +131,32 @@ func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
 						port = "22"
 					}
 					remoteConfig.HostName[index] = hostName + ":" + port
-
-					println("HostName: " + remoteConfig.HostName[0])
 				}
 			}
 
 			// TODO: Add value/option to config for host key and add bool to check for host key
 			hostKeyCallback, err := knownhosts.New(khPath)
 			if err != nil {
-				log.Fatal("could not create hostkeycallback function: ", err)
+				log.Fatal().Err(err).Msg("could not create hostkeycallback function")
 			}
 			privateKey, err := os.ReadFile(remoteConfig.PrivateKeyPath)
 			if err != nil {
-				return nil, fmt.Errorf("read private key error: %w", err)
+				log.Fatal().Err(err).Msg("read private key error")
 			}
 			signer, err := ssh.ParsePrivateKey(privateKey)
 			if err != nil {
-				return nil, fmt.Errorf("parse private key error: %w", err)
+				log.Fatal().Err(err).Msg("parse private key error")
 			}
 			sshConfig := &ssh.ClientConfig{
 				User:            remoteConfig.User,
 				Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
 				HostKeyCallback: hostKeyCallback,
-				Timeout:         5 * time.Second,
 			}
 			for _, host := range remoteConfig.HostName {
-				println("Connecting to " + host)
+				log.Info().Msgf("Connecting to host %s", host)
 				sshClient, connectErr = ssh.Dial("tcp", host, sshConfig)
 				if connectErr != nil {
-					panic(fmt.Errorf("error when connecting to host %s: %w", host, connectErr))
+					log.Fatal().Err(connectErr).Str("host", host).Msg("error when connecting to host")
 				}
 			}
 			break
