@@ -2,18 +2,15 @@ package backy
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/kevinburke/ssh_config"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type SshConfig struct {
@@ -53,45 +50,7 @@ func (config SshConfig) GetSSHConfig() (SshConfig, error) {
 	return config, nil
 }
 
-func (remoteConfig *Host) ConnectToSSHHost() (*ssh.Client, error) {
-	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
-	output.FormatLevel = func(i interface{}) string {
-		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
-	}
-	output.FormatMessage = func(i interface{}) string {
-		return fmt.Sprintf("%s", i)
-	}
-	output.FormatFieldName = func(i interface{}) string {
-		return fmt.Sprintf("%s: ", i)
-	}
-	output.FormatFieldValue = func(i interface{}) string {
-		return strings.ToUpper(fmt.Sprintf("%s", i))
-	}
-
-	fileLogger := &lumberjack.Logger{
-		Filename:   "./backy.log",
-		MaxSize:    500, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28,   //days
-		Compress:   true, // disabled by default
-	}
-
-	// fileOutput := zerolog.ConsoleWriter{Out: fileLogger, TimeFormat: time.RFC3339}
-	// fileOutput.FormatLevel = func(i interface{}) string {
-	// 	return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
-	// }
-	// fileOutput.FormatMessage = func(i interface{}) string {
-	// 	return fmt.Sprintf("%s", i)
-	// }
-	// fileOutput.FormatFieldName = func(i interface{}) string {
-	// 	return fmt.Sprintf("%s: ", i)
-	// }
-	// fileOutput.FormatFieldValue = func(i interface{}) string {
-	// 	return strings.ToUpper(fmt.Sprintf("%s", i))
-	// }
-	zerolog.TimeFieldFormat = time.RFC1123
-	writers := zerolog.MultiLevelWriter(os.Stdout, fileLogger)
-	log := zerolog.New(writers).With().Timestamp().Logger()
+func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger) (*ssh.Client, error) {
 
 	var sshClient *ssh.Client
 	var connectErr error

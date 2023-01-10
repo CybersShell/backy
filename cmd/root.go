@@ -32,7 +32,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file to read from")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Sets verbose level")
-	rootCmd.PersistentFlags().Bool("viper", true, "use Viper for configuration")
+
 }
 
 func initConfig() {
