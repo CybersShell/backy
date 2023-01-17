@@ -1,4 +1,4 @@
-package notification
+package notifications
 
 func GetConfig() {
 

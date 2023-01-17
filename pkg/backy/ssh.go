@@ -1,7 +1,10 @@
+// ssh.go
+// Copyright (C) Andrew Woodlee 2023
+// License: Apache-2.0
+
 package backy
 
 import (
-	"errors"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -13,43 +16,9 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-type SshConfig struct {
-	// Config file to open
-	configFile string
-
-	// Private key path
-	privateKey string
-
-	// Port to connect to
-	port uint16
-
-	// host to check
-	host string
-
-	// host name to connect to
-	hostName string
-
-	user string
-}
-
-func (config SshConfig) GetSSHConfig() (SshConfig, error) {
-	hostNames := ssh_config.Get(config.host, "HostName")
-	if hostNames == "" {
-		return SshConfig{}, errors.New("hostname not found")
-	}
-	config.hostName = hostNames
-	privKey, err := ssh_config.GetStrict(config.host, "IdentityFile")
-	if err != nil {
-		return SshConfig{}, err
-	}
-	config.privateKey = privKey
-	User := ssh_config.Get(config.host, "User")
-	if User == "" {
-		return SshConfig{}, errors.New("user not found")
-	}
-	return config, nil
-}
-
+// ConnectToSSHHost connects to a host by looking up the config values in the directory ~/.ssh/config
+// Other than host, it does not yet respect other config values set in the backy config file.
+// It returns an ssh.Client used to run commands against.
 func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger) (*ssh.Client, error) {
 
 	var sshClient *ssh.Client

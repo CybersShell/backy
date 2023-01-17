@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"git.andrewnw.xyz/CyberShell/backy/pkg/backy"
+	"git.andrewnw.xyz/CyberShell/backy/pkg/notifications"
 
 	"github.com/spf13/cobra"
 )
@@ -12,17 +13,20 @@ var (
 		Short: "Runs commands defined in config file.",
 		Long: `Backup executes commands defined in config file, 
 		use the -cmds flag to execute the specified commands.`,
+		Run: Backup,
 	}
 )
-var CmdList *[]string
+var CmdList []string
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	// cobra.OnInitialize(initConfig)
 
-	backupCmd.Flags().StringSliceVarP(CmdList, "commands", "cmds", nil, "Accepts a comma-separated list of command lists to execute.")
+	backupCmd.Flags().StringSliceVar(&CmdList, "cmds", nil, "Accepts a comma-separated list of command lists to execute.")
+
 }
 
-func backup() {
-	backyConfig := backy.NewOpts(cfgFile)
-	backyConfig.GetConfig()
+func Backup(cmd *cobra.Command, args []string) {
+	config := backy.ReadAndParseConfigFile(cfgFile)
+	notifications.SetupNotify(*config)
+	config.RunBackyConfig()
 }
