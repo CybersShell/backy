@@ -2,11 +2,25 @@
 
 This app is in development, and is currently not stable. Expect core functionality to possiblly break.
 
-To install: `go install git.andrewnw.xyz/CyberShell/backy`
+## Installing
 
-If you leave the config path blank, the following paths will be searched in order: 
-  - `./backy.yaml`
-  - `~/.config/backy.yaml`
+To install:
+
+`go install git.andrewnw.xyz/CyberShell/backy`
+
+This assumes you already have a working Go environment, if not please see [this page](https://golang.org/doc/install) first.
+
+To run a config:
+
+`backy backup`
+
+Or to use a specific file:
+```backy backup -c /path/to/file```
+
+If you leave the config path blank, the following paths will be searched in order:
+
+- `./backy.yaml`
+- `~/.config/backy.yaml`
 
 Create a file at `~/.config/backy.yaml`:
 
@@ -82,11 +96,5 @@ notifications:
     user-id: your-user-id
 
 ```
-
-To run a config:
-```backy backup ```
-
-Or to use a specific file:
-```backy backup -c /path/to/file```
 
 Note, let me know if a path lookup fails due to using Go's STDLib `os`
