@@ -1,5 +1,6 @@
 // types.go
 // Copyright (C) Andrew Woodlee 2023
+// License: Apache-2.0
 package backy
 
 import (
