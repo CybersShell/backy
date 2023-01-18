@@ -36,7 +36,7 @@ changelog:
       - '^test:'
 
 gitea_urls:
-  api: https://git.andrewnw.com/api/v1
+  api: https://git.andrewnw.xyz/api/v1
   download: https://git.andrewnw.xyz
 # The lines beneath this are called `modelines`. See `:help modeline`
 # Feel free to remove those if you don't want/use them.
