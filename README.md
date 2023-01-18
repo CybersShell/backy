@@ -6,7 +6,7 @@ This app is in development, and is currently not stable. Expect core functionali
 
 To install:
 
-`go install git.andrewnw.xyz/CyberShell/backy`
+`go install git.andrewnw.xyz/CyberShell/backy@master`
 
 This assumes you already have a working Go environment, if not please see [this page](https://golang.org/doc/install) first.
 
