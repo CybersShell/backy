@@ -230,6 +230,8 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 	logFile := backyLoggingOpts.GetString("file")
 	if verbose {
 		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+		globalLvl := zerolog.GlobalLevel().String()
+		os.Setenv("BACKY_LOGLEVEL", globalLvl)
 	}
 	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC1123}
 	output.FormatLevel = func(i interface{}) string {
