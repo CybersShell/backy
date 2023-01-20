@@ -1,5 +1,0 @@
-package notifications
-
-func GetConfig() {
-
-}

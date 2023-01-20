@@ -57,6 +57,8 @@ type Command struct {
 	Environment []string `yaml:"environment,omitempty"`
 }
 
+type BackyOptionFunc func(*BackyConfigOpts)
+
 type CmdConfig struct {
 	Order               []string `yaml:"order,omitempty"`
 	Notifications       []string `yaml:"notifications,omitempty"`
@@ -64,27 +66,20 @@ type CmdConfig struct {
 }
 
 type BackyConfigFile struct {
-	/*
-		Cmds holds the commands for a list.
-		Key is the name of the command,
-	*/
-	Cmds map[string]Command `yaml:"commands"`
 
-	/*
-		CmdLConfigists holds the lists of commands to be run in order.
-		Key is the command list name.
-	*/
+	// Cmds holds the commands for a list.
+	// Key is the name of the command,
+	Cmds map[string]*Command `yaml:"commands"`
+
+	// CmdConfigLists holds the lists of commands to be run in order.
+	// Key is the command list name.
 	CmdConfigLists map[string]*CmdConfig `yaml:"cmd-configs"`
 
-	/*
-		Hosts holds the Host config.
-		key is the host.
-	*/
+	// Hosts holds the Host config.
+	// key is the host.
 	Hosts map[string]Host `yaml:"hosts"`
 
-	/*
-		Notifications holds the config for different notifications.
-	*/
+	// Notifications holds the config for different notifications.
 	Notifications map[string]*NotificationsConfig
 
 	Logger zerolog.Logger
@@ -95,7 +90,8 @@ type BackyConfigOpts struct {
 	ConfigFile *BackyConfigFile
 	// Holds config file
 	ConfigFilePath string
-
+	// Holds commands to execute for the exec command
+	executeCmds []string
 	// Global log level
 	BackyLogLvl *string
 }

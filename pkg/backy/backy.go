@@ -27,23 +27,26 @@ var requiredKeys = []string{"commands", "cmd-configs"}
 
 var Sprintf = fmt.Sprintf
 
-type BackyOptionFunc func(*BackyConfigOpts)
-
 func (c *BackyConfigOpts) LogLvl(level string) BackyOptionFunc {
+
 	return func(bco *BackyConfigOpts) {
 		c.BackyLogLvl = &level
 	}
 }
 
-func (c *BackyConfigOpts) GetConfig() {
-	c.ConfigFile = ReadAndParseConfigFile(c.ConfigFilePath)
+func AddCommands(commands []string) BackyOptionFunc {
+	return func(bco *BackyConfigOpts) {
+		bco.executeCmds = append(bco.executeCmds, commands...)
+	}
 }
 
 func NewOpts(configFilePath string, opts ...BackyOptionFunc) *BackyConfigOpts {
 	b := &BackyConfigOpts{}
 	b.ConfigFilePath = configFilePath
 	for _, opt := range opts {
-		opt(b)
+		if opt != nil {
+			opt(b)
+		}
 	}
 	return b
 }
@@ -53,7 +56,7 @@ NewConfig initializes new config that holds information	from the config file
 */
 func NewConfig() *BackyConfigFile {
 	return &BackyConfigFile{
-		Cmds:           make(map[string]Command),
+		Cmds:           make(map[string]*Command),
 		CmdConfigLists: make(map[string]*CmdConfig),
 		Hosts:          make(map[string]Host),
 		Notifications:  make(map[string]*NotificationsConfig),
@@ -65,10 +68,12 @@ type environmentVars struct {
 	env  []string
 }
 
-/*
-* Runs a backup configuration
- */
-
+// RunCmd runs a Command.
+// The environment of local commands will be the machine's environment plus any extra
+// variables specified in the Env file or Environment.
+//
+// If host is specifed, the command will call ConnectToSSHHost,
+// returning a client that is used to run the command.
 func (command *Command) RunCmd(log *zerolog.Logger) {
 
 	var envVars = environmentVars{
@@ -118,6 +123,10 @@ func (command *Command) RunCmd(log *zerolog.Logger) {
 			log.Error().Err(fmt.Errorf("error when running cmd: %s: %w", command.Cmd, err)).Send()
 		}
 	} else {
+		cmdExists := command.checkCmdExists()
+		if !cmdExists {
+			log.Error().Str(command.Cmd, "not found").Send()
+		}
 		// shell := "/bin/bash"
 		var err error
 		if command.Shell != "" {
@@ -159,12 +168,10 @@ func (command *Command) RunCmd(log *zerolog.Logger) {
 
 func cmdListWorker(id int, jobs <-chan *CmdConfig, config *BackyConfigFile, results chan<- string) {
 	for j := range jobs {
-		// fmt.Println("worker", id, "started  job", j)
 		for _, cmd := range j.Order {
 			cmdToRun := config.Cmds[cmd]
 			cmdToRun.RunCmd(&config.Logger)
 		}
-		// fmt.Println("worker", id, "finished job", j)
 		results <- "done"
 	}
 }
@@ -198,8 +205,14 @@ func (config *BackyConfigFile) RunBackyConfig() {
 
 }
 
+func (config *BackyConfigFile) ExecuteCmds() {
+	for _, cmd := range config.Cmds {
+		cmd.RunCmd(&config.Logger)
+	}
+}
+
 // ReadAndParseConfigFile validates and reads the config file.
-func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
+func ReadAndParseConfigFile(configFile string, lists []string) *BackyConfigFile {
 
 	backyConfigFile := NewConfig()
 
@@ -218,7 +231,13 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 		panic(fmt.Errorf("fatal error reading config file %s: %w", backyViper.ConfigFileUsed(), err))
 	}
 
-	CheckForConfigValues(backyViper)
+	CheckConfigValues(backyViper)
+
+	for _, l := range lists {
+		if !backyViper.IsSet(getCmdListFromConfig(l)) {
+			logging.ExitWithMSG(Sprintf("list %s not found", l), 1, nil)
+		}
+	}
 
 	var backyLoggingOpts *viper.Viper
 	backyLoggingOptsSet := backyViper.IsSet("logging")
@@ -229,7 +248,7 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 
 	logFile := backyLoggingOpts.GetString("file")
 	if verbose {
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		globalLvl := zerolog.GlobalLevel().String()
 		os.Setenv("BACKY_LOGLEVEL", globalLvl)
 	}
@@ -281,7 +300,6 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 	hostConfigsMap := make(map[string]*viper.Viper)
 
 	for _, cmdName := range cmdNames {
-		var backupCmdStruct Command
 		subCmd := backyViper.Sub(getNestedConfig("commands", cmdName))
 
 		hostSet := subCmd.IsSet("host")
@@ -289,7 +307,6 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 
 		if hostSet {
 			log.Debug().Timestamp().Str(cmdName, "host is set").Str("host", host).Send()
-			backupCmdStruct.Host = &host
 			if backyViper.IsSet(getNestedConfig("hosts", host)) {
 				hostconfig := backyViper.Sub(getNestedConfig("hosts", host))
 				hostConfigsMap[host] = hostconfig
@@ -297,8 +314,6 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 		} else {
 			log.Debug().Timestamp().Str(cmdName, "host is not set").Send()
 		}
-
-		// backyConfigFile.Cmds[cmdName] = backupCmdStruct
 
 	}
 
@@ -310,7 +325,6 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 	var cmdNotFoundSliceErr []error
 	for cmdListName, cmdList := range backyConfigFile.CmdConfigLists {
 		for _, cmdInList := range cmdList.Order {
-			// log.Info().Msgf("CmdList %s     Cmd %s", cmdListName, cmdInList)
 			_, cmdNameFound := backyConfigFile.Cmds[cmdInList]
 			if !cmdNameFound {
 				cmdNotFoundStr := fmt.Sprintf("command %s is not defined in config file", cmdInList)
@@ -318,10 +332,40 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 				cmdNotFoundSliceErr = append(cmdNotFoundSliceErr, cmdNotFoundErr)
 			} else {
 				log.Info().Str(cmdInList, "found in "+cmdListName).Send()
-				// backyConfigFile.CmdLists[cmdListName] = append(backyConfigFile.CmdLists[cmdListName], cmdInList)
+			}
+		}
+		for _, notificationID := range cmdList.Notifications {
+
+			cmdList.NotificationsConfig = make(map[string]*NotificationsConfig)
+			notifConfig := backyViper.Sub(getNestedConfig("notifications", notificationID))
+			config := &NotificationsConfig{
+				Config:  notifConfig,
+				Enabled: true,
+			}
+			cmdList.NotificationsConfig[notificationID] = config
+			// First we get a "copy" of the entry
+			if entry, ok := cmdList.NotificationsConfig[notificationID]; ok {
+
+				// Then we modify the copy
+				entry.Config = notifConfig
+				entry.Enabled = true
+
+				// Then we reassign the copy
+				cmdList.NotificationsConfig[notificationID] = entry
+			}
+			backyConfigFile.CmdConfigLists[cmdListName].NotificationsConfig[notificationID] = config
+
+		}
+	}
+
+	if len(lists) > 0 {
+		for l := range backyConfigFile.CmdConfigLists {
+			if !contains(lists, l) {
+				delete(backyConfigFile.CmdConfigLists, l)
 			}
 		}
 	}
+
 	if len(cmdNotFoundSliceErr) > 0 {
 		var cmdNotFoundErrorLog = log.Fatal()
 		for _, err := range cmdNotFoundSliceErr {
@@ -330,33 +374,6 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 			}
 		}
 		cmdNotFoundErrorLog.Send()
-	}
-
-	// var notificationSlice []string
-	for name, cmdCfg := range backyConfigFile.CmdConfigLists {
-		for _, notificationID := range cmdCfg.Notifications {
-			// if !contains(notificationSlice, notificationID) {
-
-			cmdCfg.NotificationsConfig = make(map[string]*NotificationsConfig)
-			notifConfig := backyViper.Sub(getNestedConfig("notifications", notificationID))
-			config := &NotificationsConfig{
-				Config:  notifConfig,
-				Enabled: true,
-			}
-			cmdCfg.NotificationsConfig[notificationID] = config
-			// First we get a "copy" of the entry
-			if entry, ok := cmdCfg.NotificationsConfig[notificationID]; ok {
-
-				// Then we modify the copy
-				entry.Config = notifConfig
-				entry.Enabled = true
-
-				// Then we reassign the copy
-				cmdCfg.NotificationsConfig[notificationID] = entry
-			}
-			backyConfigFile.CmdConfigLists[name].NotificationsConfig[notificationID] = config
-		}
-		// }
 	}
 
 	var notificationsMap = make(map[string]interface{})
@@ -370,16 +387,119 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 			}
 			backyConfigFile.Notifications[id] = config
 		}
+	}
 
-		// for _, notif := range backyConfigFile.Notifications {
-		// 	fmt.Printf("Type: %s\n", notif.Config.GetString("type"))
-		// 	notificationID := notif.Config.GetString("id")
-		// 	if !contains(notificationSlice, notificationID) {
-		// 		config := backyConfigFile.Notifications[notificationID]
-		// 		config.Enabled = false
-		// 		backyConfigFile.Notifications[notificationID] = config
-		// 	}
-		// }
+	return backyConfigFile
+}
+
+// GetCmdsInConfigFile validates and reads the config file for commands.
+func (opts *BackyConfigOpts) GetCmdsInConfigFile() *BackyConfigFile {
+
+	backyConfigFile := NewConfig()
+
+	backyViper := viper.New()
+
+	if opts.ConfigFilePath != strings.TrimSpace("") {
+		backyViper.SetConfigFile(opts.ConfigFilePath)
+	} else {
+		backyViper.SetConfigName("backy.yaml")          // name of config file (with extension)
+		backyViper.SetConfigType("yaml")                // REQUIRED if the config file does not have the extension in the name
+		backyViper.AddConfigPath(".")                   // optionally look for config in the working directory
+		backyViper.AddConfigPath("$HOME/.config/backy") // call multiple times to add many search paths
+	}
+	err := backyViper.ReadInConfig() // Find and read the config file
+	if err != nil {                  // Handle errors reading the config file
+		panic(fmt.Errorf("fatal error reading config file %s: %w", backyViper.ConfigFileUsed(), err))
+	}
+
+	CheckConfigValues(backyViper)
+	for _, c := range opts.executeCmds {
+		if !backyViper.IsSet(getCmdFromConfig(c)) {
+			logging.ExitWithMSG(Sprintf("command %s is not in config file %s", c, backyViper.ConfigFileUsed()), 1, nil)
+		}
+	}
+	var backyLoggingOpts *viper.Viper
+	backyLoggingOptsSet := backyViper.IsSet("logging")
+	if backyLoggingOptsSet {
+		backyLoggingOpts = backyViper.Sub("logging")
+	}
+	verbose := backyLoggingOpts.GetBool("verbose")
+
+	logFile := backyLoggingOpts.GetString("file")
+	if verbose {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+		globalLvl := zerolog.GlobalLevel().String()
+		os.Setenv("BACKY_LOGLEVEL", globalLvl)
+	}
+	output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC1123}
+	output.FormatLevel = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+	}
+	output.FormatMessage = func(i interface{}) string {
+		return fmt.Sprintf("%s", i)
+	}
+	output.FormatFieldName = func(i interface{}) string {
+		return fmt.Sprintf("%s: ", i)
+	}
+	output.FormatFieldValue = func(i interface{}) string {
+		return strings.ToUpper(fmt.Sprintf("%s", i))
+	}
+
+	fileLogger := &lumberjack.Logger{
+		MaxSize:    500, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28,   //days
+		Compress:   true, // disabled by default
+	}
+	if strings.TrimSpace(logFile) != "" {
+		fileLogger.Filename = logFile
+	} else {
+		fileLogger.Filename = "./backy.log"
+	}
+
+	// UNIX Time is faster and smaller than most timestamps
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	// zerolog.TimeFieldFormat = time.RFC1123
+	writers := zerolog.MultiLevelWriter(os.Stdout, fileLogger)
+	log := zerolog.New(writers).With().Timestamp().Logger()
+
+	backyConfigFile.Logger = log
+
+	commandsMap := backyViper.GetStringMapString("commands")
+	commandsMapViper := backyViper.Sub("commands")
+	unmarshalErr := commandsMapViper.Unmarshal(&backyConfigFile.Cmds)
+	if unmarshalErr != nil {
+		panic(fmt.Errorf("error unmarshalling cmds struct: %w", unmarshalErr))
+	}
+
+	var cmdNames []string
+	for c := range commandsMap {
+		if contains(opts.executeCmds, c) {
+			cmdNames = append(cmdNames, c)
+		}
+		if !contains(opts.executeCmds, c) {
+			delete(backyConfigFile.Cmds, c)
+		}
+	}
+
+	hostConfigsMap := make(map[string]*viper.Viper)
+
+	for _, cmdName := range cmdNames {
+		subCmd := backyViper.Sub(getNestedConfig("commands", cmdName))
+
+		hostSet := subCmd.IsSet("host")
+		host := subCmd.GetString("host")
+
+		if hostSet {
+			log.Debug().Timestamp().Str(cmdName, "host is set").Str("host", host).Send()
+			if backyViper.IsSet(getNestedConfig("hosts", host)) {
+				hostconfig := backyViper.Sub(getNestedConfig("hosts", host))
+				hostConfigsMap[host] = hostconfig
+			}
+		} else {
+			log.Debug().Timestamp().Str(cmdName, "host is not set").Send()
+		}
+
 	}
 
 	return backyConfigFile
@@ -387,6 +507,13 @@ func ReadAndParseConfigFile(configFile string) *BackyConfigFile {
 
 func getNestedConfig(nestedConfig, key string) string {
 	return fmt.Sprintf("%s.%s", nestedConfig, key)
+}
+
+func getCmdFromConfig(key string) string {
+	return fmt.Sprintf("commands.%s", key)
+}
+func getCmdListFromConfig(list string) string {
+	return fmt.Sprintf("cmd-configs.%s", list)
 }
 
 func resolveDir(path string) (string, error) {
@@ -410,7 +537,7 @@ func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, log
 	if envVarsToInject.file != "" {
 		envPath, envPathErr := resolveDir(envVarsToInject.file)
 		if envPathErr != nil {
-			log.Error().Err(envPathErr).Send()
+			log.Err(envPathErr).Send()
 		}
 		file, err := os.Open(envPath)
 		if err != nil {
@@ -466,6 +593,12 @@ func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, l
 			}
 		}
 	}
+	envVarsToInject.env = append(envVarsToInject.env, os.Environ()...)
+}
+
+func (cmd *Command) checkCmdExists() bool {
+	_, err := exec.LookPath(cmd.Cmd)
+	return err == nil
 }
 
 func contains(s []string, e string) bool {
@@ -477,7 +610,7 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func CheckForConfigValues(config *viper.Viper) {
+func CheckConfigValues(config *viper.Viper) {
 
 	for _, key := range requiredKeys {
 		isKeySet := config.IsSet(key)

@@ -1,7 +1,7 @@
 // notification.go
 // Copyright (C) Andrew Woodlee 2023
 // License: Apache-2.0
-package notifications
+package notification
 
 import (
 	"fmt"

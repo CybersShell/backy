@@ -41,6 +41,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Sets verbose level")
 
 	rootCmd.AddCommand(backupCmd)
+	rootCmd.AddCommand(execCmd)
 }
 
 func initConfig() {

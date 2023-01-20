@@ -10,6 +10,16 @@ To install:
 
 This assumes you already have a working Go environment, if not please see [this page](https://golang.org/doc/install) first.
 
+You can also download binaries [here](https://git.andrewnw.xyz/CyberShell/backy/releases) and [here](https://github.com/CybersShell/backy/releases).
+
+## Features
+
+- Define lists of commands and run them
+
+- Execute commands over SSH
+
+- More to come.
+
 To run a config:
 
 `backy backup`
