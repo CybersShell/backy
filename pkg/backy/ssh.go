@@ -73,7 +73,7 @@ func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger) (*ssh.Client, er
 	remoteConfig.GetPrivateKeyFromConfig()
 	remoteConfig.GetHostNameWithPort()
 	remoteConfig.GetSshUserFromConfig()
-
+	log.Info().Msgf("Port: %v", remoteConfig.Port)
 	if remoteConfig.HostName == "" {
 		return nil, errors.New("No hostname found or specified")
 	}
@@ -175,34 +175,30 @@ func (remoteHost *Host) GetPrivateKeyFromConfig() {
 	remoteHost.PrivateKeyPath, _ = resolveDir(identityFile)
 }
 
-// GetHostNameWithPort checks if the port from the config file is empty
-// If it is the port is searched in the SSH config file
+// GetHostNameWithPort checks if the port from the config file is 0
+// If it is the port is searched in the SSH config file(s)
 func (remoteHost *Host) GetHostNameWithPort() {
-	var port string
+	port := fmt.Sprintf("%v", remoteHost.Port)
 
-	if remoteHost.Port == 0 {
+	if remoteHost.HostName == "" {
+		remoteHost.HostName, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "HostName")
 		if remoteHost.HostName == "" {
-			remoteHost.HostName, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "HostName")
-			if remoteHost.HostName == "" {
-				remoteHost.HostName = remoteHost.SSHConfigFile.DefaultUserSettings.Get(remoteHost.Host, "HostName")
-			}
-			port, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "Port")
+			remoteHost.HostName = remoteHost.SSHConfigFile.DefaultUserSettings.Get(remoteHost.Host, "HostName")
+		}
+	}
+	// no port specifed
+	if port == "0" {
+		port, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "Port")
+		if port == "" {
+			port = remoteHost.SSHConfigFile.DefaultUserSettings.Get(remoteHost.Host, "Port")
 			if port == "" {
-				port = remoteHost.SSHConfigFile.DefaultUserSettings.Get(remoteHost.Host, "Port")
-				if port == "" {
-					port = "22"
-				}
+				port = "22"
 			}
 		}
+		println(port)
+	}
+	if !strings.HasSuffix(remoteHost.HostName, ":"+port) {
 		remoteHost.HostName = remoteHost.HostName + ":" + port
-	} else {
-		if remoteHost.HostName == "" {
-			remoteHost.HostName, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "HostName")
-			if remoteHost.HostName == "" {
-				remoteHost.HostName = remoteHost.SSHConfigFile.DefaultUserSettings.Get(remoteHost.Host, "HostName")
-			}
-		}
-		remoteHost.HostName = remoteHost.HostName + ":" + fmt.Sprintf("%v", remoteHost.Port)
 	}
 }
 
