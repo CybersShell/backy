@@ -1,28 +1,26 @@
 commands:
   stop-docker-container:
     cmd: docker
-    cmdArgs:
+    Args:
       - compose
       - -f /some/path/to/docker-compose.yaml
       - down
-    # if host is not defined, 
+    # if host is not defined, cmd will be run locally
     host: some-host 
-    env: ~/path/to/env/file
   backup-docker-container-script:
     cmd: /path/to/script
+    # The host has to be defined in the config file
     host: some-host
-    env: ~/path/to/env/file
   shell-cmd:
     cmd: rsync
     shell: bash
-    cmdArgs:
+    Args:
       - -av some-host:/path/to/data ~/Docker/Backups/docker-data
   hostname:
     cmd: hostname
 
 cmd-configs:
-  # this can be any name you want
-  cmds-to-run: 
+  cmds-to-run: # this can be any name you want
     # all commands have to be defined
     order:
       - stop-docker-container
@@ -31,7 +29,9 @@ cmd-configs:
       - hostname
     notifications:
       - matrix
+    name: backup-some-server
   hostname:
+    name: hostname
     order:
       - hostname
     notifications:
@@ -39,14 +39,19 @@ cmd-configs:
 
 hosts:
   some-host:
-    config:
-      usefile: true
-      user: root
-      private-key-path:
+    hostname: some-hostname
+    config: ~/.ssh/config
+    user: user
+    privatekeypath: /path/to/private/key
+    port: 22
+    password: 
+
 
 logging:
   verbose: true
   file: /path/to/logs/commands.log
+  console: false
+  cmd-std-out: false
 
 
 notifications:

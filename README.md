@@ -25,7 +25,7 @@ To run a config:
 `backy backup`
 
 Or to use a specific file:
-```backy backup -c /path/to/file```
+```backy backup -f /path/to/file```
 
 If you leave the config path blank, the following paths will be searched in order:
 
@@ -38,28 +38,25 @@ Create a file at `~/.config/backy.yaml`:
 commands:
   stop-docker-container:
     cmd: docker
-    cmdArgs:
+    Args:
       - compose
       - -f /some/path/to/docker-compose.yaml
       - down
     # if host is not defined, 
     host: some-host 
-    env: ~/path/to/env/file
   backup-docker-container-script:
     cmd: /path/to/script
     host: some-host
-    env: ~/path/to/env/file
   shell-cmd:
     cmd: rsync
     shell: bash
-    cmdArgs:
+    Args:
       - -av some-host:/path/to/data ~/Docker/Backups/docker-data
   hostname:
     cmd: hostname
 
 cmd-configs:
-  # this can be any name you want
-  cmds-to-run: 
+  cmds-to-run: # this can be any name you want
     # all commands have to be defined
     order:
       - stop-docker-container
@@ -68,7 +65,9 @@ cmd-configs:
       - hostname
     notifications:
       - matrix
+    name: backup-some-server
   hostname:
+    name: hostname
     order:
       - hostname
     notifications:
@@ -76,22 +75,26 @@ cmd-configs:
 
 hosts:
   some-host:
-    config:
-      usefile: true
-      user: root
-      private-key-path:
+    hostname: some-hostname
+    config: ~/.ssh/config
+    user: user
+    privatekeypath: /path/to/private/key
+    port: 22
+    password: 
+
 
 logging:
   verbose: true
   file: /path/to/logs/commands.log
+  console: false
+  cmd-std-out: false
 
 
 notifications:
   prod-email:
     id: prod-email
     type: mail
-    host: yourhost.tld
-    port: 587
+    host: yourhost.tld:port
     senderAddress: email@domain.tld
     to:
       - admin@domain.tld
@@ -100,7 +103,7 @@ notifications:
   matrix:
     id: matrix
     type: matrix
-    homeserver: your-home-server.tld
+    home-server: your-home-server.tld
     room-id: room-id
     access-token: your-access-token
     user-id: your-user-id
