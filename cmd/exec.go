@@ -1,3 +1,7 @@
+// exec.go
+// Copyright (C) Andrew Woodlee 2023
+// License: Apache-2.0
+
 package cmd
 
 import (
@@ -9,7 +13,7 @@ import (
 
 var (
 	execCmd = &cobra.Command{
-		Use:   "exec command1 command2",
+		Use:   "exec command ...",
 		Short: "Runs commands defined in config file.",
 		Long:  `Exec executes commands defined in config file.`,
 		Run:   execute,
@@ -23,9 +27,8 @@ func execute(cmd *cobra.Command, args []string) {
 	}
 
 	opts := backy.NewOpts(cfgFile, backy.AddCommands(args))
-
-	commands := opts.GetCmdsInConfigFile()
-
-	commands.ExecuteCmds()
+	opts.InitConfig()
+	// opts.InitMongo()
+	backy.ReadConfig(opts).ExecuteCmds()
 
 }

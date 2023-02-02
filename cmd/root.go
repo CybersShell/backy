@@ -7,11 +7,8 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -35,35 +32,9 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file to read from")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "f", "", "config file to read from")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Sets verbose level")
 
-	rootCmd.AddCommand(backupCmd)
-	rootCmd.AddCommand(execCmd)
-}
-
-func initConfig() {
-	backyConfig := viper.New()
-	if cfgFile != strings.TrimSpace("") {
-		// Use config file from the flag.
-		backyConfig.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
-
-		configPath := path.Join(home, ".config", "backy")
-		// Search config in config directory with name "backy" (without extension).
-		backyConfig.AddConfigPath(configPath)
-		backyConfig.SetConfigType("yaml")
-		backyConfig.SetConfigName("backy")
-	}
-
-	backyConfig.AutomaticEnv()
-
-	if err := backyConfig.ReadInConfig(); err == nil {
-		// fmt.Println("Using config file:", backyConfig.ConfigFileUsed())
-	}
+	rootCmd.AddCommand(backupCmd, execCmd, cronCmd)
 }
