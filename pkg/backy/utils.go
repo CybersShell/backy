@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
+	"mvdan.cc/sh/v3/shell"
 )
 
 func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, log *zerolog.Logger) {
@@ -206,4 +208,34 @@ func resolveDir(path string) (string, error) {
 		path = filepath.Join(homeDir, path[2:])
 	}
 	return path, nil
+}
+
+func (opts *BackyConfigOpts) loadEnv() {
+	envFileInConfigDir := fmt.Sprintf("%s/.env", path.Dir(opts.viper.ConfigFileUsed()))
+	var backyEnv map[string]string
+	backyEnv, envFileErr := godotenv.Read(envFileInConfigDir)
+	if envFileErr != nil {
+		return
+	}
+
+	opts.backyEnv = backyEnv
+}
+
+func expandEnvVars(backyEnv map[string]string, envVars []string) {
+
+	env := func(name string) string {
+		name = strings.ToUpper(name)
+		envVar, found := backyEnv[name]
+		if found {
+			return envVar
+		}
+		return ""
+	}
+
+	for indx, v := range envVars {
+		if strings.Contains(v, "$") || (strings.Contains(v, "${") && strings.Contains(v, "}")) {
+			out, _ := shell.Expand(v, env)
+			envVars[indx] = out
+		}
+	}
 }

@@ -11,6 +11,9 @@ commands:
     cmd: /path/to/script
     # The host has to be defined in the config file
     host: some-host
+    environment:
+      - FOO=BAR
+      - APP=$VAR
   shell-cmd:
     cmd: rsync
     shell: bash
@@ -38,15 +41,19 @@ cmd-configs:
       - prod-email
 
 hosts:
+  # any ssh_config(5) keys/values not listed here will be looked up in the config file or the default config file
   some-host:
     hostname: some-hostname
     config: ~/.ssh/config
     user: user
     privatekeypath: /path/to/private/key
     port: 22
-    password: 
+    # can also be env:VAR
+    password: file:/path/to/file
+    # only one is supported for now
+    proxyjump: some-proxy-host
 
-
+# optional
 logging:
   verbose: true
   file: /path/to/logs/commands.log
@@ -58,7 +65,8 @@ notifications:
   prod-email:
     id: prod-email
     type: mail
-    host: yourhost.tld:port
+    host: yourhost.tld
+    port: 587
     senderAddress: email@domain.tld
     to:
       - admin@domain.tld

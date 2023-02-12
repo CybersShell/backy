@@ -1,0 +1,7 @@
+Command list {{ .listName }} was completed successfully. 
+
+
+The following commands ran:
+{{- range .CmdsRan}}
+    - {{. -}}
+{{end}}

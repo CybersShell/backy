@@ -1,0 +1,8 @@
+Command list {{.listName }} failed on running {{.Command}}.
+
+The error was {{ .Err }}
+
+The following commands ran:
+{{- range .CmdsRan}}
+    - {{. -}}
+{{end}}
