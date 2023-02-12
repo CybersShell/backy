@@ -209,7 +209,8 @@ func (remoteHost *Host) GetPort() {
 }
 
 func (remoteHost *Host) CombineHostNameWithPort() {
-	if remoteHost.HostName == fmt.Sprintf("%s:%v", remoteHost.HostName, remoteHost.Port) {
+	port := fmt.Sprintf(":%v", remoteHost.Port)
+	if strings.Contains(remoteHost.HostName, port) {
 		return
 	}
 	remoteHost.HostName = fmt.Sprintf("%s:%v", remoteHost.HostName, remoteHost.Port)
