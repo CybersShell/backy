@@ -11,11 +11,17 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"text/template"
+
+	"embed"
 
 	"github.com/rs/zerolog"
 )
 
-var requiredKeys = []string{"commands", "cmd-configs", "logging"}
+//go:embed templates/*.txt
+var templates embed.FS
+
+var requiredKeys = []string{"commands", "cmd-configs"}
 
 var Sprintf = fmt.Sprintf
 
@@ -23,7 +29,7 @@ var Sprintf = fmt.Sprintf
 // The environment of local commands will be the machine's environment plus any extra
 // variables specified in the Env file or Environment.
 // Dir can also be specified for local commands.
-func (command *Command) RunCmd(log *zerolog.Logger) error {
+func (command *Command) RunCmd(log *zerolog.Logger, hosts map[string]*Host) error {
 
 	var (
 		ArgsStr       string
@@ -44,12 +50,12 @@ func (command *Command) RunCmd(log *zerolog.Logger) error {
 	if command.Host != nil {
 		log.Info().Str("Command", fmt.Sprintf("Running command: %s %s on host %s", command.Cmd, ArgsStr, *command.Host)).Send()
 
-		sshc, err := command.RemoteHost.ConnectToSSHHost(log)
+		err := command.RemoteHost.ConnectToSSHHost(log, hosts)
 		if err != nil {
 			return err
 		}
-		defer sshc.Close()
-		commandSession, err := sshc.NewSession()
+		defer command.RemoteHost.SshClient.Close()
+		commandSession, err := command.RemoteHost.SshClient.NewSession()
 		if err != nil {
 			log.Err(fmt.Errorf("new ssh session: %w", err)).Send()
 			return err
@@ -158,7 +164,7 @@ func cmdListWorker(id int, jobs <-chan *CmdList, config *BackyConfigFile, result
 		fieldsMap["list"] = list.Name
 		cmdLog := config.Logger.Info()
 		var count int
-		var Msg string
+		var cmdsRan []string
 		for _, cmd := range list.Order {
 			currentCmd = config.Cmds[cmd].Cmd
 			fieldsMap["cmd"] = config.Cmds[cmd].Cmd
@@ -167,12 +173,22 @@ func cmdListWorker(id int, jobs <-chan *CmdList, config *BackyConfigFile, result
 			cmdLogger := config.Logger.With().
 				Str("backy-cmd", cmd).
 				Logger()
-			runOutErr := cmdToRun.RunCmd(&cmdLogger)
+			runOutErr := cmdToRun.RunCmd(&cmdLogger, config.Hosts)
 			count++
 			if runOutErr != nil {
+				var errMsg bytes.Buffer
 				if list.NotifyConfig != nil {
-					notifySendErr := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s failed on command %s ", list.Name, cmd),
-						fmt.Sprintf("List %s failed on command %s running command %s. \n Error: %v", list.Name, cmd, currentCmd, runOutErr))
+					errStruct := make(map[string]interface{})
+					errStruct["listName"] = list.Name
+					errStruct["Command"] = currentCmd
+					errStruct["Err"] = runOutErr
+					errStruct["CmdsRan"] = cmdsRan
+					t := template.Must(template.New("error.txt").ParseFS(templates, "templates/error.txt"))
+					tmpErr := t.Execute(&errMsg, errStruct)
+					if tmpErr != nil {
+						config.Logger.Err(tmpErr).Send()
+					}
+					notifySendErr := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s failed on command %s ", list.Name, cmd), errMsg.String())
 					if notifySendErr != nil {
 						config.Logger.Err(notifySendErr).Send()
 					}
@@ -182,22 +198,32 @@ func cmdListWorker(id int, jobs <-chan *CmdList, config *BackyConfigFile, result
 			} else {
 
 				if count == len(list.Order) {
-					Msg += fmt.Sprintf("%s ", cmd)
+					cmdsRan = append(cmdsRan, cmd)
+					var successMsg bytes.Buffer
 					if list.NotifyConfig != nil {
-						err := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s succeded", list.Name),
-							fmt.Sprintf("Command list %s was completed successfully. The following commands ran:\n %s", list.Name, Msg))
+						successStruct := make(map[string]interface{})
+						successStruct["listName"] = list.Name
+						successStruct["CmdsRan"] = cmdsRan
+						t := template.Must(template.New("success.txt").ParseFS(templates, "templates/success.txt"))
+						tmpErr := t.Execute(&successMsg, successStruct)
+						if tmpErr != nil {
+							config.Logger.Err(tmpErr).Send()
+							break
+						}
+						err := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s succeded", list.Name), successMsg.String())
 						if err != nil {
 							config.Logger.Err(err).Send()
 						}
 					}
 				} else {
-					Msg += fmt.Sprintf("%s, ", cmd)
+					cmdsRan = append(cmdsRan, cmd)
 				}
 			}
 		}
 
 		results <- "done"
 	}
+
 }
 
 // RunBackyConfig runs a command list from the BackyConfigFile.
@@ -208,7 +234,7 @@ func (config *BackyConfigFile) RunBackyConfig(cron string) {
 
 	// This starts up 3 workers, initially blocked
 	// because there are no jobs yet.
-	for w := 1; w <= 3; w++ {
+	for w := 1; w <= configListsLen; w++ {
 		go cmdListWorker(w, listChan, config, results)
 
 	}
@@ -216,7 +242,10 @@ func (config *BackyConfigFile) RunBackyConfig(cron string) {
 	// Here we send 5 `jobs` and then `close` that
 	// channel to indicate that's all the work we have.
 	// configChan <- config.Cmds
-	for _, cmdConfig := range config.CmdConfigLists {
+	for listName, cmdConfig := range config.CmdConfigLists {
+		if cmdConfig.Name == "" {
+			cmdConfig.Name = listName
+		}
 		if cron != "" {
 			if cron == cmdConfig.Cron {
 				listChan <- cmdConfig
@@ -235,6 +264,9 @@ func (config *BackyConfigFile) RunBackyConfig(cron string) {
 
 func (config *BackyConfigFile) ExecuteCmds() {
 	for _, cmd := range config.Cmds {
-		cmd.RunCmd(&config.Logger)
+		runErr := cmd.RunCmd(&config.Logger, config.Hosts)
+		if runErr != nil {
+			config.Logger.Err(runErr).Send()
+		}
 	}
 }

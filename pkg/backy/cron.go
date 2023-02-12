@@ -14,15 +14,21 @@ import (
 func (conf *BackyConfigFile) Cron() {
 	s := gocron.NewScheduler(time.Local)
 	s.TagsUnique()
-	for _, config := range conf.CmdConfigLists {
-		if strings.TrimSpace(config.Cron) != "" {
-			_, err := s.CronWithSeconds(config.Cron).Tag(config.Name).Do(func(cron string) {
+	for listName, config := range conf.CmdConfigLists {
+		if config.Name == "" {
+			config.Name = listName
+		}
+		cron := strings.TrimSpace(config.Cron)
+		if cron != "" {
+			conf.Logger.Info().Str("Scheduling cron list", config.Name).Str("Time", cron).Send()
+			_, err := s.CronWithSeconds(cron).Tag(config.Name).Do(func(cron string) {
 				conf.RunBackyConfig(cron)
-			}, config.Cron)
+			}, cron)
 			if err != nil {
 				panic(err)
 			}
 		}
 	}
+	conf.Logger.Info().Msg("Starting cron mode...")
 	s.StartBlocking()
 }

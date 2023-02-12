@@ -25,7 +25,7 @@ var cmdLists []string
 
 func init() {
 
-	backupCmd.Flags().StringSliceVarP(&cmdLists, "lists", "l", nil, "Accepts a comma-separated names of command lists to execute.")
+	backupCmd.Flags().StringSliceVarP(&cmdLists, "lists", "l", nil, "Accepts comma-separated names of command lists to execute.")
 
 }
 

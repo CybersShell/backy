@@ -14,11 +14,17 @@ You can also download binaries [here](https://git.andrewnw.xyz/CyberShell/backy/
 
 ## Features
 
-- Define lists of commands and run them
+- Allows easy configuration of executable commands
 
-- Execute commands over SSH
+- Allows for commands to be run on many hosts over SSH
 
-- More to come.
+- Commands can be grouped in list to run in specific order
+
+- Notifications on completion and failure
+
+- Run in cron mode
+
+- For any command, especially backup commands
 
 To run a config:
 
@@ -29,84 +35,11 @@ Or to use a specific file:
 
 If you leave the config path blank, the following paths will be searched in order:
 
+- `./backy.yml`
 - `./backy.yaml`
+- `~/.config/backy.yml`
 - `~/.config/backy.yaml`
 
-Create a file at `~/.config/backy.yaml`:
+Create a file at `~/.config/backy.yml`.
 
-```yaml
-commands:
-  stop-docker-container:
-    cmd: docker
-    Args:
-      - compose
-      - -f /some/path/to/docker-compose.yaml
-      - down
-    # if host is not defined, cmd will be run locally
-    host: some-host 
-  backup-docker-container-script:
-    cmd: /path/to/script
-    # The host has to be defined in the config file
-    host: some-host
-  shell-cmd:
-    cmd: rsync
-    shell: bash
-    Args:
-      - -av some-host:/path/to/data ~/Docker/Backups/docker-data
-  hostname:
-    cmd: hostname
-
-cmd-configs:
-  cmds-to-run: # this can be any name you want
-    # all commands have to be defined
-    order:
-      - stop-docker-container
-      - backup-docker-container-script
-      - shell-cmd
-      - hostname
-    notifications:
-      - matrix
-    name: backup-some-server
-  hostname:
-    name: hostname
-    order:
-      - hostname
-    notifications:
-      - prod-email
-
-hosts:
-  some-host:
-    hostname: some-hostname
-    config: ~/.ssh/config
-    user: user
-    privatekeypath: /path/to/private/key
-    port: 22
-    password: 
-
-
-logging:
-  verbose: true
-  file: /path/to/logs/commands.log
-  console: false
-  cmd-std-out: false
-
-
-notifications:
-  prod-email:
-    id: prod-email
-    type: mail
-    host: yourhost.tld:port
-    senderAddress: email@domain.tld
-    to:
-      - admin@domain.tld
-    username: smtp-username@domain.tld
-    password: your-password-here
-  matrix:
-    id: matrix
-    type: matrix
-    home-server: your-home-server.tld
-    room-id: room-id
-    access-token: your-access-token
-    user-id: your-user-id
-
-```
+See the config file in the examples directory to configure it.  

@@ -87,5 +87,6 @@ func setupMail(config mailConfig) *mail.Mail {
 	mailClient := mail.New(config.senderaddress, config.host+":"+config.port)
 	mailClient.AuthenticateSMTP("", config.username, config.password, config.host)
 	mailClient.AddReceivers(config.to...)
+	mailClient.BodyFormat(mail.PlainText)
 	return mailClient
 }

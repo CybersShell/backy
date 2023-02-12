@@ -41,17 +41,18 @@ type Host struct {
 	HostName           string `yaml:"hostname,omitempty"`
 	KnownHostsFile     string `yaml:"knownhostsfile,omitempty"`
 	ClientConfig       *ssh.ClientConfig
-	SSHConfigFile      sshConfigFile
+	SSHConfigFile      *sshConfigFile
+	SshClient          *ssh.Client
 	Port               uint16 `yaml:"port,omitempty"`
-	JumpHost           string `yaml:"jumphost,omitempty"`
+	ProxyJump          string `yaml:"proxyjump,omitempty"`
 	Password           string `yaml:"password,omitempty"`
 	PrivateKeyPath     string `yaml:"privatekeypath,omitempty"`
 	PrivateKeyPassword string `yaml:"privatekeypassword,omitempty"`
 	UseConfigFiles     bool   `yaml:"use_config_files,omitempty"`
 	useDefaultConfig   bool
 	User               string `yaml:"user,omitempty"`
-	// ProxyHost holds the configuration for a JumpHost host
-	ProxyHost *Host
+	// ProxyHost holds the configuration for a ProxyJump host
+	ProxyHost []*Host
 }
 
 type sshConfigFile struct {
@@ -143,6 +144,9 @@ type BackyConfigOpts struct {
 	executeCmds []string
 	// Holds commands to execute for the exec command
 	executeLists []string
+
+	// Holds env vars from .env file
+	backyEnv map[string]string
 
 	viper *viper.Viper
 }

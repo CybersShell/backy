@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/spf13/viper"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -25,7 +24,7 @@ func ExitWithMSG(msg string, code int, log *zerolog.Logger) {
 	os.Exit(code)
 }
 
-func SetLoggingWriters(v *viper.Viper, logFile string) (writers zerolog.LevelWriter) {
+func SetLoggingWriters(logFile string) (writers zerolog.LevelWriter) {
 
 	console := zerolog.ConsoleWriter{}
 	if IsConsoleLoggingEnabled() {
@@ -55,12 +54,7 @@ func SetLoggingWriters(v *viper.Viper, logFile string) (writers zerolog.LevelWri
 		MaxAge:     28,   //days
 		Compress:   true, // disabled by default
 	}
-	if strings.TrimSpace(logFile) != "" {
-		fileLogger.Filename = logFile
-	} else {
-		fileLogger.Filename = "./backy.log"
-	}
-
+	fileLogger.Filename = logFile
 	// UNIX Time is faster and smaller than most timestamps
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	// zerolog.TimeFieldFormat = time.RFC1123
@@ -75,3 +69,7 @@ func SetLoggingWriters(v *viper.Viper, logFile string) (writers zerolog.LevelWri
 func IsConsoleLoggingEnabled() bool {
 	return os.Getenv("BACKY_CONSOLE_LOGGING") == "enabled"
 }
+
+// func IsTerminal() bool {
+// 	return os.Getenv("BACKY_TERM") == "enabled"
+// }
