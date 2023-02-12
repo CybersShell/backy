@@ -33,6 +33,7 @@ cmd-configs:
     notifications:
       - matrix
     name: backup-some-server
+    cron: "0 0 1 * * *"
   hostname:
     name: hostname
     order:
