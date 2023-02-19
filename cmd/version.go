@@ -19,7 +19,7 @@ var (
 
 func version(cmd *cobra.Command, args []string) {
 
-	fmt.Printf("v%s\n", versionStr)
+	fmt.Printf("%s\n", versionStr)
 
 	os.Exit(0)
 }
