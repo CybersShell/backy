@@ -2,8 +2,9 @@ name: goreleaser
 
 on:
   push:
-    branches: [ master ] # your default branch if different
-    paths: [ CHANGELOG.md ] # your changelog file if different
+    # run only against tags
+    tags:
+      - '*'
 
 permissions:
   contents: write
@@ -24,12 +25,17 @@ jobs:
           cache: true
       # More assembly might be required: Docker logins, GPG, etc. It all depends
       # on your needs.
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+        with:
+          # Optionally strip `v` prefix
+          strip_v: true
       - uses: goreleaser/goreleaser-action@v4
         with:
-          # either 'goreleaser' (default) or 'goreleaser-pro':
           distribution: goreleaser
           version: latest
-          args: release --release-notes=".changes/$(go run backy.go version).md" -f .goreleaser/github.yml --clean
+          args: release --release-notes=".changes/${{steps.tag.outputs.tag}}.md" -f .goreleaser/github.yml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
           # Your GoReleaser Pro key, if you are using the 'goreleaser-pro'
