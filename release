@@ -1,4 +1,5 @@
 #!/bin/bash
-git tag "$(svu next)"
-git push --tags
-goreleaser --rm-dist
+export GORELEASER_CURRENT_TAG="$(go run backy.go version)"
+git tag "$(go run backy.go version)"
+git push all --tags
+goreleaser release -f .goreleaser/gitea.yml --clean --release-notes=".changes/$(go run backy.go version)"

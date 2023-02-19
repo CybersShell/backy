@@ -1,8 +1,12 @@
 Command list {{.listName }} failed on running {{.Command}}.
 
-The error was {{ .Err }}
+{{ if .Err }} The error was {{ .Err }}{{ end }}
 
+{{ if .Output }} The output was {{- range .Output}} {{.}} {{end}} {{end}}
+
+{{ if .CmdsRan }}
 The following commands ran:
 {{- range .CmdsRan}}
     - {{. -}}
 {{end}}
+{{ end }}

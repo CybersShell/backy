@@ -1,5 +1,8 @@
 build:
 	go build
 
-gorealeaser-build:
-	goreleaser release --snapshot --rm-dist
+install:
+	go install .
+
+goreleaser-snapshot:
+	goreleaser -f .goreleaser/gitea.yml release --snapshot --clean

@@ -44,13 +44,12 @@ func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, log
 	}
 
 errEnvFile:
-	if len(envVarsToInject.env) > 0 {
-		for _, envVal := range envVarsToInject.env {
-			// don't append env Vars for Backy
-			if strings.Contains(envVal, "=") && !strings.HasPrefix(envVal, "BACKY_") {
-				envVarArr := strings.Split(envVal, "=")
-				process.Setenv(envVarArr[0], envVarArr[1])
-			}
+	// fmt.Printf("%v", envVarsToInject.env)
+	for _, envVal := range envVarsToInject.env {
+		// don't append env Vars for Backy
+		if strings.Contains(envVal, "=") {
+			envVarArr := strings.Split(envVal, "=")
+			process.Setenv(envVarArr[0], envVarArr[1])
 		}
 	}
 }
@@ -75,14 +74,13 @@ func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, l
 
 	}
 errEnvFile:
-	if len(envVarsToInject.env) > 0 {
-		for _, envVal := range envVarsToInject.env {
-			if strings.Contains(envVal, "=") {
-				process.Env = append(process.Env, envVal)
-			}
+
+	for _, envVal := range envVarsToInject.env {
+		if strings.Contains(envVal, "=") {
+			process.Env = append(process.Env, envVal)
 		}
 	}
-	envVarsToInject.env = append(envVarsToInject.env, os.Environ()...)
+	process.Env = append(process.Env, os.Environ()...)
 }
 
 func (cmd *Command) checkCmdExists() bool {
@@ -104,9 +102,8 @@ func CheckConfigValues(config *viper.Viper) {
 	for _, key := range requiredKeys {
 		isKeySet := config.IsSet(key)
 		if !isKeySet {
-			logging.ExitWithMSG(Sprintf("Config key %s is not defined in %s", key, config.ConfigFileUsed()), 1, nil)
+			logging.ExitWithMSG(Sprintf("Config key %s is not defined in %s. Please make sure this value is set and has the appropriate keys set.", key, config.ConfigFileUsed()), 1, nil)
 		}
-
 	}
 }
 
@@ -117,8 +114,6 @@ func testFile(c string) error {
 		if errors.Is(fileOpenErr, os.ErrNotExist) {
 			return fileOpenErr
 		}
-
-		fmt.Printf("%s\t\t%v", c, fileOpenErr)
 	}
 
 	return nil

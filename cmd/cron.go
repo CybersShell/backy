@@ -8,9 +8,9 @@ import (
 
 var (
 	cronCmd = &cobra.Command{
-		Use:   "cron command ...",
-		Short: "Runs commands defined in config file.",
-		Long:  `Cron executes commands at the time defined in config file.`,
+		Use:   "cron [flags]",
+		Short: "Runs command lists defined in config file.",
+		Long:  `Cron starts a scheduler that executes command lists at the time defined in config file.`,
 		Run:   cron,
 	}
 )

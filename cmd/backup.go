@@ -12,11 +12,10 @@ import (
 
 var (
 	backupCmd = &cobra.Command{
-		Use:   "backup [--lists==list1,list2]",
+		Use:   "backup [--lists=list1,list2]",
 		Short: "Runs commands defined in config file.",
-		Long: `Backup executes commands defined in config file.
-		Use the --lists flag to execute the specified commands.`,
-		Run: Backup,
+		Long:  "Backup executes commands defined in config file.\nUse the --lists flag to execute the specified commands. If not specified, all lists will be executed.",
+		Run:   Backup,
 	}
 )
 

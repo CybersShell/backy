@@ -1,10 +1,8 @@
-// types.go
-// Copyright (C) Andrew Woodlee 2023
-// License: Apache-2.0
 package backy
 
 import (
 	"bytes"
+	"text/template"
 
 	"github.com/kevinburke/ssh_config"
 	"github.com/nikoksr/notify"
@@ -15,158 +13,158 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type CmdConfigSchema struct {
-	ID      primitive.ObjectID `bson:"_id,omitempty"`
-	CmdList []string           `bson:"command-list,omitempty"`
-	Name    string             `bson:"name,omitempty"`
-}
-type CmdSchema struct {
-	ID   primitive.ObjectID `bson:"_id,omitempty"`
-	Cmd  string             `bson:"cmd,omitempty"`
-	Args []string           `bson:"args,omitempty"`
-	Host string             `bson:"host,omitempty"`
-	Dir  string             `bson:"dir,omitempty"`
-}
+type (
+	CmdConfigSchema struct {
+		ID      primitive.ObjectID `bson:"_id,omitempty"`
+		CmdList []string           `bson:"command-list,omitempty"`
+		Name    string             `bson:"name,omitempty"`
+	}
 
-type Schemas struct {
-	CmdConfigSchema
-	CmdSchema
-}
+	CmdSchema struct {
+		ID   primitive.ObjectID `bson:"_id,omitempty"`
+		Cmd  string             `bson:"cmd,omitempty"`
+		Args []string           `bson:"args,omitempty"`
+		Host string             `bson:"host,omitempty"`
+		Dir  string             `bson:"dir,omitempty"`
+	}
 
-// Host defines a host to which to connect.
-// If not provided, the values will be looked up in the default ssh config files
-type Host struct {
-	ConfigFilePath     string `yaml:"configfilepath,omitempty"`
-	Host               string `yaml:"host,omitempty"`
-	HostName           string `yaml:"hostname,omitempty"`
-	KnownHostsFile     string `yaml:"knownhostsfile,omitempty"`
-	ClientConfig       *ssh.ClientConfig
-	SSHConfigFile      *sshConfigFile
-	SshClient          *ssh.Client
-	Port               uint16 `yaml:"port,omitempty"`
-	ProxyJump          string `yaml:"proxyjump,omitempty"`
-	Password           string `yaml:"password,omitempty"`
-	PrivateKeyPath     string `yaml:"privatekeypath,omitempty"`
-	PrivateKeyPassword string `yaml:"privatekeypassword,omitempty"`
-	UseConfigFiles     bool   `yaml:"use_config_files,omitempty"`
-	useDefaultConfig   bool
-	User               string `yaml:"user,omitempty"`
-	// ProxyHost holds the configuration for a ProxyJump host
-	ProxyHost []*Host
-}
+	Schemas struct {
+		CmdConfigSchema
+		CmdSchema
+	}
 
-type sshConfigFile struct {
-	SshConfigFile       *ssh_config.Config
-	DefaultUserSettings *ssh_config.UserSettings
-}
+	// Host defines a host to which to connect.
+	// If not provided, the values will be looked up in the default ssh config files
+	Host struct {
+		ConfigFilePath     string `yaml:"configfilepath,omitempty"`
+		Host               string `yaml:"host,omitempty"`
+		HostName           string `yaml:"hostname,omitempty"`
+		KnownHostsFile     string `yaml:"knownhostsfile,omitempty"`
+		ClientConfig       *ssh.ClientConfig
+		SSHConfigFile      *sshConfigFile
+		SshClient          *ssh.Client
+		Port               uint16 `yaml:"port,omitempty"`
+		ProxyJump          string `yaml:"proxyjump,omitempty"`
+		Password           string `yaml:"password,omitempty"`
+		PrivateKeyPath     string `yaml:"privatekeypath,omitempty"`
+		PrivateKeyPassword string `yaml:"privatekeypassword,omitempty"`
+		useDefaultConfig   bool
+		User               string `yaml:"user,omitempty"`
+		// ProxyHost holds the configuration for a ProxyJump host
+		ProxyHost []*Host
+		// CertPath           string `yaml:"cert_path,omitempty"`
+	}
 
-type Command struct {
-	// Remote bool `yaml:"remote,omitempty"`
+	sshConfigFile struct {
+		SshConfigFile       *ssh_config.Config
+		DefaultUserSettings *ssh_config.UserSettings
+	}
 
-	Output BackyCommandOutput `yaml:"-"`
+	Command struct {
 
-	// command to run
-	Cmd string `yaml:"cmd"`
+		// command to run
+		Cmd string `yaml:"cmd"`
 
-	// host on which to run cmd
-	Host *string `yaml:"host,omitempty"`
+		// host on which to run cmd
+		Host *string `yaml:"host,omitempty"`
 
-	/*
-		Shell specifies which shell to run the command in, if any.
-		Not applicable when host is defined.
-	*/
-	Shell string `yaml:"shell,omitempty"`
+		/*
+			Shell specifies which shell to run the command in, if any.
+			Not applicable when host is defined.
+		*/
+		Shell string `yaml:"shell,omitempty"`
 
-	RemoteHost *Host `yaml:"-"`
+		RemoteHost *Host `yaml:"-"`
 
-	// Args is an array that holds the arguments to cmd
-	Args []string `yaml:"Args,omitempty"`
+		// Args is an array that holds the arguments to cmd
+		Args []string `yaml:"args,omitempty"`
 
-	/*
-		Dir specifies a directory in which to run the command.
-		Ignored if Host is set.
-	*/
-	Dir *string `yaml:"dir,omitempty"`
+		/*
+			Dir specifies a directory in which to run the command.
+			Ignored if Host is set.
+		*/
+		Dir *string `yaml:"dir,omitempty"`
 
-	// Env points to a file containing env variables to be used with the command
-	Env string `yaml:"env,omitempty"`
+		// Env points to a file containing env variables to be used with the command
+		Env string `yaml:"env,omitempty"`
 
-	// Environment holds env variables to be used with the command
-	Environment []string `yaml:"environment,omitempty"`
-}
+		// Environment holds env variables to be used with the command
+		Environment []string `yaml:"environment,omitempty"`
+	}
 
-type BackyOptionFunc func(*BackyConfigOpts)
+	BackyOptionFunc func(*BackyConfigOpts)
 
-type CmdList struct {
-	Name          string   `yaml:"name,omitempty"`
-	Cron          string   `yaml:"cron,omitempty"`
-	Order         []string `yaml:"order,omitempty"`
-	Notifications []string `yaml:"notifications,omitempty"`
-	NotifyConfig  *notify.Notify
-	// NotificationsConfig map[string]*NotificationsConfig
-	// NotifyConfig        map[string]*notify.Notify
-}
+	CmdList struct {
+		Name          string   `yaml:"name,omitempty"`
+		Cron          string   `yaml:"cron,omitempty"`
+		Order         []string `yaml:"order,omitempty"`
+		Notifications []string `yaml:"notifications,omitempty"`
+		NotifyConfig  *notify.Notify
+		// NotificationsConfig map[string]*NotificationsConfig
+		// NotifyConfig        map[string]*notify.Notify
+	}
 
-type BackyConfigFile struct {
+	BackyConfigFile struct {
 
-	// Cmds holds the commands for a list.
-	// Key is the name of the command,
-	Cmds map[string]*Command `yaml:"commands"`
+		// Cmds holds the commands for a list.
+		// Key is the name of the command,
+		Cmds map[string]*Command `yaml:"commands"`
 
-	// CmdConfigLists holds the lists of commands to be run in order.
-	// Key is the command list name.
-	CmdConfigLists map[string]*CmdList `yaml:"cmd-configs"`
+		// CmdConfigLists holds the lists of commands to be run in order.
+		// Key is the command list name.
+		CmdConfigLists map[string]*CmdList `yaml:"cmd-configs"`
 
-	// Hosts holds the Host config.
-	// key is the host.
-	Hosts map[string]*Host `yaml:"hosts"`
+		// Hosts holds the Host config.
+		// key is the host.
+		Hosts map[string]*Host `yaml:"hosts"`
 
-	// Notifications holds the config for different notifications.
-	Notifications map[string]*NotificationsConfig
+		// Notifications holds the config for different notifications.
+		Notifications map[string]*NotificationsConfig
 
-	Logger zerolog.Logger
-}
+		Logger zerolog.Logger
+	}
 
-type BackyConfigOpts struct {
-	// Global log level
-	BackyLogLvl *string
-	// Holds config file
-	ConfigFile *BackyConfigFile
-	// Holds config file
-	ConfigFilePath string
+	BackyConfigOpts struct {
+		// Global log level
+		BackyLogLvl *string
+		// Holds config file
+		ConfigFile *BackyConfigFile
+		// Holds config file
+		ConfigFilePath string
 
-	Schemas
+		Schemas
 
-	DB *mongo.Database
-	// use command lists using cron
-	useCron bool
-	// Holds commands to execute for the exec command
-	executeCmds []string
-	// Holds commands to execute for the exec command
-	executeLists []string
+		DB *mongo.Database
+		// use command lists using cron
+		useCron bool
+		// Holds commands to execute for the exec command
+		executeCmds []string
+		// Holds commands to execute for the exec command
+		executeLists []string
 
-	// Holds env vars from .env file
-	backyEnv map[string]string
+		// Holds env vars from .env file
+		backyEnv map[string]string
 
-	viper *viper.Viper
-}
+		viper *viper.Viper
+	}
 
-type NotificationsConfig struct {
-	Config  *viper.Viper
-	Enabled bool
-}
+	NotificationsConfig struct {
+		Config  *viper.Viper
+		Enabled bool
+	}
 
-type CmdOutput struct {
-	Err    error
-	Output bytes.Buffer
-}
+	CmdOutput struct {
+		Err    error
+		Output bytes.Buffer
+	}
 
-type BackyCommandOutput interface {
-	Error() error
-	GetOutput() CmdOutput
-}
+	environmentVars struct {
+		file string
+		env  []string
+	}
 
-type environmentVars struct {
-	file string
-	env  []string
-}
+	msgTemplates struct {
+		success *template.Template
+		err     *template.Template
+	}
+)

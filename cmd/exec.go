@@ -29,6 +29,5 @@ func execute(cmd *cobra.Command, args []string) {
 	opts := backy.NewOpts(cfgFile, backy.AddCommands(args))
 	opts.InitConfig()
 	// opts.InitMongo()
-	backy.ReadConfig(opts).ExecuteCmds()
-
+	backy.ReadConfig(opts).ExecuteCmds(opts)
 }

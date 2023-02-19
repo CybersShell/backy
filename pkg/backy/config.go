@@ -71,12 +71,11 @@ func ReadConfig(opts *BackyConfigOpts) *BackyConfigFile {
 		os.Setenv("BACKY_LOGLEVEL", Sprintf("%v", globalLvl))
 	}
 
-	consoleLoggingEnabled := backyViper.GetBool(getLoggingKeyFromConfig("console"))
+	consoleLoggingDisabled := backyViper.GetBool(getLoggingKeyFromConfig("console-disabled"))
 
+	os.Setenv("BACKY_CONSOLE_LOGGING", "enabled")
 	// Other qualifiers can go here as well
-	if consoleLoggingEnabled {
-		os.Setenv("BACKY_CONSOLE_LOGGING", "enabled")
-	} else {
+	if consoleLoggingDisabled {
 		os.Setenv("BACKY_CONSOLE_LOGGING", "")
 	}
 
@@ -119,7 +118,10 @@ func ReadConfig(opts *BackyConfigOpts) *BackyConfigFile {
 	if unmarshalErr != nil {
 		panic(fmt.Errorf("error unmarshalling hosts struct: %w", unmarshalErr))
 	}
-	for _, host := range backyConfigFile.Hosts {
+	for hostConfigName, host := range backyConfigFile.Hosts {
+		if host.Host == "" {
+			host.Host = hostConfigName
+		}
 		if host.ProxyJump != "" {
 			proxyHosts := strings.Split(host.ProxyJump, ",")
 			if len(proxyHosts) > 1 {
@@ -153,6 +155,7 @@ func ReadConfig(opts *BackyConfigOpts) *BackyConfigFile {
 			}
 		}
 	}
+
 	cmdListCfg := backyViper.Sub("cmd-configs")
 	unmarshalErr = cmdListCfg.Unmarshal(&backyConfigFile.CmdConfigLists)
 	if unmarshalErr != nil {

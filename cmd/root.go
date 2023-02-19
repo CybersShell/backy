@@ -36,5 +36,5 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "f", "", "config file to read from")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Sets verbose level")
 
-	rootCmd.AddCommand(backupCmd, execCmd, cronCmd)
+	rootCmd.AddCommand(backupCmd, execCmd, cronCmd, versionCmd)
 }
