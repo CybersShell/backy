@@ -29,7 +29,7 @@ jobs:
           # either 'goreleaser' (default) or 'goreleaser-pro':
           distribution: goreleaser
           version: latest
-          args: release --release-notes=".changes/$(go run backy.go version)" -f .goreleaser/github.yml --clean
+          args: release --release-notes=".changes/$(go run backy.go version).md" -f .goreleaser/github.yml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
           # Your GoReleaser Pro key, if you are using the 'goreleaser-pro'
