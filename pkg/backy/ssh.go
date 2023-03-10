@@ -28,7 +28,7 @@ var TS = strings.TrimSpace
 // It returns an ssh.Client used to run commands against.
 // If configFile is empty, any required configuration is looked up in the default config files
 // If any value is not found, defaults are used
-func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, hosts map[string]*Host) error {
+func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, config *BackyConfigFile) error {
 
 	// var sshClient *ssh.Client
 	var connectErr error
@@ -68,28 +68,31 @@ func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, hosts map[string
 		return decodeErr
 	}
 
-	err := remoteConfig.GetProxyJumpFromConfig(hosts)
+	err := remoteConfig.GetProxyJumpFromConfig(config.Hosts)
 	if err != nil {
 		return err
 	}
 	if remoteConfig.ProxyHost != nil {
 		for _, proxyHost := range remoteConfig.ProxyHost {
-			log.Info().Msgf("Proxy Host %s", proxyHost.Host)
-			err := proxyHost.GetProxyJumpConfig(hosts)
+			err := proxyHost.GetProxyJumpConfig(config.Hosts)
+			log.Info().Msgf("Proxy host: %s", proxyHost.Host)
 			if err != nil {
 				return err
 			}
 		}
 	}
+
 	remoteConfig.ClientConfig.Timeout = time.Second * 30
 	remoteConfig.GetPrivateKeyFileFromConfig()
 	remoteConfig.GetPort()
 	remoteConfig.GetHostName()
 	remoteConfig.CombineHostNameWithPort()
 	remoteConfig.GetSshUserFromConfig()
+
 	if remoteConfig.HostName == "" {
-		return errors.New("No hostname found or specified")
+		return errors.Errorf("No hostname found or specified for host %s", remoteConfig.Host)
 	}
+
 	err = remoteConfig.GetAuthMethods()
 	if err != nil {
 		return err
@@ -107,6 +110,7 @@ func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, hosts map[string
 		return connectErr
 	}
 	if remoteConfig.SshClient != nil {
+		config.Hosts[remoteConfig.Host] = remoteConfig
 		return nil
 	}
 
@@ -115,6 +119,7 @@ func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, hosts map[string
 	if connectErr != nil {
 		return connectErr
 	}
+	config.Hosts[remoteConfig.Host] = remoteConfig
 	return nil
 }
 
@@ -242,6 +247,7 @@ func (remoteHost *Host) ConnectThroughBastion(log *zerolog.Logger) (*ssh.Client,
 	if err != nil {
 		return nil, err
 	}
+	remoteHost.ProxyHost[0].SshClient = bClient
 
 	// Dial a connection to the service host, from the bastion
 	conn, err := bClient.Dial("tcp", remoteHost.HostName)
@@ -345,6 +351,7 @@ func (remoteConfig *Host) GetProxyJumpFromConfig(hosts map[string]*Host) error {
 
 	return nil
 }
+
 func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host) error {
 	if TS(remoteConfig.ConfigFilePath) == "" {
 		remoteConfig.useDefaultConfig = true
@@ -386,7 +393,7 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host) error {
 	remoteConfig.CombineHostNameWithPort()
 	remoteConfig.GetSshUserFromConfig()
 	if remoteConfig.HostName == "" {
-		return errors.New("No hostname found or specified")
+		return errors.Errorf("No hostname found or specified for host %s", remoteConfig.Host)
 	}
 	err := remoteConfig.GetAuthMethods()
 	if err != nil {
@@ -399,5 +406,7 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host) error {
 		return errors.Wrap(err, "could not create hostkeycallback function")
 	}
 	remoteConfig.ClientConfig.HostKeyCallback = hostKeyCallback
+	hosts[remoteConfig.Host] = remoteConfig
+
 	return nil
 }

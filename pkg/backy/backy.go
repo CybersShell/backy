@@ -29,7 +29,7 @@ var Sprintf = fmt.Sprintf
 // The environment of local commands will be the machine's environment plus any extra
 // variables specified in the Env file or Environment.
 // Dir can also be specified for local commands.
-func (command *Command) RunCmd(log *zerolog.Logger, hosts map[string]*Host) ([]string, error) {
+func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile) ([]string, error) {
 
 	var (
 		outputArr     []string
@@ -50,11 +50,12 @@ func (command *Command) RunCmd(log *zerolog.Logger, hosts map[string]*Host) ([]s
 	if command.Host != nil {
 		log.Info().Str("Command", fmt.Sprintf("Running command %s %s on host %s", command.Cmd, ArgsStr, *command.Host)).Send()
 
-		err := command.RemoteHost.ConnectToSSHHost(log, hosts)
-		if err != nil {
-			return nil, err
+		if command.RemoteHost.SshClient == nil {
+			err := command.RemoteHost.ConnectToSSHHost(log, backyConf)
+			if err != nil {
+				return nil, err
+			}
 		}
-		defer command.RemoteHost.SshClient.Close()
 		commandSession, err := command.RemoteHost.SshClient.NewSession()
 		if err != nil {
 			log.Err(fmt.Errorf("new ssh session: %w", err)).Send()
@@ -100,8 +101,11 @@ func (command *Command) RunCmd(log *zerolog.Logger, hosts map[string]*Host) ([]s
 		var err error
 		if command.Shell != "" {
 			log.Info().Str("Command", fmt.Sprintf("Running command %s %s on local machine in %s", command.Cmd, ArgsStr, command.Shell)).Send()
+
 			ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
+
 			localCMD := exec.Command(command.Shell, "-c", ArgsStr)
+
 			if command.Dir != nil {
 				localCMD.Dir = *command.Dir
 			}
@@ -115,8 +119,11 @@ func (command *Command) RunCmd(log *zerolog.Logger, hosts map[string]*Host) ([]s
 
 			localCMD.Stdout = cmdOutWriters
 			localCMD.Stderr = cmdOutWriters
+
 			err = localCMD.Run()
+
 			outScanner := bufio.NewScanner(&cmdOutBuf)
+
 			for outScanner.Scan() {
 				outMap := make(map[string]interface{})
 				outMap["cmd"] = command.Cmd
@@ -156,6 +163,7 @@ func (command *Command) RunCmd(log *zerolog.Logger, hosts map[string]*Host) ([]s
 			outMap := make(map[string]interface{})
 			outMap["cmd"] = command.Cmd
 			outMap["output"] = outScanner.Text()
+
 			if str, ok := outMap["output"].(string); ok {
 				outputArr = append(outputArr, str)
 			}
@@ -175,54 +183,78 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyCo
 		var currentCmd string
 		fieldsMap := make(map[string]interface{})
 		fieldsMap["list"] = list.Name
+
 		cmdLog := config.Logger.Info()
+
 		var count int
 		var cmdsRan []string
+
 		for _, cmd := range list.Order {
 			currentCmd = config.Cmds[cmd].Cmd
+
 			fieldsMap["cmd"] = config.Cmds[cmd].Cmd
 			cmdLog.Fields(fieldsMap).Send()
 			cmdToRun := config.Cmds[cmd]
+
 			cmdLogger := config.Logger.With().
-				Str("backy-cmd", cmd).
+				Str("backy-cmd", cmd).Str("Host", "local machine").
 				Logger()
-			outputArr, runOutErr := cmdToRun.RunCmd(&cmdLogger, config.Hosts)
+
+			if cmdToRun.Host != nil {
+				cmdLogger = config.Logger.With().
+					Str("backy-cmd", cmd).Str("Host", *cmdToRun.Host).
+					Logger()
+			}
+
+			outputArr, runOutErr := cmdToRun.RunCmd(&cmdLogger, config)
 			count++
 			if runOutErr != nil {
 				var errMsg bytes.Buffer
 				if list.NotifyConfig != nil {
 					errStruct := make(map[string]interface{})
+
 					errStruct["listName"] = list.Name
 					errStruct["Command"] = currentCmd
 					errStruct["Err"] = runOutErr
 					errStruct["CmdsRan"] = cmdsRan
 					errStruct["Output"] = outputArr
+
 					tmpErr := msgTemps.err.Execute(&errMsg, errStruct)
+
 					if tmpErr != nil {
 						config.Logger.Err(tmpErr).Send()
 					}
+
 					notifySendErr := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s failed on command %s ", list.Name, cmd), errMsg.String())
+
 					if notifySendErr != nil {
 						config.Logger.Err(notifySendErr).Send()
 					}
 				}
+
 				config.Logger.Err(runOutErr).Send()
+
 				break
 			} else {
 
 				if count == len(list.Order) {
 					cmdsRan = append(cmdsRan, cmd)
 					var successMsg bytes.Buffer
+
 					if list.NotifyConfig != nil {
 						successStruct := make(map[string]interface{})
 						successStruct["listName"] = list.Name
 						successStruct["CmdsRan"] = cmdsRan
+
 						tmpErr := msgTemps.success.Execute(&successMsg, successStruct)
+
 						if tmpErr != nil {
 							config.Logger.Err(tmpErr).Send()
 							break
 						}
+
 						err := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s succeded", list.Name), successMsg.String())
+
 						if err != nil {
 							config.Logger.Err(err).Send()
 						}
@@ -275,6 +307,7 @@ func (config *BackyConfigFile) RunBackyConfig(cron string) {
 		<-results
 	}
 
+	config.closeHostConnections()
 }
 
 func (config *BackyConfigFile) ExecuteCmds(opts *BackyConfigOpts) {
@@ -283,10 +316,32 @@ func (config *BackyConfigFile) ExecuteCmds(opts *BackyConfigOpts) {
 		cmdLogger := config.Logger.With().
 			Str("backy-cmd", cmd).
 			Logger()
-		_, runErr := cmdToRun.RunCmd(&cmdLogger, config.Hosts)
+		_, runErr := cmdToRun.RunCmd(&cmdLogger, config)
 		if runErr != nil {
 			config.Logger.Err(runErr).Send()
 		}
 	}
 
+	config.closeHostConnections()
+
+}
+
+func (c *BackyConfigFile) closeHostConnections() {
+	for _, host := range c.Hosts {
+
+		if host.SshClient != nil {
+			if _, err := host.SshClient.NewSession(); err == nil {
+				c.Logger.Info().Msgf("Closing host connection %s", host.HostName)
+				host.SshClient.Close()
+			}
+		}
+		for _, proxyHost := range host.ProxyHost {
+			if proxyHost.SshClient != nil {
+				if _, err := host.SshClient.NewSession(); err == nil {
+					c.Logger.Info().Msgf("Closing connection to proxy host %s", host.HostName)
+					host.SshClient.Close()
+				}
+			}
+		}
+	}
 }

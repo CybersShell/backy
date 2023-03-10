@@ -231,12 +231,14 @@ func ReadConfig(opts *BackyConfigOpts) *BackyConfigFile {
 					cmd.RemoteHost.HostName = host.HostName
 				}
 			} else {
+				backyConfigFile.Hosts[*cmd.Host] = &Host{Host: *cmd.Host}
 				cmd.RemoteHost = &Host{Host: *cmd.Host}
 			}
 		}
 
 	}
 	backyConfigFile.SetupNotify()
+	opts.ConfigFile = backyConfigFile
 	return backyConfigFile
 }
 
