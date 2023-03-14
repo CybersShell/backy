@@ -50,6 +50,7 @@ type (
 		PrivateKeyPassword string `yaml:"privatekeypassword,omitempty"`
 		useDefaultConfig   bool
 		User               string `yaml:"user,omitempty"`
+		isProxyHost        bool
 		// ProxyHost holds the configuration for a ProxyJump host
 		ProxyHost []*Host
 		// CertPath           string `yaml:"cert_path,omitempty"`

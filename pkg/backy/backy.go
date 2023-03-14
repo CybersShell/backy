@@ -328,7 +328,9 @@ func (config *BackyConfigFile) ExecuteCmds(opts *BackyConfigOpts) {
 
 func (c *BackyConfigFile) closeHostConnections() {
 	for _, host := range c.Hosts {
-
+		if host.isProxyHost {
+			continue
+		}
 		if host.SshClient != nil {
 			if _, err := host.SshClient.NewSession(); err == nil {
 				c.Logger.Info().Msgf("Closing host connection %s", host.HostName)
@@ -336,11 +338,22 @@ func (c *BackyConfigFile) closeHostConnections() {
 			}
 		}
 		for _, proxyHost := range host.ProxyHost {
+			if proxyHost.isProxyHost {
+				continue
+			}
 			if proxyHost.SshClient != nil {
 				if _, err := host.SshClient.NewSession(); err == nil {
 					c.Logger.Info().Msgf("Closing connection to proxy host %s", host.HostName)
 					host.SshClient.Close()
 				}
+			}
+		}
+	}
+	for _, host := range c.Hosts {
+		if host.SshClient != nil {
+			if _, err := host.SshClient.NewSession(); err == nil {
+				c.Logger.Info().Msgf("Closing proxy host connection %s", host.HostName)
+				host.SshClient.Close()
 			}
 		}
 	}

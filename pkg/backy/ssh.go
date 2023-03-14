@@ -392,6 +392,7 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host) error {
 	remoteConfig.GetHostName()
 	remoteConfig.CombineHostNameWithPort()
 	remoteConfig.GetSshUserFromConfig()
+	remoteConfig.isProxyHost = true
 	if remoteConfig.HostName == "" {
 		return errors.Errorf("No hostname found or specified for host %s", remoteConfig.Host)
 	}
