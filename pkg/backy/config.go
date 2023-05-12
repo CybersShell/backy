@@ -1,6 +1,7 @@
 package backy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -8,11 +9,38 @@ import (
 	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
-	"github.com/joho/godotenv"
+	vault "github.com/hashicorp/vault/api"
 	"github.com/mattn/go-isatty"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
+
+func (opts *BackyConfigOpts) InitConfig() {
+	if opts.viper != nil {
+		return
+	}
+	backyViper := viper.New()
+
+	if strings.TrimSpace(opts.ConfigFilePath) != "" {
+		err := testFile(opts.ConfigFilePath)
+		if err != nil {
+			logging.ExitWithMSG(fmt.Sprintf("Could not open config file %s: %v", opts.ConfigFilePath, err), 1, nil)
+		}
+		backyViper.SetConfigFile(opts.ConfigFilePath)
+	} else {
+		backyViper.SetConfigName("backy.yml")           // name of config file (with extension)
+		backyViper.SetConfigName("backy.yaml")          // name of config file (with extension)
+		backyViper.SetConfigType("yaml")                // REQUIRED if the config file does not have the extension in the name
+		backyViper.AddConfigPath(".")                   // optionally look for config in the working directory
+		backyViper.AddConfigPath("$HOME/.config/backy") // call multiple times to add many search paths
+	}
+	err := backyViper.ReadInConfig() // Find and read the config file
+	if err != nil {                  // Handle errors reading the config file
+		msg := fmt.Sprintf("fatal error reading config file %s: %v", backyViper.ConfigFileUsed(), err)
+		logging.ExitWithMSG(msg, 1, nil)
+	}
+	opts.viper = backyViper
+}
 
 // ReadConfig validates and reads the config file.
 func ReadConfig(opts *BackyConfigOpts) *BackyConfigFile {
@@ -28,10 +56,10 @@ func ReadConfig(opts *BackyConfigOpts) *BackyConfigFile {
 	backyConfigFile := NewConfig()
 	backyViper := opts.viper
 	opts.loadEnv()
-	envFileInConfigDir := fmt.Sprintf("%s/.env", path.Dir(backyViper.ConfigFileUsed()))
+	// envFileInConfigDir := fmt.Sprintf("%s/.env", path.Dir(backyViper.ConfigFileUsed()))
 
 	// load the .env file in config file directory
-	_ = godotenv.Load(envFileInConfigDir)
+	// _ = godotenv.Load(envFileInConfigDir)
 
 	if backyViper.GetBool(getNestedConfig("logging", "cmd-std-out")) {
 		os.Setenv("BACKY_STDOUT", "enabled")
@@ -239,6 +267,11 @@ func ReadConfig(opts *BackyConfigOpts) *BackyConfigFile {
 	}
 	backyConfigFile.SetupNotify()
 	opts.ConfigFile = backyConfigFile
+	if err := opts.setupVault(); err != nil {
+		log.Err(err).Send()
+	}
+	opts.ConfigFile = backyConfigFile
+
 	return backyConfigFile
 }
 
@@ -261,29 +294,101 @@ func getCmdListFromConfig(list string) string {
 	return fmt.Sprintf("cmd-configs.%s", list)
 }
 
-func (opts *BackyConfigOpts) InitConfig() {
-	if opts.viper != nil {
-		return
+func (opts *BackyConfigOpts) setupVault() error {
+	if !opts.viper.GetBool("vault.enabled") {
+		return nil
 	}
-	backyViper := viper.New()
+	config := vault.DefaultConfig()
 
-	if strings.TrimSpace(opts.ConfigFilePath) != "" {
-		err := testFile(opts.ConfigFilePath)
-		if err != nil {
-			logging.ExitWithMSG(fmt.Sprintf("Could not open config file %s: %v", opts.ConfigFilePath, err), 1, nil)
-		}
-		backyViper.SetConfigFile(opts.ConfigFilePath)
+	config.Address = opts.viper.GetString("vault.address")
+	if strings.TrimSpace(config.Address) == "" {
+		config.Address = os.Getenv("VAULT_ADDR")
+	}
+
+	client, err := vault.NewClient(config)
+	if err != nil {
+		return err
+	}
+
+	token := opts.viper.GetString("vault.token")
+	if strings.TrimSpace(token) == "" {
+		token = os.Getenv("VAULT_TOKEN")
+	}
+
+	client.SetToken(token)
+
+	cmdListCfg := opts.viper.Sub("viper.keys")
+	unmarshalErr := cmdListCfg.Unmarshal(&opts.VaultKeys)
+	if unmarshalErr != nil {
+		panic(fmt.Errorf("error unmarshalling viper.keys into struct: %w", unmarshalErr))
+	}
+
+	opts.vaultClient = client
+
+	return nil
+}
+
+func getVaultSecret(vaultClient *vault.Client, key *VaultKey) (string, error) {
+	var (
+		secret *vault.KVSecret
+		err    error
+	)
+
+	if key.ValueType == "KVv2" {
+		secret, err = vaultClient.KVv2(key.MountPath).Get(context.Background(), key.Path)
+	} else if key.ValueType == "KVv1" {
+		secret, err = vaultClient.KVv1(key.MountPath).Get(context.Background(), key.Path)
+	} else if key.ValueType != "" {
+		return "", fmt.Errorf("type %s for key %s not known. Valid types are KVv1 or KVv2", key.ValueType, key.Name)
 	} else {
-		backyViper.SetConfigName("backy.yml")           // name of config file (with extension)
-		backyViper.SetConfigName("backy.yaml")          // name of config file (with extension)
-		backyViper.SetConfigType("yaml")                // REQUIRED if the config file does not have the extension in the name
-		backyViper.AddConfigPath(".")                   // optionally look for config in the working directory
-		backyViper.AddConfigPath("$HOME/.config/backy") // call multiple times to add many search paths
+		return "", fmt.Errorf("type for key %s must be specified. Valid types are KVv1 or KVv2", key.Name)
+
 	}
-	err := backyViper.ReadInConfig() // Find and read the config file
-	if err != nil {                  // Handle errors reading the config file
-		msg := fmt.Sprintf("fatal error reading config file %s: %v", backyViper.ConfigFileUsed(), err)
-		logging.ExitWithMSG(msg, 1, nil)
+	if err != nil {
+		return "", fmt.Errorf("unable to read secret: %v", err)
 	}
-	opts.viper = backyViper
+
+	value, ok := secret.Data[key.Name].(string)
+	if !ok {
+		return "", fmt.Errorf("value type assertion failed: %T %#v", secret.Data[key.Name], secret.Data[key.Name])
+	}
+
+	return value, nil
+}
+
+func isVaultKey(str string) (string, bool) {
+	str = strings.TrimSpace(str)
+	return strings.TrimPrefix(str, "vault:"), strings.HasPrefix(str, "vault:")
+}
+
+func parseVaultKey(str string, keys []*VaultKey) (*VaultKey, error) {
+	keyName, isKey := isVaultKey(str)
+	if !isKey {
+		return nil, nil
+	}
+
+	for _, k := range keys {
+		if k.Name == keyName {
+			return k, nil
+		}
+	}
+	return nil, fmt.Errorf("key %s not found in vault keys", keyName)
+}
+
+func GetVaultKey(str string, opts *BackyConfigOpts) string {
+	key, err := parseVaultKey(str, opts.VaultKeys)
+	if key == nil && err == nil {
+		return str
+	}
+	if err != nil && key == nil {
+		opts.ConfigFile.Logger.Err(err).Send()
+		return ""
+	}
+
+	value, secretErr := getVaultSecret(opts.vaultClient, key)
+	if secretErr != nil {
+		opts.ConfigFile.Logger.Err(secretErr).Send()
+		return value
+	}
+	return value
 }

@@ -1,4 +1,8 @@
-Command list {{.listName }} failed on running {{.Command}}.
+Command list {{.listName }} failed.
+
+The command run was {{.Cmd}}.
+
+The command executed was {{.Command}} {{ if .Args }} {{- range .Args}} {{.}} {{end}} {{end}}
 
 {{ if .Err }} The error was {{ .Err }}{{ end }}
 
@@ -9,4 +13,10 @@ The following commands ran:
 {{- range .CmdsRan}}
     - {{. -}}
 {{end}}
+{{ end }}
+
+{{ if .CmdOutput }}{{- range .CmdOutput }}Commad output for {{ .CmdName }}:
+{{- range .Output}}
+    {{ . }}
+{{ end }}{{ end }}
 {{ end }}

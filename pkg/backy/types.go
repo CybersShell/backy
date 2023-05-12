@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
+	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/kevinburke/ssh_config"
 	"github.com/nikoksr/notify"
 	"github.com/rs/zerolog"
@@ -66,6 +67,10 @@ type (
 		// command to run
 		Cmd string `yaml:"cmd"`
 
+		// Possible values: script, scriptFile
+		// If blank, it is regualar command.
+		Type string `yaml:"type"`
+
 		// host on which to run cmd
 		Host *string `yaml:"host,omitempty"`
 
@@ -91,6 +96,10 @@ type (
 
 		// Environment holds env variables to be used with the command
 		Environment []string `yaml:"environment,omitempty"`
+
+		// Output determines if output is requested.
+		// Only works if command is in a list.
+		Output bool `yaml:"output,omitempty"`
 	}
 
 	BackyOptionFunc func(*BackyConfigOpts)
@@ -146,7 +155,31 @@ type (
 		// Holds env vars from .env file
 		backyEnv map[string]string
 
+		vaultClient *vaultapi.Client
+
+		VaultKeys []*VaultKey `yaml:"keys"`
+
 		viper *viper.Viper
+	}
+
+	outStruct struct {
+		CmdName     string
+		CmdExecuted string
+		Output      []string
+	}
+
+	VaultKey struct {
+		Name      string `yaml:"name"`
+		Path      string `yaml:"path"`
+		ValueType string `yaml:"type"`
+		MountPath string `yaml:"mountpath"`
+	}
+
+	VaultConfig struct {
+		Token   string      `yaml:"token"`
+		Address string      `yaml:"address"`
+		Enabled string      `yaml:"enabled"`
+		Keys    []*VaultKey `yaml:"keys"`
 	}
 
 	NotificationsConfig struct {

@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"text/template"
 
 	"embed"
@@ -29,7 +30,7 @@ var Sprintf = fmt.Sprintf
 // The environment of local commands will be the machine's environment plus any extra
 // variables specified in the Env file or Environment.
 // Dir can also be specified for local commands.
-func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile) ([]string, error) {
+func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile, opts *BackyConfigOpts) ([]string, error) {
 
 	var (
 		outputArr     []string
@@ -48,7 +49,13 @@ func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile) 
 	}
 
 	if command.Host != nil {
-		log.Info().Str("Command", fmt.Sprintf("Running command %s %s on host %s", command.Cmd, ArgsStr, *command.Host)).Send()
+		command.Type = strings.TrimSpace(command.Type)
+
+		if command.Type != "" {
+			log.Info().Str("Command", fmt.Sprintf("Running script %s on host %s", command.Cmd, *command.Host)).Send()
+		} else {
+			log.Info().Str("Command", fmt.Sprintf("Running command %s %s on host %s", command.Cmd, ArgsStr, *command.Host)).Send()
+		}
 
 		if command.RemoteHost.SshClient == nil {
 			err := command.RemoteHost.ConnectToSSHHost(log, backyConf)
@@ -58,12 +65,11 @@ func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile) 
 		}
 		commandSession, err := command.RemoteHost.SshClient.NewSession()
 		if err != nil {
-			log.Err(fmt.Errorf("new ssh session: %w", err)).Send()
 			return nil, err
 		}
 		defer commandSession.Close()
 
-		injectEnvIntoSSH(envVars, commandSession, log)
+		injectEnvIntoSSH(envVars, commandSession, opts)
 		cmd := command.Cmd
 		for _, a := range command.Args {
 			cmd += " " + a
@@ -76,6 +82,94 @@ func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile) 
 
 		commandSession.Stdout = cmdOutWriters
 		commandSession.Stderr = cmdOutWriters
+		if command.Type != "" {
+
+			if command.Type == "script" {
+				script := bytes.NewBufferString(cmd + "\n")
+
+				commandSession.Stdin = script
+				if err := commandSession.Shell(); err != nil {
+					return nil, err
+				}
+
+				if err := commandSession.Wait(); err != nil {
+					outScanner := bufio.NewScanner(&cmdOutBuf)
+					for outScanner.Scan() {
+						outMap := make(map[string]interface{})
+						outMap["cmd"] = cmd
+						outMap["output"] = outScanner.Text()
+						if str, ok := outMap["output"].(string); ok {
+							outputArr = append(outputArr, str)
+						}
+						log.Info().Fields(outMap).Send()
+					}
+					return outputArr, err
+				}
+
+				outScanner := bufio.NewScanner(&cmdOutBuf)
+				for outScanner.Scan() {
+					outMap := make(map[string]interface{})
+					outMap["cmd"] = cmd
+					outMap["output"] = outScanner.Text()
+					if str, ok := outMap["output"].(string); ok {
+						outputArr = append(outputArr, str)
+					}
+					log.Info().Fields(outMap).Send()
+				}
+				return outputArr, nil
+			}
+			if command.Type == "scriptFile" {
+				var buffer bytes.Buffer
+				var dirErr error
+				command.Cmd, dirErr = resolveDir(command.Cmd)
+				if dirErr != nil {
+					return nil, dirErr
+				}
+				file, err := os.Open(command.Cmd)
+				if err != nil {
+					return nil, err
+				}
+				defer file.Close()
+				_, err = io.Copy(&buffer, file)
+				if err != nil {
+					return nil, err
+				}
+
+				script := &buffer
+
+				commandSession.Stdin = script
+				if err := commandSession.Shell(); err != nil {
+					return nil, err
+				}
+				if err := commandSession.Wait(); err != nil {
+					outScanner := bufio.NewScanner(&cmdOutBuf)
+					for outScanner.Scan() {
+						outMap := make(map[string]interface{})
+						outMap["cmd"] = cmd
+						outMap["output"] = outScanner.Text()
+						if str, ok := outMap["output"].(string); ok {
+							outputArr = append(outputArr, str)
+						}
+						log.Info().Fields(outMap).Send()
+					}
+					return outputArr, err
+				}
+
+				outScanner := bufio.NewScanner(&cmdOutBuf)
+				for outScanner.Scan() {
+					outMap := make(map[string]interface{})
+					outMap["cmd"] = cmd
+					outMap["output"] = outScanner.Text()
+					if str, ok := outMap["output"].(string); ok {
+						outputArr = append(outputArr, str)
+					}
+					log.Info().Fields(outMap).Send()
+				}
+				return outputArr, nil
+			}
+			return nil, fmt.Errorf("command type not recognized")
+		}
+
 		err = commandSession.Run(cmd)
 		outScanner := bufio.NewScanner(&cmdOutBuf)
 		for outScanner.Scan() {
@@ -93,10 +187,6 @@ func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile) 
 			return outputArr, err
 		}
 	} else {
-		cmdExists := command.checkCmdExists()
-		if !cmdExists {
-			log.Info().Str(command.Cmd, "not found").Send()
-		}
 
 		var err error
 		if command.Shell != "" {
@@ -177,10 +267,9 @@ func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile) 
 	return outputArr, nil
 }
 
-func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyConfigFile, results chan<- string) {
+func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyConfigFile, results chan<- string, opts *BackyConfigOpts) {
 
 	for list := range jobs {
-		var currentCmd string
 		fieldsMap := make(map[string]interface{})
 		fieldsMap["list"] = list.Name
 
@@ -188,13 +277,14 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyCo
 
 		var count int
 		var cmdsRan []string
+		var outStructArr []outStruct
 
 		for _, cmd := range list.Order {
-			currentCmd = config.Cmds[cmd].Cmd
+			currentCmd := config.Cmds[cmd].Cmd
 
 			fieldsMap["cmd"] = config.Cmds[cmd].Cmd
-			cmdLog.Fields(fieldsMap).Send()
 			cmdToRun := config.Cmds[cmd]
+			cmdLog.Fields(fieldsMap).Send()
 
 			cmdLogger := config.Logger.With().
 				Str("backy-cmd", cmd).Str("Host", "local machine").
@@ -206,7 +296,17 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyCo
 					Logger()
 			}
 
-			outputArr, runOutErr := cmdToRun.RunCmd(&cmdLogger, config)
+			outputArr, runOutErr := cmdToRun.RunCmd(&cmdLogger, config, opts)
+			if cmdToRun.Output {
+				outputStruct := outStruct{
+					CmdName:     cmd,
+					CmdExecuted: currentCmd,
+					Output:      outputArr,
+				}
+
+				outStructArr = append(outStructArr, outputStruct)
+
+			}
 			count++
 			if runOutErr != nil {
 				var errMsg bytes.Buffer
@@ -215,9 +315,13 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyCo
 
 					errStruct["listName"] = list.Name
 					errStruct["Command"] = currentCmd
+					errStruct["Cmd"] = cmd
+					errStruct["Args"] = config.Cmds[cmd].Args
 					errStruct["Err"] = runOutErr
 					errStruct["CmdsRan"] = cmdsRan
 					errStruct["Output"] = outputArr
+
+					errStruct["CmdOutput"] = outStructArr
 
 					tmpErr := msgTemps.err.Execute(&errMsg, errStruct)
 
@@ -243,8 +347,11 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyCo
 
 					if list.NotifyConfig != nil {
 						successStruct := make(map[string]interface{})
+
 						successStruct["listName"] = list.Name
 						successStruct["CmdsRan"] = cmdsRan
+
+						successStruct["CmdOutput"] = outStructArr
 
 						tmpErr := msgTemps.success.Execute(&successMsg, successStruct)
 
@@ -271,7 +378,7 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyCo
 }
 
 // RunBackyConfig runs a command list from the BackyConfigFile.
-func (config *BackyConfigFile) RunBackyConfig(cron string) {
+func (config *BackyConfigFile) RunBackyConfig(cron string, opts *BackyConfigOpts) {
 	mTemps := &msgTemplates{
 		err:     template.Must(template.New("error.txt").ParseFS(templates, "templates/error.txt")),
 		success: template.Must(template.New("success.txt").ParseFS(templates, "templates/success.txt")),
@@ -283,7 +390,7 @@ func (config *BackyConfigFile) RunBackyConfig(cron string) {
 	// This starts up 3 workers, initially blocked
 	// because there are no jobs yet.
 	for w := 1; w <= configListsLen; w++ {
-		go cmdListWorker(mTemps, listChan, config, results)
+		go cmdListWorker(mTemps, listChan, config, results, opts)
 	}
 
 	// Here we send 5 `jobs` and then `close` that
@@ -316,7 +423,7 @@ func (config *BackyConfigFile) ExecuteCmds(opts *BackyConfigOpts) {
 		cmdLogger := config.Logger.With().
 			Str("backy-cmd", cmd).
 			Logger()
-		_, runErr := cmdToRun.RunCmd(&cmdLogger, config)
+		_, runErr := cmdToRun.RunCmd(&cmdLogger, config, opts)
 		if runErr != nil {
 			config.Logger.Err(runErr).Send()
 		}

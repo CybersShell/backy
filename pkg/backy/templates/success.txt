@@ -1,7 +1,12 @@
-Command list {{ .listName }} was completed successfully. 
-
+Command list {{ .listName }} completed successfully. 
 
 The following commands ran:
 {{- range .CmdsRan}}
     - {{. -}}
 {{end}}
+
+{{ if .CmdOutput }}{{- range .CmdOutput }}Commad output for {{ .CmdName }}:
+{{- range .Output}}
+    {{ . }}
+{{ end }}{{ end }}
+{{ end }}

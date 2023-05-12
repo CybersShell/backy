@@ -21,25 +21,25 @@ import (
 	"mvdan.cc/sh/v3/shell"
 )
 
-func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, log *zerolog.Logger) {
+func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, opts *BackyConfigOpts) {
 	if envVarsToInject.file != "" {
 		envPath, envPathErr := resolveDir(envVarsToInject.file)
 		if envPathErr != nil {
-			log.Fatal().Str("envFile", envPath).Err(envPathErr).Send()
+			opts.ConfigFile.Logger.Fatal().Str("envFile", envPath).Err(envPathErr).Send()
 		}
 		file, err := os.Open(envPath)
 		if err != nil {
-			log.Fatal().Str("envFile", envPath).Err(err).Send()
+			opts.ConfigFile.Logger.Fatal().Str("envFile", envPath).Err(err).Send()
 		}
 		defer file.Close()
 
 		envMap, err := godotenv.Parse(file)
 		if err != nil {
-			log.Error().Str("envFile", envPath).Err(err).Send()
+			opts.ConfigFile.Logger.Error().Str("envFile", envPath).Err(err).Send()
 			goto errEnvFile
 		}
 		for key, val := range envMap {
-			process.Setenv(key, val)
+			process.Setenv(key, GetVaultKey(val, opts))
 		}
 	}
 
@@ -49,7 +49,8 @@ errEnvFile:
 		// don't append env Vars for Backy
 		if strings.Contains(envVal, "=") {
 			envVarArr := strings.Split(envVal, "=")
-			process.Setenv(envVarArr[0], envVarArr[1])
+
+			process.Setenv(envVarArr[0], GetVaultKey(envVarArr[1], opts))
 		}
 	}
 }
@@ -58,10 +59,11 @@ func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, l
 	if envVarsToInject.file != "" {
 		envPath, _ := resolveDir(envVarsToInject.file)
 
-		file, _ := os.Open(envPath)
-		// if err != nil {
-		// 	log.Fatal().Str("envFile", envPath).Err(err).Send()
-		// }
+		file, fileErr := os.Open(envPath)
+		if fileErr != nil {
+			log.Error().Str("envFile", envPath).Err(fileErr).Send()
+			goto errEnvFile
+		}
 		defer file.Close()
 		envMap, err := godotenv.Parse(file)
 		if err != nil {
@@ -69,6 +71,7 @@ func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, l
 			goto errEnvFile
 		}
 		for key, val := range envMap {
+
 			process.Env = append(process.Env, fmt.Sprintf("%s=%s", key, val))
 		}
 
@@ -81,11 +84,6 @@ errEnvFile:
 		}
 	}
 	process.Env = append(process.Env, os.Environ()...)
-}
-
-func (cmd *Command) checkCmdExists() bool {
-	_, err := exec.LookPath(cmd.Cmd)
-	return err == nil
 }
 
 func contains(s []string, e string) bool {
