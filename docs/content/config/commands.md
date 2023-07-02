@@ -16,11 +16,12 @@ commands:
       - -f /some/path/to/docker-compose.yaml
       - down
     # if host is not defined, command will be run locally
+    # The host has to be defined in either the config file or the SSH Config files
     host: some-host 
   backup-docker-container-script:
-    cmd: /path/to/script/on/some-host
-    # The host has to be defined in either the config file or the SSH Config files
-    host: some-host
+    cmd: /path/to/local/script
+    # script file is input as stdin to SSH
+    type: scriptFile # also can be script
     environment:
       - FOO=BAR
       - APP=$VAR
@@ -33,6 +34,7 @@ Values available for this section:
 | `cmd` | Defines the command to execute | `string` | yes |
 | `args` | Defines the arguments to the command | `[]string` | no |
 | `environment` | Defines evironment variables for the command | `[]string` | no |
+| `type` | May be `scriptFile` or `script`. Runs script from local machine on remote | `string` | no |
 | `getOutput` | Command(s) output is in the notification(s) | `bool` | no |
 | `host` | If not specified, the command will execute locally. | `string` | no |
 | `shell` | Only applicable when host is not specified | `string` | no |
@@ -83,6 +85,14 @@ If I assign a value to host as `host: web-prod` and don't specify this value in 
 
 If shell is defined and host is NOT defined, the command will run in the specified shell.
 Make sure to escape any shell input.
+
+### type
+
+May be `scriptFile` or `script`. Runs script from local machine on remote host.
+
+If `script` is specified, `cmd` is used as the script.
+
+Script file is input as stdin to SSH. 
 
 ### environment
 
