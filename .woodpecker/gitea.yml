@@ -1,4 +1,4 @@
-steps:
+pipeline:
   release:
     image: goreleaser/goreleaser
     commands:

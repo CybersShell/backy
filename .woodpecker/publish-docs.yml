@@ -1,4 +1,4 @@
-steps:
+pipeline:
   build:
     image: klakegg/hugo:ext-debian-ci
     commands:
