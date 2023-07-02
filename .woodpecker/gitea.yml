@@ -2,7 +2,7 @@ steps:
   release:
     image: goreleaser/goreleaser
     commands:
-      - goreleaser release -f .goreleaser/vern.yml --release-notes=".changes/$(go run backy.go version -V).md"
+      - goreleaser release -f .goreleaser/gitea.yml --release-notes=".changes/$(go run backy.go version -V).md"
     secrets: [ gitea_token ]
     when:
       event: tag

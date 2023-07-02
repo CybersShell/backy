@@ -1,6 +1,6 @@
 #!/bin/bash
-export GORELEASER_CURRENT_TAG="$(go run backy.go version -V)"
+# export GORELEASER_CURRENT_TAG="$(go run backy.go version -V)"
 git tag "$(go run backy.go version -V)"
 git push all
 git push all --tags
-goreleaser release -f .goreleaser/gitea.yml --clean --release-notes=".changes/$(go run backy.go version -V).md"
+# goreleaser release -f .goreleaser/gitea.yml --clean --release-notes=".changes/$(go run backy.go version -V).md"
