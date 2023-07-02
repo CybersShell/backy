@@ -20,7 +20,7 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-var PrivateKeyExtraInfoErr = errors.New("Private key may be encrypted. \nIf encrypted, make sure the password is specified correctly in the correct section: \n privatekeypassword: password (not recommended) \n privatekeypassword: env:PR_KEY_PASS \n privatekeypassword: file:/path/to/password-file. \n ")
+var PrivateKeyExtraInfoErr = errors.New("Private key may be encrypted. \nIf encrypted, make sure the password is specified correctly in the correct section: \n privatekeypassword: env:PR_KEY_PASS \n privatekeypassword: file:/path/to/password-file \n privatekeypassword: password (not recommended). \n ")
 var TS = strings.TrimSpace
 
 // ConnectToSSHHost connects to a host by looking up the config values in the directory ~/.ssh/config
@@ -28,12 +28,10 @@ var TS = strings.TrimSpace
 // It returns an ssh.Client used to run commands against.
 // If configFile is empty, any required configuration is looked up in the default config files
 // If any value is not found, defaults are used
-func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, config *BackyConfigFile) error {
+func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts, config *ConfigFile) error {
 
 	// var sshClient *ssh.Client
 	var connectErr error
-
-	// TODO: add JumpHost config check
 
 	if TS(remoteConfig.ConfigFilePath) == "" {
 		remoteConfig.useDefaultConfig = true
@@ -74,8 +72,8 @@ func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, config *BackyCon
 	}
 	if remoteConfig.ProxyHost != nil {
 		for _, proxyHost := range remoteConfig.ProxyHost {
-			err := proxyHost.GetProxyJumpConfig(config.Hosts)
-			log.Info().Msgf("Proxy host: %s", proxyHost.Host)
+			err := proxyHost.GetProxyJumpConfig(config.Hosts, opts)
+			opts.ConfigFile.Logger.Info().Msgf("Proxy host: %s", proxyHost.Host)
 			if err != nil {
 				return err
 			}
@@ -93,7 +91,7 @@ func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, config *BackyCon
 		return errors.Errorf("No hostname found or specified for host %s", remoteConfig.Host)
 	}
 
-	err = remoteConfig.GetAuthMethods()
+	err = remoteConfig.GetAuthMethods(opts)
 	if err != nil {
 		return err
 	}
@@ -103,9 +101,9 @@ func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, config *BackyCon
 		return errors.Wrap(err, "could not create hostkeycallback function")
 	}
 	remoteConfig.ClientConfig.HostKeyCallback = hostKeyCallback
-	log.Info().Str("user", remoteConfig.ClientConfig.User).Send()
+	opts.ConfigFile.Logger.Info().Str("user", remoteConfig.ClientConfig.User).Send()
 
-	remoteConfig.SshClient, connectErr = remoteConfig.ConnectThroughBastion(log)
+	remoteConfig.SshClient, connectErr = remoteConfig.ConnectThroughBastion(opts.ConfigFile.Logger)
 	if connectErr != nil {
 		return connectErr
 	}
@@ -114,7 +112,7 @@ func (remoteConfig *Host) ConnectToSSHHost(log *zerolog.Logger, config *BackyCon
 		return nil
 	}
 
-	log.Info().Msgf("Connecting to host %s", remoteConfig.HostName)
+	opts.ConfigFile.Logger.Info().Msgf("Connecting to host %s", remoteConfig.HostName)
 	remoteConfig.SshClient, connectErr = ssh.Dial("tcp", remoteConfig.HostName, remoteConfig.ClientConfig)
 	if connectErr != nil {
 		return connectErr
@@ -136,7 +134,7 @@ func (remoteHost *Host) GetSshUserFromConfig() {
 	}
 	remoteHost.ClientConfig.User = remoteHost.User
 }
-func (remoteHost *Host) GetAuthMethods() error {
+func (remoteHost *Host) GetAuthMethods(opts *ConfigOpts) error {
 	var signer ssh.Signer
 	var err error
 	var privateKey []byte
@@ -148,7 +146,7 @@ func (remoteHost *Host) GetAuthMethods() error {
 		if err != nil {
 			return err
 		}
-		remoteHost.PrivateKeyPassword, err = GetPrivateKeyPassword(remoteHost.PrivateKeyPassword)
+		remoteHost.PrivateKeyPassword, err = GetPrivateKeyPassword(remoteHost.PrivateKeyPassword, opts, opts.ConfigFile.Logger)
 		if err != nil {
 			return err
 		}
@@ -167,7 +165,7 @@ func (remoteHost *Host) GetAuthMethods() error {
 		}
 	}
 	if remoteHost.Password == "" {
-		remoteHost.Password, err = GetPassword(remoteHost.Password)
+		remoteHost.Password, err = GetPassword(remoteHost.Password, opts, opts.ConfigFile.Logger)
 		if err != nil {
 			return err
 		}
@@ -235,7 +233,7 @@ func (remoteHost *Host) GetHostName() {
 	}
 }
 
-func (remoteHost *Host) ConnectThroughBastion(log *zerolog.Logger) (*ssh.Client, error) {
+func (remoteHost *Host) ConnectThroughBastion(log zerolog.Logger) (*ssh.Client, error) {
 	if remoteHost.ProxyHost == nil {
 		return nil, nil
 	}
@@ -273,7 +271,7 @@ func GetKnownHosts(khPath string) (string, error) {
 	return resolveDir("~/.ssh/known_hosts")
 }
 
-func GetPrivateKeyPassword(key string) (string, error) {
+func GetPrivateKeyPassword(key string, opts *ConfigOpts, log zerolog.Logger) (string, error) {
 	var prKeyPassword string
 	if strings.HasPrefix(key, "file:") {
 		privKeyPassFilePath := strings.TrimPrefix(key, "file:")
@@ -295,10 +293,11 @@ func GetPrivateKeyPassword(key string) (string, error) {
 	} else {
 		prKeyPassword = key
 	}
+	prKeyPassword = GetVaultKey(prKeyPassword, opts, opts.ConfigFile.Logger)
 	return prKeyPassword, nil
 }
 
-func GetPassword(pass string) (string, error) {
+func GetPassword(pass string, opts *ConfigOpts, log zerolog.Logger) (string, error) {
 	pass = strings.TrimSpace(pass)
 	if pass == "" {
 		return "", nil
@@ -324,6 +323,8 @@ func GetPassword(pass string) (string, error) {
 	} else {
 		password = pass
 	}
+	password = GetVaultKey(password, opts, opts.ConfigFile.Logger)
+
 	return password, nil
 }
 
@@ -352,7 +353,7 @@ func (remoteConfig *Host) GetProxyJumpFromConfig(hosts map[string]*Host) error {
 	return nil
 }
 
-func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host) error {
+func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *ConfigOpts) error {
 	if TS(remoteConfig.ConfigFilePath) == "" {
 		remoteConfig.useDefaultConfig = true
 	}
@@ -396,7 +397,7 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host) error {
 	if remoteConfig.HostName == "" {
 		return errors.Errorf("No hostname found or specified for host %s", remoteConfig.Host)
 	}
-	err := remoteConfig.GetAuthMethods()
+	err := remoteConfig.GetAuthMethods(opts)
 	if err != nil {
 		return err
 	}

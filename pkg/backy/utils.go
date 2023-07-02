@@ -21,25 +21,25 @@ import (
 	"mvdan.cc/sh/v3/shell"
 )
 
-func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, opts *BackyConfigOpts) {
+func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, opts *ConfigOpts, log zerolog.Logger) {
 	if envVarsToInject.file != "" {
 		envPath, envPathErr := resolveDir(envVarsToInject.file)
 		if envPathErr != nil {
-			opts.ConfigFile.Logger.Fatal().Str("envFile", envPath).Err(envPathErr).Send()
+			log.Fatal().Str("envFile", envPath).Err(envPathErr).Send()
 		}
 		file, err := os.Open(envPath)
 		if err != nil {
-			opts.ConfigFile.Logger.Fatal().Str("envFile", envPath).Err(err).Send()
+			log.Fatal().Str("envFile", envPath).Err(err).Send()
 		}
 		defer file.Close()
 
 		envMap, err := godotenv.Parse(file)
 		if err != nil {
-			opts.ConfigFile.Logger.Error().Str("envFile", envPath).Err(err).Send()
+			log.Error().Str("envFile", envPath).Err(err).Send()
 			goto errEnvFile
 		}
 		for key, val := range envMap {
-			process.Setenv(key, GetVaultKey(val, opts))
+			process.Setenv(key, GetVaultKey(val, opts, log))
 		}
 	}
 
@@ -50,12 +50,12 @@ errEnvFile:
 		if strings.Contains(envVal, "=") {
 			envVarArr := strings.Split(envVal, "=")
 
-			process.Setenv(envVarArr[0], GetVaultKey(envVarArr[1], opts))
+			process.Setenv(envVarArr[0], GetVaultKey(envVarArr[1], opts, log))
 		}
 	}
 }
 
-func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, log *zerolog.Logger) {
+func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, log zerolog.Logger) {
 	if envVarsToInject.file != "" {
 		envPath, _ := resolveDir(envVarsToInject.file)
 
@@ -71,7 +71,6 @@ func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, l
 			goto errEnvFile
 		}
 		for key, val := range envMap {
-
 			process.Env = append(process.Env, fmt.Sprintf("%s=%s", key, val))
 		}
 
@@ -117,43 +116,43 @@ func testFile(c string) error {
 	return nil
 }
 
-func (c *BackyConfigOpts) LogLvl(level string) BackyOptionFunc {
+func (c *ConfigOpts) LogLvl(level string) BackyOptionFunc {
 
-	return func(bco *BackyConfigOpts) {
+	return func(bco *ConfigOpts) {
 		c.BackyLogLvl = &level
 	}
 }
 
-// AddCommands adds commands to BackyConfigOpts
+// AddCommands adds commands to ConfigOpts
 func AddCommands(commands []string) BackyOptionFunc {
-	return func(bco *BackyConfigOpts) {
+	return func(bco *ConfigOpts) {
 		bco.executeCmds = append(bco.executeCmds, commands...)
 	}
 }
 
-// AddCommandLists adds lists to BackyConfigOpts
+// AddCommandLists adds lists to ConfigOpts
 func AddCommandLists(lists []string) BackyOptionFunc {
-	return func(bco *BackyConfigOpts) {
+	return func(bco *ConfigOpts) {
 		bco.executeLists = append(bco.executeLists, lists...)
 	}
 }
 
 // UseCron enables the execution of command lists at specified times
 func UseCron() BackyOptionFunc {
-	return func(bco *BackyConfigOpts) {
+	return func(bco *ConfigOpts) {
 		bco.useCron = true
 	}
 }
 
 // UseCron enables the execution of command lists at specified times
-func (c *BackyConfigOpts) AddViper(v *viper.Viper) BackyOptionFunc {
-	return func(bco *BackyConfigOpts) {
+func (c *ConfigOpts) AddViper(v *viper.Viper) BackyOptionFunc {
+	return func(bco *ConfigOpts) {
 		c.viper = v
 	}
 }
 
-func NewOpts(configFilePath string, opts ...BackyOptionFunc) *BackyConfigOpts {
-	b := &BackyConfigOpts{}
+func NewOpts(configFilePath string, opts ...BackyOptionFunc) *ConfigOpts {
+	b := &ConfigOpts{}
 	b.ConfigFilePath = configFilePath
 	for _, opt := range opts {
 		if opt != nil {
@@ -166,8 +165,8 @@ func NewOpts(configFilePath string, opts ...BackyOptionFunc) *BackyConfigOpts {
 /*
 NewConfig initializes new config that holds information	from the config file
 */
-func NewConfig() *BackyConfigFile {
-	return &BackyConfigFile{
+func NewConfig() *ConfigFile {
+	return &ConfigFile{
 		Cmds:           make(map[string]*Command),
 		CmdConfigLists: make(map[string]*CmdList),
 		Hosts:          make(map[string]*Host),
@@ -203,7 +202,7 @@ func resolveDir(path string) (string, error) {
 	return path, nil
 }
 
-func (opts *BackyConfigOpts) loadEnv() {
+func (opts *ConfigOpts) loadEnv() {
 	envFileInConfigDir := fmt.Sprintf("%s/.env", path.Dir(opts.viper.ConfigFileUsed()))
 	var backyEnv map[string]string
 	backyEnv, envFileErr := godotenv.Read(envFileInConfigDir)

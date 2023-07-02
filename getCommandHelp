@@ -1,0 +1,53 @@
+#!/bin/bash
+CLI_PAGE="docs/content/cli/_index.md"
+echo "---
+title: "CLI"
+weight: 4
+---
+
+This page lists documentation for the CLI.
+" > _index.md
+
+BACKYCOMMAND="go run backy.go"
+
+echo "## Backy " >> _index.md
+echo " " >> _index.md
+echo "\`\`\`" >> _index.md
+eval "${BACKYCOMMAND} -h >>  _index.md"
+echo "\`\`\`" >> _index.md
+echo " " >> _index.md
+
+
+echo "# Subcommands" >> _index.md
+echo "" >> _index.md
+
+echo "## backup" >> _index.md
+echo "" >> _index.md
+echo "\`\`\`" >> _index.md
+eval "${BACKYCOMMAND} backup -h >>  _index.md"
+echo "\`\`\`" >> _index.md
+echo "" >> _index.md
+
+echo "## cron" >> _index.md
+echo "" >> _index.md
+echo "\`\`\`" >> _index.md
+eval "${BACKYCOMMAND} cron -h >>  _index.md"
+echo "\`\`\`" >> _index.md
+echo "" >> _index.md
+
+echo "## exec" >> _index.md
+echo "" >> _index.md
+echo "\`\`\`" >> _index.md
+eval "${BACKYCOMMAND} exec -h >>  _index.md"
+echo "\`\`\`" >> _index.md
+echo "" >> _index.md
+
+
+echo "## version" >> _index.md
+echo "" >> _index.md
+echo "\`\`\`" >> _index.md
+eval "${BACKYCOMMAND} version -h >>  _index.md"
+echo "\`\`\`" >> _index.md
+echo "" >> _index.md
+
+mv _index.md "$CLI_PAGE"

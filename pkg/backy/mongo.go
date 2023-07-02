@@ -16,7 +16,7 @@ import (
 
 const mongoConfigKey = "global.mongo"
 
-func (opts *BackyConfigOpts) InitMongo() {
+func (opts *ConfigOpts) InitMongo() {
 
 	if !opts.viper.GetBool(getMongoConfigKey("enabled")) {
 		return
@@ -68,7 +68,7 @@ func (opts *BackyConfigOpts) InitMongo() {
 	opts.DB = backyDB
 }
 
-func getMongoConfigFromEnv(opts *BackyConfigOpts) error {
+func getMongoConfigFromEnv(opts *ConfigOpts) error {
 	mongoEnvFile, err := os.Open(opts.viper.GetString("global.mongo.env"))
 	if err != nil {
 		return err

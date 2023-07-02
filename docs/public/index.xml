@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Backy on A tool for commands</title>
+    <link>http://example.org/index.html</link>
+    <description>Recent content in Backy on A tool for commands</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language><atom:link href="http://example.org/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Getting started</title>
+      <link>http://example.org/getting-started/index.html</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://example.org/getting-started/index.html</guid>
+      <description>If you have not installed Backy, see the install documentation.</description>
+    </item>
+    <item>
+      <title>Configuring Backy</title>
+      <link>http://example.org/config/index.html</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://example.org/config/index.html</guid>
+      <description>This is the section on the config file.
+To use a specific file: backy backup -f /path/to/file
+If you leave the config path blank, the following paths will be searched in order:
+./backy.yml ./backy.yaml ~/.config/backy.yml ~/.config/backy.yaml Create a file at ~/.config/backy.yml.
+See the documentation in this section to configure it.</description>
+    </item>
+    <item>
+      <title>CLI</title>
+      <link>http://example.org/cli/index.html</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://example.org/cli/index.html</guid>
+      <description>This page lists documentation for the CLI.
+Subcommands backy backup Backup executes commands defined in config file. Use the --lists flag to execute the specified commands. If not specified, all lists will be executed. Usage: backy backup [--lists=list1,list2] [flags] Flags: -h, --help help for backup -l, --lists strings Accepts comma-separated names of command lists to execute. Global Flags: -f, --config string config file to read from -v, --verbose Sets verbose level backy exec Exec executes commands defined in config file.</description>
+    </item>
+    <item>
+      <title>Repositories</title>
+      <link>http://example.org/repositories/index.html</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://example.org/repositories/index.html</guid>
+      <description>The repo mirrors are:
+https://git.andrewnw.xyz/CyberShell/backy https://git.vern.cc/cybershell/backy https://github.com/CybersShell/backy </description>
+    </item>
+  </channel>
+</rss>

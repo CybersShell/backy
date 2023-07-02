@@ -11,24 +11,25 @@ import (
 	"github.com/go-co-op/gocron"
 )
 
-func (conf *BackyConfigFile) Cron() {
+func (opts *ConfigOpts) Cron() {
 	s := gocron.NewScheduler(time.Local)
 	s.TagsUnique()
-	for listName, config := range conf.CmdConfigLists {
+	cmdLists := opts.ConfigFile.CmdConfigLists
+	for listName, config := range cmdLists {
 		if config.Name == "" {
 			config.Name = listName
 		}
 		cron := strings.TrimSpace(config.Cron)
 		if cron != "" {
-			conf.Logger.Info().Str("Scheduling cron list", config.Name).Str("Time", cron).Send()
+			opts.ConfigFile.Logger.Info().Str("Scheduling cron list", config.Name).Str("Time", cron).Send()
 			_, err := s.CronWithSeconds(cron).Tag(config.Name).Do(func(cron string) {
-				conf.RunBackyConfig(cron)
+				opts.ConfigFile.RunListConfig(cron, opts)
 			}, cron)
 			if err != nil {
 				panic(err)
 			}
 		}
 	}
-	conf.Logger.Info().Msg("Starting cron mode...")
+	opts.ConfigFile.Logger.Info().Msg("Starting cron mode...")
 	s.StartBlocking()
 }

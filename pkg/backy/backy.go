@@ -30,7 +30,7 @@ var Sprintf = fmt.Sprintf
 // The environment of local commands will be the machine's environment plus any extra
 // variables specified in the Env file or Environment.
 // Dir can also be specified for local commands.
-func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile, opts *BackyConfigOpts) ([]string, error) {
+func (command *Command) RunCmd(log zerolog.Logger, backyConf *ConfigFile, opts *ConfigOpts) ([]string, error) {
 
 	var (
 		outputArr     []string
@@ -58,7 +58,7 @@ func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile, 
 		}
 
 		if command.RemoteHost.SshClient == nil {
-			err := command.RemoteHost.ConnectToSSHHost(log, backyConf)
+			err := command.RemoteHost.ConnectToSSHHost(opts, backyConf)
 			if err != nil {
 				return nil, err
 			}
@@ -69,7 +69,7 @@ func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile, 
 		}
 		defer commandSession.Close()
 
-		injectEnvIntoSSH(envVars, commandSession, opts)
+		injectEnvIntoSSH(envVars, commandSession, opts, log)
 		cmd := command.Cmd
 		for _, a := range command.Args {
 			cmd += " " + a
@@ -267,7 +267,7 @@ func (command *Command) RunCmd(log *zerolog.Logger, backyConf *BackyConfigFile, 
 	return outputArr, nil
 }
 
-func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyConfigFile, results chan<- string, opts *BackyConfigOpts) {
+func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *ConfigFile, results chan<- string, opts *ConfigOpts) {
 
 	for list := range jobs {
 		fieldsMap := make(map[string]interface{})
@@ -296,16 +296,19 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyCo
 					Logger()
 			}
 
-			outputArr, runOutErr := cmdToRun.RunCmd(&cmdLogger, config, opts)
-			if cmdToRun.Output {
-				outputStruct := outStruct{
-					CmdName:     cmd,
-					CmdExecuted: currentCmd,
-					Output:      outputArr,
+			outputArr, runOutErr := cmdToRun.RunCmd(cmdLogger, config, opts)
+			if list.NotifyConfig != nil {
+
+				if cmdToRun.GetOutput || list.GetOutput {
+					outputStruct := outStruct{
+						CmdName:     cmd,
+						CmdExecuted: currentCmd,
+						Output:      outputArr,
+					}
+
+					outStructArr = append(outStructArr, outputStruct)
+
 				}
-
-				outStructArr = append(outStructArr, outputStruct)
-
 			}
 			count++
 			if runOutErr != nil {
@@ -377,8 +380,8 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, config *BackyCo
 
 }
 
-// RunBackyConfig runs a command list from the BackyConfigFile.
-func (config *BackyConfigFile) RunBackyConfig(cron string, opts *BackyConfigOpts) {
+// RunListConfig runs a command list from the ConfigFile.
+func (config *ConfigFile) RunListConfig(cron string, opts *ConfigOpts) {
 	mTemps := &msgTemplates{
 		err:     template.Must(template.New("error.txt").ParseFS(templates, "templates/error.txt")),
 		success: template.Must(template.New("success.txt").ParseFS(templates, "templates/success.txt")),
@@ -417,13 +420,13 @@ func (config *BackyConfigFile) RunBackyConfig(cron string, opts *BackyConfigOpts
 	config.closeHostConnections()
 }
 
-func (config *BackyConfigFile) ExecuteCmds(opts *BackyConfigOpts) {
+func (config *ConfigFile) ExecuteCmds(opts *ConfigOpts) {
 	for _, cmd := range opts.executeCmds {
 		cmdToRun := config.Cmds[cmd]
 		cmdLogger := config.Logger.With().
 			Str("backy-cmd", cmd).
 			Logger()
-		_, runErr := cmdToRun.RunCmd(&cmdLogger, config, opts)
+		_, runErr := cmdToRun.RunCmd(cmdLogger, config, opts)
 		if runErr != nil {
 			config.Logger.Err(runErr).Send()
 		}
@@ -433,7 +436,7 @@ func (config *BackyConfigFile) ExecuteCmds(opts *BackyConfigOpts) {
 
 }
 
-func (c *BackyConfigFile) closeHostConnections() {
+func (c *ConfigFile) closeHostConnections() {
 	for _, host := range c.Hosts {
 		if host.isProxyHost {
 			continue

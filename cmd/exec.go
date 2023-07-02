@@ -14,8 +14,8 @@ import (
 var (
 	execCmd = &cobra.Command{
 		Use:   "exec command ...",
-		Short: "Runs commands defined in config file.",
-		Long:  `Exec executes commands defined in config file.`,
+		Short: "Runs commands defined in config file in order given.",
+		Long:  `Exec executes commands defined in config file in order given.`,
 		Run:   execute,
 	}
 )

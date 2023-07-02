@@ -99,22 +99,23 @@ type (
 
 		// Output determines if output is requested.
 		// Only works if command is in a list.
-		Output bool `yaml:"output,omitempty"`
+		GetOutput bool `yaml:"getOutput,omitempty"`
 	}
 
-	BackyOptionFunc func(*BackyConfigOpts)
+	BackyOptionFunc func(*ConfigOpts)
 
 	CmdList struct {
 		Name          string   `yaml:"name,omitempty"`
 		Cron          string   `yaml:"cron,omitempty"`
 		Order         []string `yaml:"order,omitempty"`
 		Notifications []string `yaml:"notifications,omitempty"`
+		GetOutput     bool     `yaml:"getOutput,omitempty"`
 		NotifyConfig  *notify.Notify
 		// NotificationsConfig map[string]*NotificationsConfig
 		// NotifyConfig        map[string]*notify.Notify
 	}
 
-	BackyConfigFile struct {
+	ConfigFile struct {
 
 		// Cmds holds the commands for a list.
 		// Key is the name of the command,
@@ -134,11 +135,11 @@ type (
 		Logger zerolog.Logger
 	}
 
-	BackyConfigOpts struct {
+	ConfigOpts struct {
 		// Global log level
 		BackyLogLvl *string
 		// Holds config file
-		ConfigFile *BackyConfigFile
+		ConfigFile *ConfigFile
 		// Holds config file
 		ConfigFilePath string
 
@@ -149,7 +150,7 @@ type (
 		useCron bool
 		// Holds commands to execute for the exec command
 		executeCmds []string
-		// Holds commands to execute for the exec command
+		// Holds lists to execute for the backup command
 		executeLists []string
 
 		// Holds env vars from .env file

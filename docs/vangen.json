@@ -1,0 +1,20 @@
+{
+    "domain": "go.cybershell.xyz",
+    "docsDomain": "pkg.go.dev",
+    "repositories": [
+      {
+        "prefix": "backy",
+        "type": "git",
+        "hidden": false,
+        "url": "https://git.andrewnw.xyz/CyberShell/backy",
+        "source": {
+          "home": "https://git.andrewnw.xyz/CyberShell/backy",
+          "dir": "https://git.andrewnw.xyz/CyberShell/backy/src/branch/master/{/dir}",
+          "file": "https://git.andrewnw.xyz/CyberShell/backy/src/branch/master/{/dir}/{file}#L{line}"
+        },
+        "website": {
+          "url": "https://backy.cybershell.xyz/"
+        }
+      }
+    ]
+  }

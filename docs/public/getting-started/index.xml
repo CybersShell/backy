@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Getting started on A tool for commands</title>
+    <link>http://example.org/getting-started/index.html</link>
+    <description>Recent content in Getting started on A tool for commands</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language><atom:link href="http://example.org/getting-started/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Install Backy</title>
+      <link>http://example.org/getting-started/install/index.html</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://example.org/getting-started/install/index.html</guid>
+      <description>Binaries are available from the release page. Make sure to get the correct version for your system, which supports x86_64, ARM64, and i386.
+Source Install You can install from source. You will need Go installed.
+Then run:
+go install git.andrewnw.xyz/CyberShell/backy@master Once set, jump over to the config docs and start configuring your file.</description>
+    </item>
+    <item>
+      <title>Config File Definitions</title>
+      <link>http://example.org/getting-started/config/index.html</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://example.org/getting-started/config/index.html</guid>
+      <description>Commands The commands section is for defining commands. These can be run with or without a shell and on a host or locally.
+See the commands documentation for further information.
+commands: stop-docker-container: cmd: docker args: - compose - -f /some/path/to/docker-compose.yaml - down # if host is not defined, cmd will be run locally host: some-host backup-docker-container-script: cmd: /path/to/script # The host has to be defined in the config file host: some-host environment: - FOO=BAR - APP=$VAR # defined in .</description>
+    </item>
+  </channel>
+</rss>

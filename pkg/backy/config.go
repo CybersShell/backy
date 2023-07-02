@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func (opts *BackyConfigOpts) InitConfig() {
+func (opts *ConfigOpts) InitConfig() {
 	if opts.viper != nil {
 		return
 	}
@@ -43,7 +43,7 @@ func (opts *BackyConfigOpts) InitConfig() {
 }
 
 // ReadConfig validates and reads the config file.
-func ReadConfig(opts *BackyConfigOpts) *BackyConfigFile {
+func ReadConfig(opts *ConfigOpts) *ConfigFile {
 
 	if isatty.IsTerminal(os.Stdout.Fd()) {
 		os.Setenv("BACKY_TERM", "enabled")
@@ -271,7 +271,6 @@ func ReadConfig(opts *BackyConfigOpts) *BackyConfigFile {
 		log.Err(err).Send()
 	}
 	opts.ConfigFile = backyConfigFile
-
 	return backyConfigFile
 }
 
@@ -294,7 +293,7 @@ func getCmdListFromConfig(list string) string {
 	return fmt.Sprintf("cmd-configs.%s", list)
 }
 
-func (opts *BackyConfigOpts) setupVault() error {
+func (opts *ConfigOpts) setupVault() error {
 	if !opts.viper.GetBool("vault.enabled") {
 		return nil
 	}
@@ -313,6 +312,9 @@ func (opts *BackyConfigOpts) setupVault() error {
 	token := opts.viper.GetString("vault.token")
 	if strings.TrimSpace(token) == "" {
 		token = os.Getenv("VAULT_TOKEN")
+	}
+	if strings.TrimSpace(token) == "" {
+		return fmt.Errorf("no token found, but one was required. \n\nSet the config key vault.token or the environment variable VAULT_TOKEN")
 	}
 
 	client.SetToken(token)
@@ -375,19 +377,19 @@ func parseVaultKey(str string, keys []*VaultKey) (*VaultKey, error) {
 	return nil, fmt.Errorf("key %s not found in vault keys", keyName)
 }
 
-func GetVaultKey(str string, opts *BackyConfigOpts) string {
+func GetVaultKey(str string, opts *ConfigOpts, log zerolog.Logger) string {
 	key, err := parseVaultKey(str, opts.VaultKeys)
 	if key == nil && err == nil {
 		return str
 	}
 	if err != nil && key == nil {
-		opts.ConfigFile.Logger.Err(err).Send()
+		log.Err(err).Send()
 		return ""
 	}
 
 	value, secretErr := getVaultSecret(opts.vaultClient, key)
 	if secretErr != nil {
-		opts.ConfigFile.Logger.Err(secretErr).Send()
+		log.Err(secretErr).Send()
 		return value
 	}
 	return value

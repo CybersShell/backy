@@ -1,0 +1,30 @@
+steps:
+  build:
+    image: klakegg/hugo:ext-debian-ci
+    commands:
+      - git submodule foreach 'git fetch origin; git checkout $(git describe --tags `git rev-list --tags --max-count=1`);'
+      - cd docs
+      - hugo
+
+  deploy:
+    image: codingkoopa/git-rsync-openssh
+    commands:
+      - cd docs
+      - echo "151.101.210.132 deb.debian.org" >> /etc/hosts
+      - echo "nameserver 1.1.1.1" > /etc/resolv.conf
+      - mkdir ~/.ssh && chmod -R 700 ~/.ssh
+      # - apt update -y && apt install openssh-client rsync -y
+      - echo "$SSH_HOST_KEY" > ~/.ssh/known_hosts
+      - echo -e '#!/bin/sh\necho "$SSH_PASSPHRASE"' | tr -d '\r' > ~/.ssh/.print_ssh_password
+      # - cat ~/.ssh/.print_ssh_password
+      - chmod 700 ~/.ssh/.print_ssh_password
+      - eval $(ssh-agent -s)
+      - echo "$SSH_DEPLOY_KEY" | tr -d '\r' | DISPLAY=":0.0" SSH_ASKPASS=~/.ssh/.print_ssh_password setsid ssh-add -
+      - rsync -atv --delete --progress public/ backy@backy.cybershell.xyz:docs
+      - rsync -atv --delete --progress vangen/ backy@backy.cybershell.xyz:vangen-go
+    secrets: [ ssh_host_key, ssh_deploy_key, ssh_passphrase ]
+
+
+branches: master
+when:
+  path: "docs/*"

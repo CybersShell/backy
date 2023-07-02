@@ -12,9 +12,9 @@ import (
 
 var (
 	backupCmd = &cobra.Command{
-		Use:   "backup [--lists=list1,list2]",
+		Use:   "backup [--lists=list1,list2,... | -l list1, list2,...]",
 		Short: "Runs commands defined in config file.",
-		Long:  "Backup executes commands defined in config file.\nUse the --lists flag to execute the specified commands. If not specified, all lists will be executed.",
+		Long:  "Backup executes commands defined in config file.\nUse the --lists or -l flag to execute the specified lists. If not flag is not given, all lists will be executed.",
 		Run:   Backup,
 	}
 )
@@ -34,7 +34,7 @@ func Backup(cmd *cobra.Command, args []string) {
 
 	config := backy.ReadConfig(backyConfOpts)
 
-	config.RunBackyConfig("", backyConfOpts)
+	config.RunListConfig("", backyConfOpts)
 	for _, host := range config.Hosts {
 		if host.SshClient != nil {
 			host.SshClient.Close()

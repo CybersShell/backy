@@ -28,13 +28,13 @@ type mailConfig struct {
 	port          string
 }
 
-func SetupCommandsNotifiers(backyConfig BackyConfigFile, ids ...string) {
+func SetupCommandsNotifiers(backyConfig ConfigFile, ids ...string) {
 
 }
 
 // SetupNotify sets up notify instances for each command list.
 
-func (backyConfig *BackyConfigFile) SetupNotify() {
+func (backyConfig *ConfigFile) SetupNotify() {
 
 	for _, cmdConfig := range backyConfig.CmdConfigLists {
 		var services []notify.Notifier

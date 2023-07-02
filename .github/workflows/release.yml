@@ -30,7 +30,7 @@ jobs:
         uses: dawidd6/action-get-tag@v1
         with:
           # Optionally strip `v` prefix
-          strip_v: true
+          strip_v: false
       - uses: goreleaser/goreleaser-action@v4
         with:
           distribution: goreleaser
@@ -38,6 +38,3 @@ jobs:
           args: release --release-notes=".changes/${{steps.tag.outputs.tag}}.md" -f .goreleaser/github.yml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
-          # Your GoReleaser Pro key, if you are using the 'goreleaser-pro'
-          # distribution:
-          # GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}

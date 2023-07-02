@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Configuring Backy on A tool for commands</title>
+    <link>http://example.org/config/index.html</link>
+    <description>Recent content in Configuring Backy on A tool for commands</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language><atom:link href="http://example.org/config/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Command Lists</title>
+      <link>http://example.org/config/command-lists/index.html</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://example.org/config/command-lists/index.html</guid>
+      <description>Command lists are for executing commands in sequence and getting notifications from them.
+The top-level object key can be anything you want.
+key description type required order Defines the sequence of commands to execute []string yes notifications The notification IDs to use on success and failure []string no name Optional name of the list string no cron Time at which to schedule the list. string no Order The order is an array of commands to execute in order.</description>
+    </item>
+    <item>
+      <title>Commands</title>
+      <link>http://example.org/config/commands/index.html</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://example.org/config/commands/index.html</guid>
+      <description>The yaml top-level map can be any string.
+The top-level name must be unique.
+commands: stop-docker-container: cmd: docker Args: - compose - -f /some/path/to/docker-compose.yaml - down # if host is not defined, command will be run locally host: some-host backup-docker-container-script: cmd: /path/to/script # The host has to be defined in either the config file or the SSH Config files host: some-host environment: - FOO=BAR - APP=$VAR Values available for this section:</description>
+    </item>
+    <item>
+      <title>Notifications</title>
+      <link>http://example.org/config/notifications/index.html</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://example.org/config/notifications/index.html</guid>
+      <description>Notifications can be sent on command list completion and failure.
+The supported platforms for notifications are email (SMTP) and Matrix.
+Notifications are defined by type. The top-level object will be the id, and the type is required.
+Info Type in a cmd-configs object must match one of these.
+notifications: prod-email: type: mail host: yourhost.tld port: 587 senderaddress: email@domain.tld to: - admin@domain.tld username: smtp-username@domain.tld password: your-password-here matrix: type: matrix home-server: your-home-server.tld room-id: room-id access-token: your-access-token user-id: your-user-id Types recognized are type: mail and type: matrix</description>
+    </item>
+  </channel>
+</rss>
