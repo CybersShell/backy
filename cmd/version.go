@@ -21,7 +21,7 @@ var (
 )
 
 func init() {
-	versionCmd.PersistentFlags().BoolVarP(&numOnly, "num", "n", true, "Output the version number only.")
+	versionCmd.PersistentFlags().BoolVarP(&numOnly, "num", "n", false, "Output the version number only.")
 	versionCmd.PersistentFlags().BoolVarP(&vPre, "vpre", "V", false, "Output the version with v prefixed.")
 }
 
