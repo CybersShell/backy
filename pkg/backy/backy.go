@@ -64,20 +64,9 @@ func (command *Command) RunCmd(log zerolog.Logger, backyConf *ConfigFile, opts *
 			}
 		}
 		commandSession, err := command.RemoteHost.SshClient.NewSession()
-
-		// Retry connecting to host; if that fails, error. If it does not fail, try to create new session
 		if err != nil {
-			connErr := command.RemoteHost.ConnectToSSHHost(opts, backyConf)
-			if connErr != nil {
-				return nil, fmt.Errorf("error creating session: %v, and error creating new connection to host: %v", err, connErr)
-			}
-			commandSession, err = command.RemoteHost.SshClient.NewSession()
-
-			if err != nil {
-				return nil, fmt.Errorf("error creating session: %v", err)
-			}
+			return nil, err
 		}
-
 		defer commandSession.Close()
 
 		injectEnvIntoSSH(envVars, commandSession, opts, log)
@@ -401,12 +390,15 @@ func (config *ConfigFile) RunListConfig(cron string, opts *ConfigOpts) {
 	listChan := make(chan *CmdList, configListsLen)
 	results := make(chan string)
 
-	// This starts up list workers, initially blocked
+	// This starts up 3 workers, initially blocked
 	// because there are no jobs yet.
 	for w := 1; w <= configListsLen; w++ {
 		go cmdListWorker(mTemps, listChan, config, results, opts)
 	}
 
+	// Here we send 5 `jobs` and then `close` that
+	// channel to indicate that's all the work we have.
+	// configChan <- config.Cmds
 	for listName, cmdConfig := range config.CmdConfigLists {
 		if cmdConfig.Name == "" {
 			cmdConfig.Name = listName
@@ -446,7 +438,6 @@ func (config *ConfigFile) ExecuteCmds(opts *ConfigOpts) {
 
 func (c *ConfigFile) closeHostConnections() {
 	for _, host := range c.Hosts {
-		c.Logger.Info().Str("server", host.HostName)
 		if host.isProxyHost {
 			continue
 		}
@@ -454,7 +445,6 @@ func (c *ConfigFile) closeHostConnections() {
 			if _, err := host.SshClient.NewSession(); err == nil {
 				c.Logger.Info().Msgf("Closing host connection %s", host.HostName)
 				host.SshClient.Close()
-				host.SshClient = nil
 			}
 		}
 		for _, proxyHost := range host.ProxyHost {
@@ -465,7 +455,6 @@ func (c *ConfigFile) closeHostConnections() {
 				if _, err := host.SshClient.NewSession(); err == nil {
 					c.Logger.Info().Msgf("Closing connection to proxy host %s", host.HostName)
 					host.SshClient.Close()
-					host.SshClient = nil
 				}
 			}
 		}
@@ -475,7 +464,6 @@ func (c *ConfigFile) closeHostConnections() {
 			if _, err := host.SshClient.NewSession(); err == nil {
 				c.Logger.Info().Msgf("Closing proxy host connection %s", host.HostName)
 				host.SshClient.Close()
-				host.SshClient = nil
 			}
 		}
 	}

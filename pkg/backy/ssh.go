@@ -117,7 +117,6 @@ func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts, config *ConfigFile)
 	if connectErr != nil {
 		return connectErr
 	}
-
 	config.Hosts[remoteConfig.Host] = remoteConfig
 	return nil
 }
@@ -135,7 +134,6 @@ func (remoteHost *Host) GetSshUserFromConfig() {
 	}
 	remoteHost.ClientConfig.User = remoteHost.User
 }
-
 func (remoteHost *Host) GetAuthMethods(opts *ConfigOpts) error {
 	var signer ssh.Signer
 	var err error
@@ -267,7 +265,6 @@ func (remoteHost *Host) ConnectThroughBastion(log zerolog.Logger) (*ssh.Client, 
 }
 
 func GetKnownHosts(khPath string) (string, error) {
-
 	if TS(khPath) != "" {
 		return resolveDir(khPath)
 	}
@@ -275,7 +272,6 @@ func GetKnownHosts(khPath string) (string, error) {
 }
 
 func GetPrivateKeyPassword(key string, opts *ConfigOpts, log zerolog.Logger) (string, error) {
-
 	var prKeyPassword string
 	if strings.HasPrefix(key, "file:") {
 		privKeyPassFilePath := strings.TrimPrefix(key, "file:")
@@ -302,7 +298,6 @@ func GetPrivateKeyPassword(key string, opts *ConfigOpts, log zerolog.Logger) (st
 }
 
 func GetPassword(pass string, opts *ConfigOpts, log zerolog.Logger) (string, error) {
-
 	pass = strings.TrimSpace(pass)
 	if pass == "" {
 		return "", nil
@@ -334,7 +329,6 @@ func GetPassword(pass string, opts *ConfigOpts, log zerolog.Logger) (string, err
 }
 
 func (remoteConfig *Host) GetProxyJumpFromConfig(hosts map[string]*Host) error {
-
 	proxyJump, _ := remoteConfig.SSHConfigFile.SshConfigFile.Get(remoteConfig.Host, "ProxyJump")
 	if proxyJump == "" {
 		proxyJump = remoteConfig.SSHConfigFile.DefaultUserSettings.Get(remoteConfig.Host, "ProxyJump")
@@ -360,7 +354,6 @@ func (remoteConfig *Host) GetProxyJumpFromConfig(hosts map[string]*Host) error {
 }
 
 func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *ConfigOpts) error {
-
 	if TS(remoteConfig.ConfigFilePath) == "" {
 		remoteConfig.useDefaultConfig = true
 	}
