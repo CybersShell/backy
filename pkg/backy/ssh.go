@@ -412,7 +412,7 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *Confi
 	// TODO: Add value/option to config for host key and add bool to check for host key
 	hostKeyCallback, err := knownhosts.New(khPath)
 	if err != nil {
-		return errors.Wrap(err, "could not create hostkeycallback function")
+		return fmt.Errorf("could not create hostkeycallback function: %v", err)
 	}
 	remoteConfig.ClientConfig.HostKeyCallback = hostKeyCallback
 	hosts[remoteConfig.Host] = remoteConfig
