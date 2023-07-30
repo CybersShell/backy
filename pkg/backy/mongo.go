@@ -30,7 +30,9 @@ func (opts *ConfigOpts) InitMongo() {
 	host := opts.viper.GetString(getMongoConfigKey("host"))
 	port := opts.viper.GetInt32(getMongoConfigKey("port"))
 
-	client, err = mongo.NewClient(options.Client().ApplyURI(fmt.Sprintf("mongo://%s:%d", host, port)))
+	ctx, ctxCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer ctxCancel()
+	client, err = mongo.Connect(ctx, options.Client().ApplyURI(fmt.Sprintf("mongo://%s:%d", host, port)))
 	if opts.viper.GetBool(getMongoConfigKey("prod")) {
 		mongoEnvFileSet := opts.viper.IsSet(getMongoConfigKey("env"))
 		if mongoEnvFileSet {
@@ -39,15 +41,12 @@ func (opts *ConfigOpts) InitMongo() {
 		auth := options.Credential{}
 		auth.Password = opts.viper.GetString("global.mongo.password")
 		auth.Username = opts.viper.GetString("global.mongo.username")
-		client, err = mongo.NewClient(options.Client().SetAuth(auth).ApplyURI("mongodb://localhost:27017"))
+		client, err = mongo.Connect(ctx, options.Client().SetAuth(auth).ApplyURI("mongodb://localhost:27017"))
 
 	}
 	if err != nil {
 		opts.ConfigFile.Logger.Fatal().Err(err).Send()
 	}
-	ctx, ctxCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer ctxCancel()
-	err = client.Connect(ctx)
 	if err != nil {
 		opts.ConfigFile.Logger.Fatal().Err(err).Send()
 	}
