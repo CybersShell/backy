@@ -201,7 +201,7 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 		for _, cmdInList := range cmdList.Order {
 			_, cmdNameFound := backyConfigFile.Cmds[cmdInList]
 			if !cmdNameFound {
-				cmdNotFoundStr := fmt.Sprintf("command %s in list %s is not defined in config file", cmdInList, cmdListName)
+				cmdNotFoundStr := fmt.Sprintf("command %s in list %s is not defined in commands section in config file", cmdInList, cmdListName)
 				cmdNotFoundErr := errors.New(cmdNotFoundStr)
 				cmdNotFoundSliceErr = append(cmdNotFoundSliceErr, cmdNotFoundErr)
 			}

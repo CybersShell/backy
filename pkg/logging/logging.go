@@ -49,7 +49,7 @@ func SetLoggingWriters(logFile string) (writers zerolog.LevelWriter) {
 	}
 
 	fileLogger := &lumberjack.Logger{
-		MaxSize:    500, // megabytes
+		MaxSize:    50, // megabytes
 		MaxBackups: 3,
 		MaxAge:     28,   //days
 		Compress:   true, // disabled by default
