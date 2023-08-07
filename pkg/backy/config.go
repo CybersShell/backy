@@ -236,9 +236,8 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 		}
 	}
 
-	var notificationsMap = make(map[string]interface{})
 	if backyViper.IsSet("notifications") {
-		notificationsMap = backyViper.GetStringMap("notifications")
+		notificationsMap := backyViper.GetStringMap("notifications")
 		for id := range notificationsMap {
 			notifConfig := backyViper.Sub(getNestedConfig("notifications", id))
 			config := &NotificationsConfig{

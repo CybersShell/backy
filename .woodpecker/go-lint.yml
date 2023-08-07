@@ -1,4 +1,9 @@
 steps:
+  build:
+    image: golang
+    commands:
+      - go build
+      - go test
   release:
     image: golangci/golangci-lint:v1.53.3
     commands:

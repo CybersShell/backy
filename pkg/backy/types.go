@@ -100,6 +100,8 @@ type (
 		// Output determines if output is requested.
 		// Only works if command is in a list.
 		GetOutput bool `yaml:"getOutput,omitempty"`
+
+		ScriptEnvFile string `yaml:"scriptEnvFile"`
 	}
 
 	BackyOptionFunc func(*ConfigOpts)

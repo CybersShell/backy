@@ -1,6 +1,6 @@
 module git.andrewnw.xyz/CyberShell/backy
 
-go 1.20
+go 1.26
 
 require (
 	github.com/go-co-op/gocron v1.30.1

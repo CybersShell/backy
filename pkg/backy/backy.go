@@ -95,6 +95,13 @@ func (command *Command) RunCmd(log zerolog.Logger, backyConf *ConfigFile, opts *
 		commandSession.Stderr = cmdOutWriters
 		if command.Type != "" {
 
+			// did the program panic while writing to the buffer?
+			defer func() {
+				if err := recover(); err != nil {
+					log.Info().Msg(fmt.Sprintf("panic occured writing to buffer: %x", err))
+				}
+			}()
+
 			if command.Type == "script" {
 				script := bytes.NewBufferString(cmd + "\n")
 
@@ -130,8 +137,31 @@ func (command *Command) RunCmd(log zerolog.Logger, backyConf *ConfigFile, opts *
 				return outputArr, nil
 			}
 			if command.Type == "scriptFile" {
-				var buffer bytes.Buffer
-				var dirErr error
+				var (
+					buffer               bytes.Buffer
+					scriptEnvFileBuffer  bytes.Buffer
+					scriptFileBuffer     bytes.Buffer
+					dirErr               error
+					scriptEnvFilePresent bool
+				)
+
+				if command.ScriptEnvFile != "" {
+					command.ScriptEnvFile, dirErr = resolveDir(command.ScriptEnvFile)
+					if dirErr != nil {
+						return nil, dirErr
+					}
+					file, err := os.Open(command.ScriptEnvFile)
+					if err != nil {
+						return nil, err
+					}
+					defer file.Close()
+					_, err = io.Copy(&scriptEnvFileBuffer, file)
+					if err != nil {
+						return nil, err
+					}
+					scriptEnvFilePresent = true
+				}
+
 				command.Cmd, dirErr = resolveDir(command.Cmd)
 				if dirErr != nil {
 					return nil, dirErr
@@ -140,10 +170,30 @@ func (command *Command) RunCmd(log zerolog.Logger, backyConf *ConfigFile, opts *
 				if err != nil {
 					return nil, err
 				}
-				defer file.Close()
-				_, err = io.Copy(&buffer, file)
+				_, err = io.Copy(&scriptFileBuffer, file)
 				if err != nil {
 					return nil, err
+				}
+
+				defer file.Close()
+
+				if scriptEnvFilePresent {
+					_, err := buffer.WriteString(scriptEnvFileBuffer.String())
+					if err != nil {
+						return nil, err
+					}
+					// write newline
+					buffer.WriteByte(0x0A)
+
+					_, err = buffer.WriteString(scriptFileBuffer.String())
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					_, err = io.Copy(&buffer, file)
+					if err != nil {
+						return nil, err
+					}
 				}
 
 				script := &buffer

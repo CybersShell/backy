@@ -7,6 +7,8 @@ The yaml top-level map can be any string.
 
 The top-level name must be unique.
 
+### Example Config
+
 ```yaml
 commands:
   stop-docker-container:
@@ -29,14 +31,15 @@ commands:
 
 Values available for this section:
 
-| name | description | type | required
+| name | notes | type | required
 | --- | --- | --- | --- |
 | `cmd` | Defines the command to execute | `string` | yes |
 | `args` | Defines the arguments to the command | `[]string` | no |
 | `environment` | Defines evironment variables for the command | `[]string` | no |
-| `type` | May be `scriptFile` or `script`. Runs script from local machine on remote | `string` | no |
+| `type` | May be `scriptFile` or `script`. Runs script from local machine on remote. Only applicable when `host` is defined. | `string` | no |
 | `getOutput` | Command(s) output is in the notification(s) | `bool` | no |
 | `host` | If not specified, the command will execute locally. | `string` | no |
+| `scriptEnvFile` | When type is `scriptFile`, the script is appended to this file. | `string` | no |
 | `shell` | Only applicable when host is not specified | `string` | no |
 
 #### cmd
@@ -86,13 +89,21 @@ If I assign a value to host as `host: web-prod` and don't specify this value in 
 If shell is defined and host is NOT defined, the command will run in the specified shell.
 Make sure to escape any shell input.
 
+### scriptEnvFile
+
+Path to a file.
+
+When type is `scriptFile`, the script is appended to this file.
+
+This is useful for specifiing environment variables or other things so they don't have to be included in the script.
+
 ### type
 
-May be `scriptFile` or `script`. Runs script from local machine on remote host.
+May be `scriptFile` or `script`. Runs script from local machine on remote host passed to the SSH session as standard input.
 
-If `script` is specified, `cmd` is used as the script.
+If `type` is `script`, `cmd` is used as the script.
 
-Script file is input as stdin to SSH. 
+If `type` is `scriptFile`, cmd must be a file path.
 
 ### environment
 
@@ -100,7 +111,7 @@ The environment variables support expansion:
 
 - using escaped values `$VAR` or `${VAR}`
 
-For now the variables have to be defined in an `.env` file in the same directory as the config file.
+For now, the variables have to be defined in an `.env` file in the same directory as the config file.
 
 If using it with host specified, the SSH server has to be configured to accept those env variables.
 
