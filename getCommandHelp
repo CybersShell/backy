@@ -56,5 +56,4 @@ echo "\`\`\`" >> _index.md
 eval "${BACKYCOMMAND} list -h >>  _index.md"
 echo "\`\`\`" >> _index.md
 
-
 mv _index.md "$CLI_PAGE"
