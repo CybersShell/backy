@@ -6,9 +6,9 @@ import (
 
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/kevinburke/ssh_config"
+	"github.com/knadh/koanf/v2"
 	"github.com/nikoksr/notify"
 	"github.com/rs/zerolog"
-	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/ssh"
@@ -37,7 +37,7 @@ type (
 	// Host defines a host to which to connect.
 	// If not provided, the values will be looked up in the default ssh config files
 	Host struct {
-		ConfigFilePath     string `yaml:"configfilepath,omitempty"`
+		ConfigFilePath     string `yaml:"config,omitempty"`
 		Host               string `yaml:"host,omitempty"`
 		HostName           string `yaml:"hostname,omitempty"`
 		KnownHostsFile     string `yaml:"knownhostsfile,omitempty"`
@@ -113,35 +113,26 @@ type (
 		Notifications []string `yaml:"notifications,omitempty"`
 		GetOutput     bool     `yaml:"getOutput,omitempty"`
 		NotifyConfig  *notify.Notify
-		// NotificationsConfig map[string]*NotificationsConfig
-		// NotifyConfig        map[string]*notify.Notify
 	}
 
-	ConfigFile struct {
-
+	ConfigOpts struct {
 		// Cmds holds the commands for a list.
 		// Key is the name of the command,
 		Cmds map[string]*Command `yaml:"commands"`
 
 		// CmdConfigLists holds the lists of commands to be run in order.
 		// Key is the command list name.
-		CmdConfigLists map[string]*CmdList `yaml:"cmd-configs"`
+		CmdConfigLists map[string]*CmdList `yaml:"cmd-lists"`
 
 		// Hosts holds the Host config.
 		// key is the host.
 		Hosts map[string]*Host `yaml:"hosts"`
 
-		// Notifications holds the config for different notifications.
-		Notifications map[string]*NotificationsConfig
-
 		Logger zerolog.Logger
-	}
 
-	ConfigOpts struct {
 		// Global log level
 		BackyLogLvl *string
-		// Holds config file
-		ConfigFile *ConfigFile
+
 		// Holds config file
 		ConfigFilePath string
 
@@ -160,9 +151,13 @@ type (
 
 		vaultClient *vaultapi.Client
 
+		List ListConfig
+
 		VaultKeys []*VaultKey `yaml:"keys"`
 
-		viper *viper.Viper
+		koanf *koanf.Koanf
+
+		NotificationConf *Notifications `yaml:"notifications"`
 	}
 
 	outStruct struct {
@@ -185,9 +180,9 @@ type (
 		Keys    []*VaultKey `yaml:"keys"`
 	}
 
-	NotificationsConfig struct {
-		Config  *viper.Viper
-		Enabled bool
+	Notifications struct {
+		MailConfig   map[string]MailConfig   `yaml:"mail,omitempty"`
+		MatrixConfig map[string]MatrixStruct `yaml:"matrix,omitempty"`
 	}
 
 	CmdOutput struct {
@@ -203,5 +198,11 @@ type (
 	msgTemplates struct {
 		success *template.Template
 		err     *template.Template
+	}
+
+	ListConfig struct {
+		Lists    []string
+		Commands []string
+		Hosts    []string
 	}
 )

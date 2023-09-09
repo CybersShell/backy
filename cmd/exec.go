@@ -23,7 +23,7 @@ var (
 func execute(cmd *cobra.Command, args []string) {
 
 	if len(args) < 1 {
-		logging.ExitWithMSG("Please provide a command to run. Pass --help to see options.", 0, nil)
+		logging.ExitWithMSG("Please provide a command to run. Pass --help to see options.", 1, nil)
 	}
 
 	opts := backy.NewOpts(cfgFile, backy.AddCommands(args))

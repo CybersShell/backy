@@ -19,6 +19,7 @@ Available Commands:
   cron        Starts a scheduler that runs lists defined in config file.
   exec        Runs commands defined in config file in order given.
   help        Help about any command
+  list        Lists commands, lists, or hosts defined in config file.
   version     Prints the version and exits
 
 Flags:
@@ -91,7 +92,7 @@ Usage:
 
 Flags:
   -h, --help   help for version
-  -n, --num    Output the version number only. (default true)
+  -n, --num    Output the version number only.
   -V, --vpre   Output the version with v prefixed.
 
 Global Flags:
@@ -99,3 +100,20 @@ Global Flags:
   -v, --verbose         Sets verbose level
 ```
 
+## list
+
+```
+Backup lists commands or groups defined in config file.
+Use the --lists or -l flag to list the specified lists. If not flag is not given, all lists will be executed.
+
+Usage:
+  backy list [--list=list1,list2,... | -l list1, list2,...] [ -cmd cmd1 cmd2 cmd3...] [flags]
+
+Flags:
+  -h, --help            help for list
+  -l, --lists strings   Accepts comma-separated names of command lists to list.
+
+Global Flags:
+  -f, --config string   config file to read from
+  -v, --verbose         Sets verbose level
+```

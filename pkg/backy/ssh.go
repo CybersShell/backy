@@ -28,7 +28,7 @@ var TS = strings.TrimSpace
 // It returns an ssh.Client used to run commands against.
 // If configFile is empty, any required configuration is looked up in the default config files
 // If any value is not found, defaults are used
-func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts, config *ConfigFile) error {
+func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts) error {
 
 	// var sshClient *ssh.Client
 	var connectErr error
@@ -47,6 +47,11 @@ func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts, config *ConfigFile)
 	var configFile *os.File
 	var sshConfigFileOpenErr error
 	if !remoteConfig.useDefaultConfig {
+		var err error
+		remoteConfig.ConfigFilePath, err = resolveDir(remoteConfig.ConfigFilePath)
+		if err != nil {
+			return err
+		}
 		configFile, sshConfigFileOpenErr = os.Open(remoteConfig.ConfigFilePath)
 		if sshConfigFileOpenErr != nil {
 			return sshConfigFileOpenErr
@@ -66,14 +71,14 @@ func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts, config *ConfigFile)
 		return decodeErr
 	}
 
-	err := remoteConfig.GetProxyJumpFromConfig(config.Hosts)
+	err := remoteConfig.GetProxyJumpFromConfig(opts.Hosts)
 	if err != nil {
 		return err
 	}
 	if remoteConfig.ProxyHost != nil {
 		for _, proxyHost := range remoteConfig.ProxyHost {
-			err := proxyHost.GetProxyJumpConfig(config.Hosts, opts)
-			opts.ConfigFile.Logger.Info().Msgf("Proxy host: %s", proxyHost.Host)
+			err := proxyHost.GetProxyJumpConfig(opts.Hosts, opts)
+			opts.Logger.Info().Msgf("Proxy host: %s", proxyHost.Host)
 			if err != nil {
 				return err
 			}
@@ -101,24 +106,24 @@ func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts, config *ConfigFile)
 		return errors.Wrap(err, "could not create hostkeycallback function")
 	}
 	remoteConfig.ClientConfig.HostKeyCallback = hostKeyCallback
-	opts.ConfigFile.Logger.Info().Str("user", remoteConfig.ClientConfig.User).Send()
+	opts.Logger.Info().Str("user", remoteConfig.ClientConfig.User).Send()
 
-	remoteConfig.SshClient, connectErr = remoteConfig.ConnectThroughBastion(opts.ConfigFile.Logger)
+	remoteConfig.SshClient, connectErr = remoteConfig.ConnectThroughBastion(opts.Logger)
 	if connectErr != nil {
 		return connectErr
 	}
 	if remoteConfig.SshClient != nil {
-		config.Hosts[remoteConfig.Host] = remoteConfig
+		opts.Hosts[remoteConfig.Host] = remoteConfig
 		return nil
 	}
 
-	opts.ConfigFile.Logger.Info().Msgf("Connecting to host %s", remoteConfig.HostName)
+	opts.Logger.Info().Msgf("Connecting to host %s", remoteConfig.HostName)
 	remoteConfig.SshClient, connectErr = ssh.Dial("tcp", remoteConfig.HostName, remoteConfig.ClientConfig)
 	if connectErr != nil {
 		return connectErr
 	}
 
-	config.Hosts[remoteConfig.Host] = remoteConfig
+	opts.Hosts[remoteConfig.Host] = remoteConfig
 	return nil
 }
 
@@ -148,7 +153,7 @@ func (remoteHost *Host) GetAuthMethods(opts *ConfigOpts) error {
 		if err != nil {
 			return err
 		}
-		remoteHost.PrivateKeyPassword, err = GetPrivateKeyPassword(remoteHost.PrivateKeyPassword, opts, opts.ConfigFile.Logger)
+		remoteHost.PrivateKeyPassword, err = GetPrivateKeyPassword(remoteHost.PrivateKeyPassword, opts, opts.Logger)
 		if err != nil {
 			return err
 		}
@@ -167,7 +172,7 @@ func (remoteHost *Host) GetAuthMethods(opts *ConfigOpts) error {
 		}
 	}
 	if remoteHost.Password == "" {
-		remoteHost.Password, err = GetPassword(remoteHost.Password, opts, opts.ConfigFile.Logger)
+		remoteHost.Password, err = GetPassword(remoteHost.Password, opts, opts.Logger)
 		if err != nil {
 			return err
 		}
@@ -297,7 +302,7 @@ func GetPrivateKeyPassword(key string, opts *ConfigOpts, log zerolog.Logger) (st
 	} else {
 		prKeyPassword = key
 	}
-	prKeyPassword = GetVaultKey(prKeyPassword, opts, opts.ConfigFile.Logger)
+	prKeyPassword = GetVaultKey(prKeyPassword, opts, opts.Logger)
 	return prKeyPassword, nil
 }
 
@@ -328,7 +333,7 @@ func GetPassword(pass string, opts *ConfigOpts, log zerolog.Logger) (string, err
 	} else {
 		password = pass
 	}
-	password = GetVaultKey(password, opts, opts.ConfigFile.Logger)
+	password = GetVaultKey(password, opts, opts.Logger)
 
 	return password, nil
 }

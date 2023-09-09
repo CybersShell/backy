@@ -32,10 +32,10 @@ func Backup(cmd *cobra.Command, args []string) {
 	backyConfOpts := backy.NewOpts(cfgFile, backy.AddCommandLists(cmdLists))
 	backyConfOpts.InitConfig()
 
-	config := backy.ReadConfig(backyConfOpts)
+	backy.ReadConfig(backyConfOpts)
 
-	config.RunListConfig("", backyConfOpts)
-	for _, host := range config.Hosts {
+	backyConfOpts.RunListConfig("")
+	for _, host := range backyConfOpts.Hosts {
 		if host.SshClient != nil {
 			host.SshClient.Close()
 		}

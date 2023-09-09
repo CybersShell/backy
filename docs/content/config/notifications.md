@@ -10,33 +10,33 @@ Notifications can be sent on command list completion and failure.
 
 The supported platforms for notifications are email (SMTP) and [Matrix](https://matrix.org/).
 
-Notifications are defined by type. The top-level object will be the id, and the `type` is required.
+Notifications are defined by service, with the current form following below. Ids must come after the service.
 
 ```yaml
 notifications:
-  prod-email:
-    type: mail
-    host: yourhost.tld
-    port: 587
-    senderaddress: email@domain.tld
-    to:
-      - admin@domain.tld
-    username: smtp-username@domain.tld
-    password: your-password-here
+  mail:
+    prod-email:
+      host: yourhost.tld
+      port: 587
+      senderaddress: email@domain.tld
+      to:
+        - admin@domain.tld
+      username: smtp-username@domain.tld
+      password: your-password-here
 
   matrix:
-    type: matrix
-    home-server: your-home-server.tld
-    room-id: room-id
-    access-token: your-access-token
-    user-id: your-user-id
+    matrix:
+      home-server: your-home-server.tld
+      room-id: room-id
+      access-token: your-access-token
+      user-id: your-user-id
 ```
 
-Types recognized are `type: mail` and `type: matrix`
+Sections recognized are `mail` and `matrix`
 
-The type's object and its keys are listed below.
+There must be a section with an id (eg. `mail.test-svr`) following one of these sections.
 
-### type: mail
+### mail
 
 | key | description | type
 | --- | --- | ---
@@ -47,7 +47,7 @@ The type's object and its keys are listed below.
 | `username` | SMTP username | `string`
 | `password` | SMTP password | `string`
 
-### type: matrix
+### matrix
 
 | key | description | type
 | --- | --- | ---

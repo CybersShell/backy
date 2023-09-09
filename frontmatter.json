@@ -51,17 +51,17 @@
   "frontMatter.content.pageFolders": [
     {
       "title": "content",
-      "path": "[[workspace]]/content",
-      "originalPath": "[[workspace]]/content"
+      "path": "[[workspace]]/docs/content",
+      "originalPath": "[[workspace]]/docs/content"
     },
     {
       "title": "config-main",
-      "path": "[[workspace]]/content/config",
-      "originalPath": "[[workspace]]/content/config"
+      "path": "[[workspace]]/docs/content/config",
+      "originalPath": "[[workspace]]/docs/content/config"
     },
     {
       "title": "gs",
-      "path": "[[workspace]]/content/getting-started"
+      "path": "[[workspace]]/docs/content/getting-started"
     }
   ]
 }

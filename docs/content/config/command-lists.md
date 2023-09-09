@@ -16,8 +16,8 @@ The top-level object key can be anything you want but not the same as another.
       - test
       - test2
     notifications:
-      - prod-email
-      - matrix
+      - mail.prod-email
+      - matrix.sysadmin
     cron: "0 * * * * *"
 ```
 
@@ -25,9 +25,9 @@ The top-level object key can be anything you want but not the same as another.
 | --- | --- | --- | --- |
 | `order` | Defines the sequence of commands to execute | `[]string` | yes |
 | `getOutput` | Command(s) output is in the notification(s) | `bool` | no |
-| `notifications` | The notification IDs to use on success and failure | `[]string` | no |
+| `notifications` | The notification service(s) and ID(s) to use on success and failure. Must be *`service.id`*. See the [notifications documentation page](/config/notifications/) for more | `[]string` | no |
 | `name` | Optional name of the list | `string` | no |
-| `cron` | Time at which to schedule the list. | `string` | no |
+| `cron` | Time at which to schedule the list. Only has affect when cron subcommand is run. | `string` | no |
 
 ### Order
 
@@ -43,7 +43,7 @@ order:
 
 Get command output when a notification is sent.
 
-Is not required. Can be `true` or `false`.
+Is not required. Can be `true` or `false`. Default is `false`.
 
 ### Notifications
 
@@ -57,29 +57,30 @@ Name is optional for logging. If name is not defined, name will be the object's 
 
 Backy also has a cron mode, so one can run `backy cron` and start a process that schedules jobs to run at times defined in the configuration file.
 
-Adding `cron: 0 0 1 * * *` to a `cmd-configs` object will schedule the list at 1 in the morning. See [https://crontab.guru/](https://crontab.guru/) for reference.
+Adding `cron: 0 0 1 * * *` to a `cmd-lists` object will schedule the list at 1 in the morning. See [https://crontab.guru/](https://crontab.guru/) for reference.
 
 {{% notice tip %}}
 Note: Backy uses the second field of cron, so add anything except * to the beginning of a regular cron expression.
 {{% /notice %}}
 
 ```yaml
-cmd-configs:
-  cmds-to-run: # this can be any name you want
+cmd-lists:
+  docker-container-backup: # this can be any name you want
     # all commands have to be defined
     order:
       - stop-docker-container
       - backup-docker-container-script
       - shell-cmd
       - hostname
+      - start-docker-container
     notifications:
-      - matrix
-    name: backup-some-server
+      - matrix.id
+    name: backup-some-container
     cron: "0 0 1 * * *"
   hostname:
     name: hostname
     order:
       - hostname
     notifications:
-      - prod-email
+      - mail.prod-email
 ```

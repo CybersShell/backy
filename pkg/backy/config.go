@@ -10,40 +10,58 @@ import (
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 	vault "github.com/hashicorp/vault/api"
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 	"github.com/mattn/go-isatty"
 	"github.com/rs/zerolog"
-	"github.com/spf13/viper"
 )
 
-func (opts *ConfigOpts) InitConfig() {
-	if opts.viper != nil {
-		return
-	}
-	backyViper := viper.New()
+var homeDir string
+var homeDirErr error
+var backyHomeConfDir string
+var configFiles []string
 
-	if strings.TrimSpace(opts.ConfigFilePath) != "" {
+func (opts *ConfigOpts) InitConfig() {
+
+	homeDir, homeDirErr = os.UserHomeDir()
+	if homeDirErr != nil {
+		fmt.Println(homeDirErr)
+	}
+	backyHomeConfDir = homeDir + "/.config/backy/"
+	configFiles = []string{"./backy.yml", "./backy.yaml", backyHomeConfDir + "backy.yml", backyHomeConfDir + "backy.yaml"}
+	backyKoanf := koanf.New(".")
+	opts.ConfigFilePath = strings.TrimSpace(opts.ConfigFilePath)
+	if opts.ConfigFilePath != "" {
 		err := testFile(opts.ConfigFilePath)
 		if err != nil {
 			logging.ExitWithMSG(fmt.Sprintf("Could not open config file %s: %v", opts.ConfigFilePath, err), 1, nil)
 		}
-		backyViper.SetConfigFile(opts.ConfigFilePath)
+
+		if err := backyKoanf.Load(file.Provider(opts.ConfigFilePath), yaml.Parser()); err != nil {
+			logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
+		}
 	} else {
-		backyViper.SetConfigName("backy.yml")           // name of config file (with extension)
-		backyViper.SetConfigName("backy.yaml")          // name of config file (with extension)
-		backyViper.SetConfigType("yaml")                // REQUIRED if the config file does not have the extension in the name
-		backyViper.AddConfigPath(".")                   // optionally look for config in the working directory
-		backyViper.AddConfigPath("$HOME/.config/backy") // call multiple times to add many search paths
+
+		cFileFalures := 0
+		for _, c := range configFiles {
+			if err := backyKoanf.Load(file.Provider(c), yaml.Parser()); err != nil {
+				cFileFalures++
+			} else {
+				opts.ConfigFilePath = c
+				break
+			}
+		}
+		if cFileFalures == len(configFiles) {
+			logging.ExitWithMSG(fmt.Sprintf("could not find a config file. Put one in the following paths: %v", configFiles), 1, &opts.Logger)
+		}
 	}
-	err := backyViper.ReadInConfig() // Find and read the config file
-	if err != nil {                  // Handle errors reading the config file
-		msg := fmt.Sprintf("fatal error reading config file %s: %v", backyViper.ConfigFileUsed(), err)
-		logging.ExitWithMSG(msg, 1, nil)
-	}
-	opts.viper = backyViper
+
+	opts.koanf = backyKoanf
 }
 
 // ReadConfig validates and reads the config file.
-func ReadConfig(opts *ConfigOpts) *ConfigFile {
+func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 
 	if isatty.IsTerminal(os.Stdout.Fd()) {
 		os.Setenv("BACKY_TERM", "enabled")
@@ -53,44 +71,38 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 		os.Setenv("BACKY_TERM", "disabled")
 	}
 
-	backyConfigFile := NewConfig()
-	backyViper := opts.viper
+	backyKoanf := opts.koanf
+
 	opts.loadEnv()
-	// envFileInConfigDir := fmt.Sprintf("%s/.env", path.Dir(backyViper.ConfigFileUsed()))
 
-	// load the .env file in config file directory
-	// _ = godotenv.Load(envFileInConfigDir)
-
-	if backyViper.GetBool(getNestedConfig("logging", "cmd-std-out")) {
+	if backyKoanf.Bool(getNestedConfig("logging", "cmd-std-out")) {
 		os.Setenv("BACKY_STDOUT", "enabled")
 	}
 
-	CheckConfigValues(backyViper)
+	CheckConfigValues(backyKoanf, opts.ConfigFilePath)
 	for _, c := range opts.executeCmds {
-		if !backyViper.IsSet(getCmdFromConfig(c)) {
-			logging.ExitWithMSG(Sprintf("command %s is not in config file %s", c, backyViper.ConfigFileUsed()), 1, nil)
+		if !backyKoanf.Exists(getCmdFromConfig(c)) {
+			logging.ExitWithMSG(Sprintf("command %s is not in config file %s", c, opts.ConfigFilePath), 1, nil)
 		}
 	}
 
 	for _, l := range opts.executeLists {
-		if !backyViper.IsSet(getCmdListFromConfig(l)) {
+		if !backyKoanf.Exists(getCmdListFromConfig(l)) {
 			logging.ExitWithMSG(Sprintf("list %s not found", l), 1, nil)
 		}
 	}
 
 	var (
-		// backyLoggingOpts *viper.Viper
 		verbose bool
 		logFile string
 	)
 
-	verbose = backyViper.GetBool(getLoggingKeyFromConfig("verbose"))
+	verbose = backyKoanf.Bool(getLoggingKeyFromConfig("verbose"))
 
-	logFile = fmt.Sprintf("%s/backy.log", path.Dir(backyViper.ConfigFileUsed()))
-	if backyViper.IsSet(getLoggingKeyFromConfig("file")) {
-		logFile = backyViper.GetString(getLoggingKeyFromConfig("file"))
+	logFile = fmt.Sprintf("%s/backy.log", path.Dir(opts.ConfigFilePath))
+	if backyKoanf.Exists(getLoggingKeyFromConfig("file")) {
+		logFile = backyKoanf.String(getLoggingKeyFromConfig("file"))
 	}
-
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	if verbose {
@@ -99,7 +111,7 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 		os.Setenv("BACKY_LOGLEVEL", Sprintf("%v", globalLvl))
 	}
 
-	consoleLoggingDisabled := backyViper.GetBool(getLoggingKeyFromConfig("console-disabled"))
+	consoleLoggingDisabled := backyKoanf.Bool(getLoggingKeyFromConfig("console-disabled"))
 
 	os.Setenv("BACKY_CONSOLE_LOGGING", "enabled")
 	// Other qualifiers can go here as well
@@ -111,42 +123,30 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 
 	log := zerolog.New(writers).With().Timestamp().Logger()
 
-	backyConfigFile.Logger = log
+	opts.Logger = log
 
-	log.Info().Str("config file", backyViper.ConfigFileUsed()).Send()
-	commandsMap := backyViper.GetStringMapString("commands")
-	commandsMapViper := backyViper.Sub("commands")
-	unmarshalErr := commandsMapViper.Unmarshal(&backyConfigFile.Cmds)
+	log.Info().Str("config file", opts.ConfigFilePath).Send()
+
+	unmarshalErr := backyKoanf.UnmarshalWithConf("commands", &opts.Cmds, koanf.UnmarshalConf{Tag: "yaml"})
 	if unmarshalErr != nil {
 		panic(fmt.Errorf("error unmarshalling cmds struct: %w", unmarshalErr))
 	}
 
-	hostConfigsMap := make(map[string]*viper.Viper)
-
-	for cmdName, cmdConf := range backyConfigFile.Cmds {
+	for cmdName, cmdConf := range opts.Cmds {
 		envFileErr := testFile(cmdConf.Env)
 		if envFileErr != nil {
-			backyConfigFile.Logger.Info().Str("cmd", cmdName).Err(envFileErr).Send()
+			opts.Logger.Info().Str("cmd", cmdName).Err(envFileErr).Send()
 			os.Exit(1)
 		}
 
 		expandEnvVars(opts.backyEnv, cmdConf.Environment)
-
-		host := cmdConf.Host
-		if host != nil {
-			if backyViper.IsSet(getNestedConfig("hosts", *host)) {
-				hostconfig := backyViper.Sub(getNestedConfig("hosts", *host))
-				hostConfigsMap[*host] = hostconfig
-			}
-		}
 	}
 
-	hostsMapViper := backyViper.Sub("hosts")
-	unmarshalErr = hostsMapViper.Unmarshal(&backyConfigFile.Hosts)
+	unmarshalErr = backyKoanf.UnmarshalWithConf("hosts", &opts.Hosts, koanf.UnmarshalConf{Tag: "yaml"})
 	if unmarshalErr != nil {
 		panic(fmt.Errorf("error unmarshalling hosts struct: %w", unmarshalErr))
 	}
-	for hostConfigName, host := range backyConfigFile.Hosts {
+	for hostConfigName, host := range opts.Hosts {
 		if host.Host == "" {
 			host.Host = hostConfigName
 		}
@@ -155,7 +155,7 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 			if len(proxyHosts) > 1 {
 				for hostNum, h := range proxyHosts {
 					if hostNum > 1 {
-						proxyHost, defined := backyConfigFile.Hosts[h]
+						proxyHost, defined := opts.Hosts[h]
 						if defined {
 							host.ProxyHost = append(host.ProxyHost, proxyHost)
 						} else {
@@ -163,7 +163,7 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 							host.ProxyHost = append(host.ProxyHost, newProxy)
 						}
 					} else {
-						proxyHost, defined := backyConfigFile.Hosts[h]
+						proxyHost, defined := opts.Hosts[h]
 						if defined {
 							host.ProxyHost = append(host.ProxyHost, proxyHost)
 						} else {
@@ -173,7 +173,7 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 					}
 				}
 			} else {
-				proxyHost, defined := backyConfigFile.Hosts[proxyHosts[0]]
+				proxyHost, defined := opts.Hosts[proxyHosts[0]]
 				if defined {
 					host.ProxyHost = append(host.ProxyHost, proxyHost)
 				} else {
@@ -184,31 +184,27 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 		}
 	}
 
-	cmdListCfg := backyViper.Sub("cmd-configs")
-	unmarshalErr = cmdListCfg.Unmarshal(&backyConfigFile.CmdConfigLists)
-	if unmarshalErr != nil {
-		panic(fmt.Errorf("error unmarshalling cmd list struct: %w", unmarshalErr))
+	if backyKoanf.Exists("cmd-lists") {
+		unmarshalErr = backyKoanf.UnmarshalWithConf("cmd-lists", &opts.CmdConfigLists, koanf.UnmarshalConf{Tag: "yaml"})
+		if unmarshalErr != nil {
+			logging.ExitWithMSG((fmt.Sprintf("error unmarshalling cmd list struct: %v", unmarshalErr)), 1, &opts.Logger)
+		}
 	}
 
 	var cmdNotFoundSliceErr []error
-	for cmdListName, cmdList := range backyConfigFile.CmdConfigLists {
+	for cmdListName, cmdList := range opts.CmdConfigLists {
 		if opts.useCron {
 			cron := strings.TrimSpace(cmdList.Cron)
 			if cron == "" {
-				delete(backyConfigFile.CmdConfigLists, cmdListName)
+				delete(opts.CmdConfigLists, cmdListName)
 			}
 		}
 		for _, cmdInList := range cmdList.Order {
-			_, cmdNameFound := backyConfigFile.Cmds[cmdInList]
+			_, cmdNameFound := opts.Cmds[cmdInList]
 			if !cmdNameFound {
 				cmdNotFoundStr := fmt.Sprintf("command %s in list %s is not defined in commands section in config file", cmdInList, cmdListName)
 				cmdNotFoundErr := errors.New(cmdNotFoundStr)
 				cmdNotFoundSliceErr = append(cmdNotFoundSliceErr, cmdNotFoundErr)
-			}
-		}
-		for _, notificationID := range cmdList.Notifications {
-			if !backyViper.IsSet(getNestedConfig("notifications", notificationID)) {
-				logging.ExitWithMSG(fmt.Sprintf("%s in list %s not found in notifications", notificationID, cmdListName), 1, nil)
 			}
 		}
 	}
@@ -218,39 +214,35 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 		cmdNotFoundErrorLog.Errs("commands not found", cmdNotFoundSliceErr).Send()
 	}
 
-	if opts.useCron && (len(backyConfigFile.CmdConfigLists) == 0) {
+	if opts.useCron && (len(opts.CmdConfigLists) == 0) {
 		logging.ExitWithMSG("No cron fields detected in any command lists", 1, nil)
 	}
 
-	for c := range commandsMap {
+	for c := range opts.Cmds {
 		if opts.executeCmds != nil && !contains(opts.executeCmds, c) {
-			delete(backyConfigFile.Cmds, c)
+			delete(opts.Cmds, c)
 		}
 	}
 
 	if len(opts.executeLists) > 0 {
-		for l := range backyConfigFile.CmdConfigLists {
+		for l := range opts.CmdConfigLists {
 			if !contains(opts.executeLists, l) {
-				delete(backyConfigFile.CmdConfigLists, l)
+				delete(opts.CmdConfigLists, l)
 			}
 		}
 	}
 
-	if backyViper.IsSet("notifications") {
-		notificationsMap := backyViper.GetStringMap("notifications")
-		for id := range notificationsMap {
-			notifConfig := backyViper.Sub(getNestedConfig("notifications", id))
-			config := &NotificationsConfig{
-				Config:  notifConfig,
-				Enabled: true,
-			}
-			backyConfigFile.Notifications[id] = config
+	if backyKoanf.Exists("notifications") {
+
+		unmarshalErr = backyKoanf.UnmarshalWithConf("notifications", &opts.NotificationConf, koanf.UnmarshalConf{Tag: "yaml"})
+		if unmarshalErr != nil {
+			fmt.Printf("error unmarshalling notifications object: %v", unmarshalErr)
 		}
 	}
 
-	for _, cmd := range backyConfigFile.Cmds {
+	for _, cmd := range opts.Cmds {
 		if cmd.Host != nil {
-			host, hostFound := backyConfigFile.Hosts[*cmd.Host]
+			host, hostFound := opts.Hosts[*cmd.Host]
 			if hostFound {
 				cmd.RemoteHost = host
 				cmd.RemoteHost.Host = host.Host
@@ -258,19 +250,18 @@ func ReadConfig(opts *ConfigOpts) *ConfigFile {
 					cmd.RemoteHost.HostName = host.HostName
 				}
 			} else {
-				backyConfigFile.Hosts[*cmd.Host] = &Host{Host: *cmd.Host}
+				opts.Hosts[*cmd.Host] = &Host{Host: *cmd.Host}
 				cmd.RemoteHost = &Host{Host: *cmd.Host}
 			}
 		}
 
 	}
-	backyConfigFile.SetupNotify()
-	opts.ConfigFile = backyConfigFile
+	opts.SetupNotify()
 	if err := opts.setupVault(); err != nil {
 		log.Err(err).Send()
 	}
-	opts.ConfigFile = backyConfigFile
-	return backyConfigFile
+
+	return opts
 }
 
 func getNestedConfig(nestedConfig, key string) string {
@@ -289,16 +280,16 @@ func getLoggingKeyFromConfig(key string) string {
 }
 
 func getCmdListFromConfig(list string) string {
-	return fmt.Sprintf("cmd-configs.%s", list)
+	return fmt.Sprintf("cmd-lists.%s", list)
 }
 
 func (opts *ConfigOpts) setupVault() error {
-	if !opts.viper.GetBool("vault.enabled") {
+	if !opts.koanf.Bool("vault.enabled") {
 		return nil
 	}
 	config := vault.DefaultConfig()
 
-	config.Address = opts.viper.GetString("vault.address")
+	config.Address = opts.koanf.String("vault.address")
 	if strings.TrimSpace(config.Address) == "" {
 		config.Address = os.Getenv("VAULT_ADDR")
 	}
@@ -308,7 +299,7 @@ func (opts *ConfigOpts) setupVault() error {
 		return err
 	}
 
-	token := opts.viper.GetString("vault.token")
+	token := opts.koanf.String("vault.token")
 	if strings.TrimSpace(token) == "" {
 		token = os.Getenv("VAULT_TOKEN")
 	}
@@ -318,10 +309,9 @@ func (opts *ConfigOpts) setupVault() error {
 
 	client.SetToken(token)
 
-	cmdListCfg := opts.viper.Sub("viper.keys")
-	unmarshalErr := cmdListCfg.Unmarshal(&opts.VaultKeys)
+	unmarshalErr := opts.koanf.UnmarshalWithConf("vault.keys", &opts.VaultKeys, koanf.UnmarshalConf{Tag: "yaml"})
 	if unmarshalErr != nil {
-		panic(fmt.Errorf("error unmarshalling viper.keys into struct: %w", unmarshalErr))
+		logging.ExitWithMSG(fmt.Sprintf("error unmarshalling vault.keys into struct: %v", unmarshalErr), 1, &opts.Logger)
 	}
 
 	opts.vaultClient = client

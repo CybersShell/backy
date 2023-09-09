@@ -18,7 +18,7 @@ const mongoConfigKey = "global.mongo"
 
 func (opts *ConfigOpts) InitMongo() {
 
-	if !opts.viper.GetBool(getMongoConfigKey("enabled")) {
+	if !opts.koanf.Bool(getMongoConfigKey("enabled")) {
 		return
 	}
 	var (
@@ -27,37 +27,37 @@ func (opts *ConfigOpts) InitMongo() {
 	)
 
 	// TODO: Get uri and creditials from config
-	host := opts.viper.GetString(getMongoConfigKey("host"))
-	port := opts.viper.GetInt32(getMongoConfigKey("port"))
+	host := opts.koanf.String(getMongoConfigKey("host"))
+	port := opts.koanf.Int64(getMongoConfigKey("port"))
 
 	ctx, ctxCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer ctxCancel()
 	client, err = mongo.Connect(ctx, options.Client().ApplyURI(fmt.Sprintf("mongo://%s:%d", host, port)))
-	if opts.viper.GetBool(getMongoConfigKey("prod")) {
-		mongoEnvFileSet := opts.viper.IsSet(getMongoConfigKey("env"))
+	if opts.koanf.Bool(getMongoConfigKey("prod")) {
+		mongoEnvFileSet := opts.koanf.Exists(getMongoConfigKey("env"))
 		if mongoEnvFileSet {
 			getMongoConfigFromEnv(opts)
 		}
 		auth := options.Credential{}
-		auth.Password = opts.viper.GetString("global.mongo.password")
-		auth.Username = opts.viper.GetString("global.mongo.username")
+		auth.Password = opts.koanf.String("global.mongo.password")
+		auth.Username = opts.koanf.String("global.mongo.username")
 		client, err = mongo.Connect(ctx, options.Client().SetAuth(auth).ApplyURI("mongodb://localhost:27017"))
 
 	}
 	if err != nil {
-		opts.ConfigFile.Logger.Fatal().Err(err).Send()
+		opts.Logger.Fatal().Err(err).Send()
 	}
 	if err != nil {
-		opts.ConfigFile.Logger.Fatal().Err(err).Send()
+		opts.Logger.Fatal().Err(err).Send()
 	}
 	defer client.Disconnect(ctx)
 	err = client.Ping(ctx, readpref.Primary())
 	if err != nil {
-		opts.ConfigFile.Logger.Fatal().Err(err).Send()
+		opts.Logger.Fatal().Err(err).Send()
 	}
 	databases, err := client.ListDatabaseNames(ctx, bson.M{})
 	if err != nil {
-		opts.ConfigFile.Logger.Fatal().Err(err).Send()
+		opts.Logger.Fatal().Err(err).Send()
 	}
 	fmt.Println(databases)
 	backyDB := client.Database("backy")
@@ -68,7 +68,7 @@ func (opts *ConfigOpts) InitMongo() {
 }
 
 func getMongoConfigFromEnv(opts *ConfigOpts) error {
-	mongoEnvFile, err := os.Open(opts.viper.GetString("global.mongo.env"))
+	mongoEnvFile, err := os.Open(opts.koanf.String("global.mongo.env"))
 	if err != nil {
 		return err
 	}
@@ -84,8 +84,8 @@ func getMongoConfigFromEnv(opts *ConfigOpts) error {
 	if !mongoUserFound {
 		return errors.New("MONGO_PASSWORD not set in " + mongoEnvFile.Name())
 	}
-	opts.viper.Set(mongoConfigKey+".password", mongoPW)
-	opts.viper.Set(mongoConfigKey+".username", mongoUser)
+	opts.koanf.Set(mongoConfigKey+".password", mongoPW)
+	opts.koanf.Set(mongoConfigKey+".username", mongoUser)
 
 	return nil
 }

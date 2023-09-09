@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const versionStr = "0.3.1"
+const versionStr = "0.4.0"
 
 var (
 	versionCmd = &cobra.Command{
@@ -32,9 +32,6 @@ func version(cmd *cobra.Command, args []string) {
 	} else if vPre && !numOnly {
 		fmt.Printf("v%s\n", versionStr)
 	} else {
-		if vPre && numOnly {
-			fmt.Println("vpre flag and num flag both detected!")
-		}
 		fmt.Printf("Backy version: %s\n", versionStr)
 	}
 

@@ -15,11 +15,64 @@ import (
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 	"github.com/joho/godotenv"
+	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
-	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 	"mvdan.cc/sh/v3/shell"
 )
+
+func (c *ConfigOpts) LogLvl(level string) BackyOptionFunc {
+
+	return func(bco *ConfigOpts) {
+		c.BackyLogLvl = &level
+	}
+}
+
+// AddCommands adds commands to ConfigOpts
+func AddCommands(commands []string) BackyOptionFunc {
+	return func(bco *ConfigOpts) {
+		bco.executeCmds = append(bco.executeCmds, commands...)
+	}
+}
+
+// AddCommandLists adds lists to ConfigOpts
+func AddCommandLists(lists []string) BackyOptionFunc {
+	return func(bco *ConfigOpts) {
+		bco.executeLists = append(bco.executeLists, lists...)
+	}
+}
+
+// AddPrintLists adds lists to print out
+func SetListsToSearch(lists []string) BackyOptionFunc {
+	return func(bco *ConfigOpts) {
+		bco.List.Lists = append(bco.List.Lists, lists...)
+	}
+}
+
+// AddPrintLists adds lists to print out
+func SetCmdsToSearch(cmds []string) BackyOptionFunc {
+	return func(bco *ConfigOpts) {
+		bco.List.Commands = append(bco.List.Commands, cmds...)
+	}
+}
+
+// UseCron enables the execution of command lists at specified times
+func UseCron() BackyOptionFunc {
+	return func(bco *ConfigOpts) {
+		bco.useCron = true
+	}
+}
+
+func NewOpts(configFilePath string, opts ...BackyOptionFunc) *ConfigOpts {
+	b := &ConfigOpts{}
+	b.ConfigFilePath = configFilePath
+	for _, opt := range opts {
+		if opt != nil {
+			opt(b)
+		}
+	}
+	return b
+}
 
 func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, opts *ConfigOpts, log zerolog.Logger) {
 	if envVarsToInject.file != "" {
@@ -94,12 +147,12 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-func CheckConfigValues(config *viper.Viper) {
+func CheckConfigValues(config *koanf.Koanf, file string) {
 
 	for _, key := range requiredKeys {
-		isKeySet := config.IsSet(key)
+		isKeySet := config.Exists(key)
 		if !isKeySet {
-			logging.ExitWithMSG(Sprintf("Config key %s is not defined in %s. Please make sure this value is set and has the appropriate keys set.", key, config.ConfigFileUsed()), 1, nil)
+			logging.ExitWithMSG(Sprintf("Config key %s is not defined in %s. Please make sure this value is set and has the appropriate keys set.", key, file), 1, nil)
 		}
 	}
 }
@@ -114,64 +167,6 @@ func testFile(c string) error {
 	}
 
 	return nil
-}
-
-func (c *ConfigOpts) LogLvl(level string) BackyOptionFunc {
-
-	return func(bco *ConfigOpts) {
-		c.BackyLogLvl = &level
-	}
-}
-
-// AddCommands adds commands to ConfigOpts
-func AddCommands(commands []string) BackyOptionFunc {
-	return func(bco *ConfigOpts) {
-		bco.executeCmds = append(bco.executeCmds, commands...)
-	}
-}
-
-// AddCommandLists adds lists to ConfigOpts
-func AddCommandLists(lists []string) BackyOptionFunc {
-	return func(bco *ConfigOpts) {
-		bco.executeLists = append(bco.executeLists, lists...)
-	}
-}
-
-// UseCron enables the execution of command lists at specified times
-func UseCron() BackyOptionFunc {
-	return func(bco *ConfigOpts) {
-		bco.useCron = true
-	}
-}
-
-// UseCron enables the execution of command lists at specified times
-func (c *ConfigOpts) AddViper(v *viper.Viper) BackyOptionFunc {
-	return func(bco *ConfigOpts) {
-		c.viper = v
-	}
-}
-
-func NewOpts(configFilePath string, opts ...BackyOptionFunc) *ConfigOpts {
-	b := &ConfigOpts{}
-	b.ConfigFilePath = configFilePath
-	for _, opt := range opts {
-		if opt != nil {
-			opt(b)
-		}
-	}
-	return b
-}
-
-/*
-NewConfig initializes new config that holds information	from the config file
-*/
-func NewConfig() *ConfigFile {
-	return &ConfigFile{
-		Cmds:           make(map[string]*Command),
-		CmdConfigLists: make(map[string]*CmdList),
-		Hosts:          make(map[string]*Host),
-		Notifications:  make(map[string]*NotificationsConfig),
-	}
 }
 
 func IsTerminalActive() bool {
@@ -203,7 +198,7 @@ func resolveDir(path string) (string, error) {
 }
 
 func (opts *ConfigOpts) loadEnv() {
-	envFileInConfigDir := fmt.Sprintf("%s/.env", path.Dir(opts.viper.ConfigFileUsed()))
+	envFileInConfigDir := fmt.Sprintf("%s/.env", path.Dir(opts.ConfigFilePath))
 	var backyEnv map[string]string
 	backyEnv, envFileErr := godotenv.Read(envFileInConfigDir)
 	if envFileErr != nil {
