@@ -22,7 +22,7 @@ commands:
   hostname:
     cmd: hostname
 
-cmd-configs:
+cmd-lists:
   cmds-to-run: # this can be any name you want
     # all commands have to be defined
     order:

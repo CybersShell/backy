@@ -9,30 +9,10 @@ import (
 	"github.com/knadh/koanf/v2"
 	"github.com/nikoksr/notify"
 	"github.com/rs/zerolog"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/ssh"
 )
 
 type (
-	CmdConfigSchema struct {
-		ID      primitive.ObjectID `bson:"_id,omitempty"`
-		CmdList []string           `bson:"command-list,omitempty"`
-		Name    string             `bson:"name,omitempty"`
-	}
-
-	CmdSchema struct {
-		ID   primitive.ObjectID `bson:"_id,omitempty"`
-		Cmd  string             `bson:"cmd,omitempty"`
-		Args []string           `bson:"args,omitempty"`
-		Host string             `bson:"host,omitempty"`
-		Dir  string             `bson:"dir,omitempty"`
-	}
-
-	Schemas struct {
-		CmdConfigSchema
-		CmdSchema
-	}
 
 	// Host defines a host to which to connect.
 	// If not provided, the values will be looked up in the default ssh config files
@@ -107,12 +87,15 @@ type (
 	BackyOptionFunc func(*ConfigOpts)
 
 	CmdList struct {
-		Name          string   `yaml:"name,omitempty"`
-		Cron          string   `yaml:"cron,omitempty"`
-		Order         []string `yaml:"order,omitempty"`
-		Notifications []string `yaml:"notifications,omitempty"`
-		GetOutput     bool     `yaml:"getOutput,omitempty"`
-		NotifyConfig  *notify.Notify
+		Name            string   `yaml:"name,omitempty"`
+		Cron            string   `yaml:"cron,omitempty"`
+		RunCmdOnFailure string   `yaml:"runCmdOnFailure,omitempty"`
+		Order           []string `yaml:"order,omitempty"`
+		Notifications   []string `yaml:"notifications,omitempty"`
+		GetOutput       bool     `yaml:"getOutput,omitempty"`
+		NotifyOnSuccess bool     `yaml:"notifyOnSuccess,omitempty"`
+
+		NotifyConfig *notify.Notify
 	}
 
 	ConfigOpts struct {
@@ -136,9 +119,9 @@ type (
 		// Holds config file
 		ConfigFilePath string
 
-		Schemas
+		// for command list file
+		CmdListFile string
 
-		DB *mongo.Database
 		// use command lists using cron
 		useCron bool
 		// Holds commands to execute for the exec command

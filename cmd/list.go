@@ -20,20 +20,30 @@ var (
 )
 
 var listsToList []string
+var cmdsToList []string
 
 func init() {
 
 	listCmd.Flags().StringSliceVarP(&listsToList, "lists", "l", nil, "Accepts comma-separated names of command lists to list.")
+	listCmd.Flags().StringSliceVarP(&cmdsToList, "cmds", "c", nil, "Accepts comma-separated names of commands to list.")
 
 }
 
 func List(cmd *cobra.Command, args []string) {
 
-	opts := backy.NewOpts(cfgFile, backy.SetListsToSearch(cmdLists))
+	// settup based on whats passed in:
+	//   - cmds
+	//   - lists
+	//   - if none, list all commands
+	if cmdLists != nil {
+
+	}
+
+	opts := backy.NewOpts(cfgFile)
 
 	opts.InitConfig()
 
 	opts = backy.ReadConfig(opts)
 
-	opts.ListConfiguration()
+	opts.ListCommand("rm-sn-db")
 }

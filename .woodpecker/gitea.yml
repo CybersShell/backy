@@ -7,4 +7,6 @@ steps:
     when:
       event: tag
 
-branches: master
+when:
+  - event: tag
+    branch: master

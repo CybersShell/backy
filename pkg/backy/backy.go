@@ -17,7 +17,6 @@ import (
 	"embed"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 //go:embed templates/*.txt
@@ -49,6 +48,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		ArgsStr += fmt.Sprintf(" %s", v)
 	}
 
+	// is host defined
 	if command.Host != nil {
 		command.Type = strings.TrimSpace(command.Type)
 
@@ -64,6 +64,8 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 				return nil, err
 			}
 		}
+
+		// create new ssh session
 		commandSession, err := command.RemoteHost.SshClient.NewSession()
 
 		// Retry connecting to host; if that fails, error. If it does not fail, try to create new session
@@ -86,6 +88,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		for _, a := range command.Args {
 			cmd += " " + a
 		}
+
 		cmdOutWriters = io.MultiWriter(&cmdOutBuf)
 
 		if IsCmdStdOutEnabled() {
@@ -94,12 +97,13 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 
 		commandSession.Stdout = cmdOutWriters
 		commandSession.Stderr = cmdOutWriters
+		// Is command type defined. That is, is it local or not
 		if command.Type != "" {
 
-			// did the program panic while writing to the buffer?
 			defer func() {
+				// did the program panic while writing to the buffer?
 				if err := recover(); err != nil {
-					cmdCtxLogger.Info().Msg(fmt.Sprintf("panic occured writing to buffer: %x", err))
+					cmdCtxLogger.Info().Msg(fmt.Sprintf("panic occurred writing to buffer: %x", err))
 				}
 			}()
 
@@ -133,11 +137,13 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 					if str, ok := outMap["output"].(string); ok {
 						outputArr = append(outputArr, str)
 					}
-					log.Info().Fields(outMap).Send()
+					cmdCtxLogger.Info().Fields(outMap).Send()
 				}
 				return outputArr, nil
 			}
+
 			if command.Type == "scriptFile" {
+
 				var (
 					buffer               bytes.Buffer
 					scriptEnvFileBuffer  bytes.Buffer
@@ -164,20 +170,27 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 				}
 
 				command.Cmd, dirErr = resolveDir(command.Cmd)
+
 				if dirErr != nil {
 					return nil, dirErr
 				}
+
+				// treat command.Cmd as a file
 				file, err := os.Open(command.Cmd)
+
 				if err != nil {
 					return nil, err
 				}
+
 				_, err = io.Copy(&scriptFileBuffer, file)
+
 				if err != nil {
 					return nil, err
 				}
 
 				defer file.Close()
 
+				// append scriptEnvFile to scriptFileBuffer
 				if scriptEnvFilePresent {
 					_, err := buffer.WriteString(scriptEnvFileBuffer.String())
 					if err != nil {
@@ -283,7 +296,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 				if str, ok := outMap["output"].(string); ok {
 					outputArr = append(outputArr, str)
 				}
-				log.Info().Fields(outMap).Send()
+				cmdCtxLogger.Info().Fields(outMap).Send()
 			}
 
 			if err != nil {
@@ -292,25 +305,30 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			}
 			return outputArr, nil
 		}
+
 		cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s %s on local machine", command.Cmd, ArgsStr)).Send()
 
 		localCMD := exec.Command(command.Cmd, command.Args...)
+
 		if command.Dir != nil {
 			localCMD.Dir = *command.Dir
 		}
-		// fmt.Printf("%v\n", envVars.env)
 
 		injectEnvIntoLocalCMD(envVars, localCMD, cmdCtxLogger)
+
 		cmdOutWriters = io.MultiWriter(&cmdOutBuf)
-		// fmt.Printf("%v\n", localCMD.Environ())
 
 		if IsCmdStdOutEnabled() {
 			cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
 		}
+
 		localCMD.Stdout = cmdOutWriters
 		localCMD.Stderr = cmdOutWriters
+
 		err = localCMD.Run()
+
 		outScanner := bufio.NewScanner(&cmdOutBuf)
+
 		for outScanner.Scan() {
 			outMap := make(map[string]interface{})
 			outMap["cmd"] = command.Cmd
@@ -329,17 +347,19 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 	return outputArr, nil
 }
 
+// cmdListWorker
 func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- string, opts *ConfigOpts) {
 
+	// iterate over list to run
 	for list := range jobs {
 		fieldsMap := make(map[string]interface{})
 		fieldsMap["list"] = list.Name
 
 		cmdLog := opts.Logger.Info()
 
-		var count int
-		var cmdsRan []string
-		var outStructArr []outStruct
+		var count int                // count of how many commands have been executed
+		var cmdsRan []string         // store the commands that have been executed
+		var outStructArr []outStruct // stores output messages
 
 		for _, cmd := range list.Order {
 			currentCmd := opts.Cmds[cmd].Cmd
@@ -361,6 +381,7 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 			outputArr, runOutErr := cmdToRun.RunCmd(cmdLogger, opts)
 			if list.NotifyConfig != nil {
 
+				// check if the command output should be included
 				if cmdToRun.GetOutput || list.GetOutput {
 					outputStruct := outStruct{
 						CmdName:     cmd,
@@ -374,8 +395,8 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 			}
 			count++
 			if runOutErr != nil {
-				var errMsg bytes.Buffer
 				if list.NotifyConfig != nil {
+					var errMsg bytes.Buffer
 					errStruct := make(map[string]interface{})
 
 					errStruct["listName"] = list.Name
@@ -410,7 +431,9 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 					cmdsRan = append(cmdsRan, cmd)
 					var successMsg bytes.Buffer
 
-					if list.NotifyConfig != nil {
+					// if notification config is not nil, and NotifyOnSuccess is true or GetOuput is true,
+					// then send notification
+					if list.NotifyConfig != nil && (list.NotifyOnSuccess || list.GetOutput) {
 						successStruct := make(map[string]interface{})
 
 						successStruct["listName"] = list.Name

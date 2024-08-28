@@ -20,7 +20,7 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-var PrivateKeyExtraInfoErr = errors.New("Private key may be encrypted. \nIf encrypted, make sure the password is specified correctly in the correct section: \n privatekeypassword: env:PR_KEY_PASS \n privatekeypassword: file:/path/to/password-file \n privatekeypassword: password (not recommended). \n ")
+var PrivateKeyExtraInfoErr = errors.New("Private key may be encrypted. \nIf encrypted, make sure the password is specified correctly in the correct section. This may be done in one of three ways: \n privatekeypassword: env:PR_KEY_PASS \n privatekeypassword: file:/path/to/password-file \n privatekeypassword: password (not recommended). \n ")
 var TS = strings.TrimSpace
 
 // ConnectToSSHHost connects to a host by looking up the config values in the directory ~/.ssh/config
@@ -30,22 +30,26 @@ var TS = strings.TrimSpace
 // If any value is not found, defaults are used
 func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts) error {
 
-	// var sshClient *ssh.Client
 	var connectErr error
 
 	if TS(remoteConfig.ConfigFilePath) == "" {
 		remoteConfig.useDefaultConfig = true
 	}
-	khPath, khPathErr := GetKnownHosts(remoteConfig.KnownHostsFile)
+
+	khPathErr := remoteConfig.GetKnownHosts()
 
 	if khPathErr != nil {
 		return khPathErr
 	}
+
 	if remoteConfig.ClientConfig == nil {
 		remoteConfig.ClientConfig = &ssh.ClientConfig{}
 	}
+
 	var configFile *os.File
+
 	var sshConfigFileOpenErr error
+
 	if !remoteConfig.useDefaultConfig {
 		var err error
 		remoteConfig.ConfigFilePath, err = resolveDir(remoteConfig.ConfigFilePath)
@@ -72,9 +76,11 @@ func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts) error {
 	}
 
 	err := remoteConfig.GetProxyJumpFromConfig(opts.Hosts)
+
 	if err != nil {
 		return err
 	}
+
 	if remoteConfig.ProxyHost != nil {
 		for _, proxyHost := range remoteConfig.ProxyHost {
 			err := proxyHost.GetProxyJumpConfig(opts.Hosts, opts)
@@ -86,10 +92,15 @@ func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts) error {
 	}
 
 	remoteConfig.ClientConfig.Timeout = time.Second * 30
+
 	remoteConfig.GetPrivateKeyFileFromConfig()
+
 	remoteConfig.GetPort()
+
 	remoteConfig.GetHostName()
+
 	remoteConfig.CombineHostNameWithPort()
+
 	remoteConfig.GetSshUserFromConfig()
 
 	if remoteConfig.HostName == "" {
@@ -101,7 +112,7 @@ func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts) error {
 		return err
 	}
 
-	hostKeyCallback, err := knownhosts.New(khPath)
+	hostKeyCallback, err := knownhosts.New(remoteConfig.KnownHostsFile)
 	if err != nil {
 		return errors.Wrap(err, "could not create hostkeycallback function")
 	}
@@ -128,12 +139,19 @@ func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts) error {
 }
 
 func (remoteHost *Host) GetSshUserFromConfig() {
+
 	if TS(remoteHost.User) == "" {
+
 		remoteHost.User, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "User")
+
 		if TS(remoteHost.User) == "" {
+
 			remoteHost.User = remoteHost.SSHConfigFile.DefaultUserSettings.Get(remoteHost.Host, "User")
+
 			if TS(remoteHost.User) == "" {
+
 				currentUser, _ := user.Current()
+
 				remoteHost.User = currentUser.Username
 			}
 		}
@@ -145,39 +163,60 @@ func (remoteHost *Host) GetAuthMethods(opts *ConfigOpts) error {
 	var signer ssh.Signer
 	var err error
 	var privateKey []byte
+
 	remoteHost.Password = strings.TrimSpace(remoteHost.Password)
+
 	remoteHost.PrivateKeyPassword = strings.TrimSpace(remoteHost.PrivateKeyPassword)
+
 	remoteHost.PrivateKeyPath = strings.TrimSpace(remoteHost.PrivateKeyPath)
+
 	if remoteHost.PrivateKeyPath != "" {
+
 		privateKey, err = os.ReadFile(remoteHost.PrivateKeyPath)
+
 		if err != nil {
 			return err
 		}
+
 		remoteHost.PrivateKeyPassword, err = GetPrivateKeyPassword(remoteHost.PrivateKeyPassword, opts, opts.Logger)
+
 		if err != nil {
 			return err
 		}
+
 		if remoteHost.PrivateKeyPassword == "" {
+
 			signer, err = ssh.ParsePrivateKey(privateKey)
+
 			if err != nil {
 				return errors.Errorf("Failed to open private key file %s: %v \n\n %v", remoteHost.PrivateKeyPath, err, PrivateKeyExtraInfoErr)
 			}
+
 			remoteHost.ClientConfig.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
 		} else {
+
 			signer, err = ssh.ParsePrivateKeyWithPassphrase(privateKey, []byte(remoteHost.PrivateKeyPassword))
+
 			if err != nil {
 				return errors.Errorf("Failed to open private key file %s: %v \n\n %v", remoteHost.PrivateKeyPath, err, PrivateKeyExtraInfoErr)
 			}
+
 			remoteHost.ClientConfig.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
 		}
 	}
+
 	if remoteHost.Password == "" {
+
 		remoteHost.Password, err = GetPassword(remoteHost.Password, opts, opts.Logger)
+
 		if err != nil {
+
 			return err
 		}
+
 		remoteHost.ClientConfig.Auth = append(remoteHost.ClientConfig.Auth, ssh.Password(remoteHost.Password))
 	}
+
 	return nil
 }
 
@@ -209,10 +248,17 @@ func (remoteHost *Host) GetPrivateKeyFileFromConfig() {
 func (remoteHost *Host) GetPort() {
 	port := fmt.Sprintf("%d", remoteHost.Port)
 	// port specifed?
+	// port will be 0 if missing from backy config
 	if port == "0" {
+		// get port from specified SSH config file
 		port, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "Port")
+
 		if port == "" {
+
+			// get port from default SSH config file
 			port = remoteHost.SSHConfigFile.DefaultUserSettings.Get(remoteHost.Host, "Port")
+
+			// set port to be default
 			if port == "" {
 				port = "22"
 			}
@@ -223,10 +269,12 @@ func (remoteHost *Host) GetPort() {
 }
 
 func (remoteHost *Host) CombineHostNameWithPort() {
-	port := fmt.Sprintf(":%d", remoteHost.Port)
-	if strings.HasSuffix(remoteHost.HostName, port) {
+
+	// if the port is already in the HostName, leave it
+	if strings.HasSuffix(remoteHost.HostName, fmt.Sprintf(":%d", remoteHost.Port)) {
 		return
 	}
+
 	remoteHost.HostName = fmt.Sprintf("%s:%d", remoteHost.HostName, remoteHost.Port)
 }
 
@@ -265,18 +313,22 @@ func (remoteHost *Host) ConnectThroughBastion(log zerolog.Logger) (*ssh.Client, 
 		return nil, err
 	}
 
-	sClient := ssh.NewClient(ncc, chans, reqs)
 	// sClient is an ssh client connected to the service host, through the bastion host.
+	sClient := ssh.NewClient(ncc, chans, reqs)
 
 	return sClient, nil
 }
 
-func GetKnownHosts(khPath string) (string, error) {
-
-	if TS(khPath) != "" {
-		return resolveDir(khPath)
+// GetKnownHosts resolves the host's KnownHosts file if it is defined
+// if not defined, the default location for this file is used
+func (remotehHost *Host) GetKnownHosts() error {
+	var knownHostsFileErr error
+	if TS(remotehHost.KnownHostsFile) != "" {
+		remotehHost.KnownHostsFile, knownHostsFileErr = resolveDir(remotehHost.KnownHostsFile)
+		return knownHostsFileErr
 	}
-	return resolveDir("~/.ssh/known_hosts")
+	remotehHost.KnownHostsFile, knownHostsFileErr = resolveDir("~/.ssh/known_hosts")
+	return knownHostsFileErr
 }
 
 func GetPrivateKeyPassword(key string, opts *ConfigOpts, log zerolog.Logger) (string, error) {
@@ -306,6 +358,7 @@ func GetPrivateKeyPassword(key string, opts *ConfigOpts, log zerolog.Logger) (st
 	return prKeyPassword, nil
 }
 
+// GetPassword gets any password
 func GetPassword(pass string, opts *ConfigOpts, log zerolog.Logger) (string, error) {
 
 	pass = strings.TrimSpace(pass)
@@ -370,7 +423,7 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *Confi
 		remoteConfig.useDefaultConfig = true
 	}
 
-	khPath, khPathErr := GetKnownHosts(remoteConfig.KnownHostsFile)
+	khPathErr := remoteConfig.GetKnownHosts()
 
 	if khPathErr != nil {
 		return khPathErr
@@ -415,7 +468,7 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *Confi
 	}
 
 	// TODO: Add value/option to config for host key and add bool to check for host key
-	hostKeyCallback, err := knownhosts.New(khPath)
+	hostKeyCallback, err := knownhosts.New(remoteConfig.KnownHostsFile)
 	if err != nil {
 		return fmt.Errorf("could not create hostkeycallback function: %v", err)
 	}

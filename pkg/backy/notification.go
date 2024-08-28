@@ -39,6 +39,7 @@ func (opts *ConfigOpts) SetupNotify() {
 	}
 
 	for confName, cmdConfig := range opts.CmdConfigLists {
+
 		var services []notify.Notifier
 		for _, id := range cmdConfig.Notifications {
 			if !strings.Contains(id, ".") {

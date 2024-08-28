@@ -48,7 +48,7 @@ commands:
 To execute groups of commands in sequence, use a list configuration.
 
 ```yaml
-cmd-configs:
+cmd-lists:
   cmds-to-run: # this can be any name you want
     # all commands have to be defined in the commands section
     order:
@@ -97,7 +97,7 @@ hosts:
 
 The notifications object can have two forms.
 
-For more, [see the notification object documentation](/config/notifications). The top-level map key is id that has to be referenced by the `cmd-configs` key `notifications`.
+For more, [see the notification object documentation](/config/notifications). The top-level map key is id that has to be referenced by the `cmd-lists` key `notifications`.
 
 ```yaml
 notifications:

@@ -25,13 +25,20 @@ var configFiles []string
 func (opts *ConfigOpts) InitConfig() {
 
 	homeDir, homeDirErr = os.UserHomeDir()
+
 	if homeDirErr != nil {
 		fmt.Println(homeDirErr)
+		logging.ExitWithMSG(homeDirErr.Error(), 1, nil)
 	}
+
 	backyHomeConfDir = homeDir + "/.config/backy/"
+
 	configFiles = []string{"./backy.yml", "./backy.yaml", backyHomeConfDir + "backy.yml", backyHomeConfDir + "backy.yaml"}
+
 	backyKoanf := koanf.New(".")
+
 	opts.ConfigFilePath = strings.TrimSpace(opts.ConfigFilePath)
+
 	if opts.ConfigFilePath != "" {
 		err := testFile(opts.ConfigFilePath)
 		if err != nil {
@@ -43,16 +50,16 @@ func (opts *ConfigOpts) InitConfig() {
 		}
 	} else {
 
-		cFileFalures := 0
+		cFileFailures := 0
 		for _, c := range configFiles {
 			if err := backyKoanf.Load(file.Provider(c), yaml.Parser()); err != nil {
-				cFileFalures++
+				cFileFailures++
 			} else {
 				opts.ConfigFilePath = c
 				break
 			}
 		}
-		if cFileFalures == len(configFiles) {
+		if cFileFailures == len(configFiles) {
 			logging.ExitWithMSG(fmt.Sprintf("could not find a config file. Put one in the following paths: %v", configFiles), 1, &opts.Logger)
 		}
 	}
@@ -80,32 +87,43 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 	}
 
 	CheckConfigValues(backyKoanf, opts.ConfigFilePath)
+
+	// check for commands in file
 	for _, c := range opts.executeCmds {
 		if !backyKoanf.Exists(getCmdFromConfig(c)) {
 			logging.ExitWithMSG(Sprintf("command %s is not in config file %s", c, opts.ConfigFilePath), 1, nil)
 		}
 	}
 
-	for _, l := range opts.executeLists {
-		if !backyKoanf.Exists(getCmdListFromConfig(l)) {
-			logging.ExitWithMSG(Sprintf("list %s not found", l), 1, nil)
-		}
-	}
+	// TODO: refactor this further down the line
+
+	// for _, l := range opts.executeLists {
+	// 	if !backyKoanf.Exists(getCmdListFromConfig(l)) {
+	// 		logging.ExitWithMSG(Sprintf("list %s not found", l), 1, nil)
+	// 	}
+	// }
+
+	// check for verbosity, via
+	// 1. config file
+	// 2. TODO: CLI flag
+	// 3. TODO: ENV var
 
 	var (
-		verbose bool
-		logFile string
+		isLoggingVerbose bool
+		logFile          string
 	)
 
-	verbose = backyKoanf.Bool(getLoggingKeyFromConfig("verbose"))
+	isLoggingVerbose = backyKoanf.Bool(getLoggingKeyFromConfig("verbose"))
 
-	logFile = fmt.Sprintf("%s/backy.log", path.Dir(opts.ConfigFilePath))
+	logFile = fmt.Sprintf("%s/backy.log", path.Dir(opts.ConfigFilePath)) // get full path to logfile
+
 	if backyKoanf.Exists(getLoggingKeyFromConfig("file")) {
 		logFile = backyKoanf.String(getLoggingKeyFromConfig("file"))
 	}
+
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
-	if verbose {
+	if isLoggingVerbose {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		globalLvl := zerolog.GlobalLevel()
 		os.Setenv("BACKY_LOGLEVEL", Sprintf("%v", globalLvl))
@@ -128,8 +146,11 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 	log.Info().Str("config file", opts.ConfigFilePath).Send()
 
 	unmarshalErr := backyKoanf.UnmarshalWithConf("commands", &opts.Cmds, koanf.UnmarshalConf{Tag: "yaml"})
+
 	if unmarshalErr != nil {
-		panic(fmt.Errorf("error unmarshalling cmds struct: %w", unmarshalErr))
+
+		panic(fmt.Errorf("error unmarshaling cmds struct: %w", unmarshalErr))
+
 	}
 
 	for cmdName, cmdConf := range opts.Cmds {
@@ -142,6 +163,8 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 		expandEnvVars(opts.backyEnv, cmdConf.Environment)
 	}
 
+	// Get host configurations from config file
+
 	unmarshalErr = backyKoanf.UnmarshalWithConf("hosts", &opts.Hosts, koanf.UnmarshalConf{Tag: "yaml"})
 	if unmarshalErr != nil {
 		panic(fmt.Errorf("error unmarshalling hosts struct: %w", unmarshalErr))
@@ -152,43 +175,91 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 		}
 		if host.ProxyJump != "" {
 			proxyHosts := strings.Split(host.ProxyJump, ",")
-			if len(proxyHosts) > 1 {
-				for hostNum, h := range proxyHosts {
-					if hostNum > 1 {
-						proxyHost, defined := opts.Hosts[h]
-						if defined {
-							host.ProxyHost = append(host.ProxyHost, proxyHost)
-						} else {
-							newProxy := &Host{Host: h}
-							host.ProxyHost = append(host.ProxyHost, newProxy)
-						}
+			for hostNum, h := range proxyHosts {
+				if hostNum > 1 {
+					proxyHost, defined := opts.Hosts[h]
+					if defined {
+						host.ProxyHost = append(host.ProxyHost, proxyHost)
 					} else {
-						proxyHost, defined := opts.Hosts[h]
-						if defined {
-							host.ProxyHost = append(host.ProxyHost, proxyHost)
-						} else {
-							newHost := &Host{Host: h}
-							host.ProxyHost = append(host.ProxyHost, newHost)
-						}
+						newProxy := &Host{Host: h}
+						host.ProxyHost = append(host.ProxyHost, newProxy)
+					}
+				} else {
+					proxyHost, defined := opts.Hosts[h]
+					if defined {
+						host.ProxyHost = append(host.ProxyHost, proxyHost)
+					} else {
+						newHost := &Host{Host: h}
+						host.ProxyHost = append(host.ProxyHost, newHost)
 					}
 				}
-			} else {
-				proxyHost, defined := opts.Hosts[proxyHosts[0]]
-				if defined {
-					host.ProxyHost = append(host.ProxyHost, proxyHost)
-				} else {
-					newProxy := &Host{Host: proxyHosts[0]}
-					host.ProxyHost = append(host.ProxyHost, newProxy)
-				}
 			}
+
 		}
 	}
 
-	if backyKoanf.Exists("cmd-lists") {
-		unmarshalErr = backyKoanf.UnmarshalWithConf("cmd-lists", &opts.CmdConfigLists, koanf.UnmarshalConf{Tag: "yaml"})
-		if unmarshalErr != nil {
-			logging.ExitWithMSG((fmt.Sprintf("error unmarshalling cmd list struct: %v", unmarshalErr)), 1, &opts.Logger)
+	// get command lists
+	// command lists should still be in the same file if no:
+	// 1. key 'cmd-lists.file' is found
+	// 2. hosts.yml or hosts.yaml is found in the same directory as the backy config file
+	backyConfigFileDir := path.Dir(opts.ConfigFilePath)
+
+	listsConfig := koanf.New(".")
+
+	listConfigFiles := []string{path.Join(backyConfigFileDir, "lists.yml"), path.Join(backyConfigFileDir, "lists.yaml")}
+
+	log.Info().Strs("list config files", listConfigFiles).Send()
+	for _, l := range listConfigFiles {
+		cFileFailures := 0
+		if err := listsConfig.Load(file.Provider(l), yaml.Parser()); err != nil {
+			cFileFailures++
+		} else {
+			opts.ConfigFilePath = l
+			break
 		}
+
+		if cFileFailures == len(configFiles) {
+
+			logging.ExitWithMSG(fmt.Sprintf("could not find a config file. Put one in the following paths: %v", listConfigFiles), 1, &opts.Logger)
+
+			// logging.ExitWithMSG((fmt.Sprintf("error unmarshalling cmd list struct: %v", unmarshalErr)), 1, &opts.Logger)
+		}
+
+	}
+	_ = listsConfig.UnmarshalWithConf("cmd-lists", &opts.CmdConfigLists, koanf.UnmarshalConf{Tag: "yaml"})
+
+	if backyKoanf.Exists("cmd-lists") {
+
+		unmarshalErr = backyKoanf.UnmarshalWithConf("cmd-lists", &opts.CmdConfigLists, koanf.UnmarshalConf{Tag: "yaml"})
+		// if unmarshalErr is not nil, look for a cmd-lists.file key
+		if unmarshalErr != nil {
+
+			// if file key exists, resolve file path and try to read and unmarshal file into command lists config
+			if backyKoanf.Exists("cmd-lists.file") {
+				opts.CmdListFile = strings.TrimSpace(backyKoanf.String("cmd-lists.file"))
+
+				cmdListFilePath := path.Clean(opts.CmdListFile)
+
+				if !strings.HasPrefix(cmdListFilePath, "/") {
+					opts.CmdListFile = path.Join(backyConfigFileDir, cmdListFilePath)
+				}
+
+				err := testFile(opts.CmdListFile)
+
+				if err != nil {
+					logging.ExitWithMSG(fmt.Sprintf("Could not open config file %s: %v. \n\nThe cmd-lists config should be in the main config file or should be in a lists.yml or lists.yaml file.", opts.CmdListFile, err), 1, nil)
+				}
+
+				if err := listsConfig.Load(file.Provider(opts.CmdListFile), yaml.Parser()); err != nil {
+					logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
+				}
+
+				log.Info().Str("lists config file", opts.CmdListFile).Send()
+
+			}
+
+		}
+
 	}
 
 	var cmdNotFoundSliceErr []error
@@ -209,6 +280,7 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 		}
 	}
 
+	// Exit program if command is not found from list
 	if len(cmdNotFoundSliceErr) > 0 {
 		var cmdNotFoundErrorLog = log.Fatal()
 		cmdNotFoundErrorLog.Errs("commands not found", cmdNotFoundSliceErr).Send()

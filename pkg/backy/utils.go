@@ -197,6 +197,7 @@ func resolveDir(path string) (string, error) {
 	return path, nil
 }
 
+// loadEnv loads a .env file from the config file directory
 func (opts *ConfigOpts) loadEnv() {
 	envFileInConfigDir := fmt.Sprintf("%s/.env", path.Dir(opts.ConfigFilePath))
 	var backyEnv map[string]string
@@ -208,6 +209,7 @@ func (opts *ConfigOpts) loadEnv() {
 	opts.backyEnv = backyEnv
 }
 
+// expandEnvVars expands environment variables with the env used in the config
 func expandEnvVars(backyEnv map[string]string, envVars []string) {
 
 	env := func(name string) string {
