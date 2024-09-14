@@ -221,10 +221,15 @@ func expandEnvVars(backyEnv map[string]string, envVars []string) {
 		return ""
 	}
 
+	// parse env variables using new macros
 	for indx, v := range envVars {
-		if strings.Contains(v, "$") || (strings.Contains(v, "${") && strings.Contains(v, "}")) {
-			out, _ := shell.Expand(v, env)
-			envVars[indx] = out
+		if strings.HasPrefix(v, macroStart) && strings.HasSuffix(v, macroEnd) {
+			if strings.HasPrefix(v, envMacroStart) {
+				v = strings.TrimPrefix(v, envMacroStart)
+				v = strings.TrimRight(v, macroEnd)
+				out, _ := shell.Expand(v, env)
+				envVars[indx] = out
+			}
 		}
 	}
 }

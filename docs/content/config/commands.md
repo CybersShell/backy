@@ -103,7 +103,7 @@ May be `scriptFile` or `script`. Runs script from local machine on remote host p
 
 If `type` is `script`, `cmd` is used as the script.
 
-If `type` is `scriptFile`, cmd must be a file path.
+If `type` is `scriptFile`, cmd must be a script file.
 
 ### environment
 

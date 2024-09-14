@@ -22,6 +22,11 @@ var homeDirErr error
 var backyHomeConfDir string
 var configFiles []string
 
+const macroStart string = "%{"
+const macroEnd string = "}%"
+const envMacroStart string = "%{env:"
+const vaultMacroStart string = "%{env:"
+
 func (opts *ConfigOpts) InitConfig() {
 
 	homeDir, homeDirErr = os.UserHomeDir()
