@@ -5,7 +5,7 @@ The following commands ran:
     - {{. -}}
 {{end}}
 
-{{ if .CmdOutput }}{{- range .CmdOutput }}Commad output for {{ .CmdName }}:
+{{ if .CmdOutput }}{{- range .CmdOutput }}Command output for {{ .CmdName }}:
 {{- range .Output}}
     {{ . }}
 {{ end }}{{ end }}

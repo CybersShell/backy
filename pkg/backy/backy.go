@@ -100,15 +100,61 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		// Is command type defined. That is, is it local or not
 		if command.Type != "" {
 
+			var (
+				script               *bytes.Buffer
+				buffer               bytes.Buffer
+				scriptEnvFileBuffer  bytes.Buffer
+				scriptFileBuffer     bytes.Buffer
+				dirErr               error
+				scriptEnvFilePresent bool
+			)
+
 			defer func() {
 				// did the program panic while writing to the buffer?
 				if err := recover(); err != nil {
-					cmdCtxLogger.Info().Msg(fmt.Sprintf("panic occurred writing to buffer: %x", err))
+					// cmdCtxLogger.Debug().Msg(fmt.Sprintf("script buffer: %v", script))
+					cmdCtxLogger.Info().Msg(fmt.Sprintf("panic occurred writing to buffer: %v", err))
 				}
 			}()
 
 			if command.Type == "script" {
-				script := bytes.NewBufferString(cmd + "\n")
+
+				if command.ScriptEnvFile != "" {
+
+					command.ScriptEnvFile, dirErr = resolveDir(command.ScriptEnvFile)
+					if dirErr != nil {
+						return nil, dirErr
+					}
+					file, err := os.Open(command.ScriptEnvFile)
+					if err != nil {
+						return nil, err
+					}
+					defer file.Close()
+					_, err = io.Copy(&scriptEnvFileBuffer, file)
+					if err != nil {
+						return nil, err
+					}
+
+					// Bug: writing to buffer triggers panic
+					// why?
+					// use bytes.Buffer instead of pointer to memory (*bytes.Buffer)
+
+					_, err = buffer.WriteString(scriptEnvFileBuffer.String())
+					if err != nil {
+						return nil, err
+					}
+					// write newline
+					buffer.WriteByte(0x0A)
+
+					_, err = buffer.WriteString(cmd)
+					if err != nil {
+						return nil, err
+					}
+					script = &buffer
+
+				} else {
+					script = bytes.NewBufferString(cmd + "\n")
+				}
 
 				commandSession.Stdin = script
 				if err := commandSession.Shell(); err != nil {
@@ -144,15 +190,8 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 
 			if command.Type == "scriptFile" {
 
-				var (
-					buffer               bytes.Buffer
-					scriptEnvFileBuffer  bytes.Buffer
-					scriptFileBuffer     bytes.Buffer
-					dirErr               error
-					scriptEnvFilePresent bool
-				)
-
 				if command.ScriptEnvFile != "" {
+
 					command.ScriptEnvFile, dirErr = resolveDir(command.ScriptEnvFile)
 					if dirErr != nil {
 						return nil, dirErr
