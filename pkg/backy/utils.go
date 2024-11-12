@@ -56,10 +56,10 @@ func SetCmdsToSearch(cmds []string) BackyOptionFunc {
 	}
 }
 
-// UseCron enables the execution of command lists at specified times
-func UseCron() BackyOptionFunc {
+// cronEnabled enables the execution of command lists at specified times
+func CronEnabled() BackyOptionFunc {
 	return func(bco *ConfigOpts) {
-		bco.useCron = true
+		bco.cronEnabled = true
 	}
 }
 

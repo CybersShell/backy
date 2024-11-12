@@ -43,16 +43,23 @@ type (
 	}
 
 	Command struct {
+		Name string `yaml:"name,omitempty"`
 
 		// command to run
 		Cmd string `yaml:"cmd"`
 
 		// Possible values: script, scriptFile
-		// If blank, it is regualar command.
-		Type string `yaml:"type"`
+		// If blank, it is regular command.
+		Type string `yaml:"type,omitempty"`
 
 		// host on which to run cmd
 		Host *string `yaml:"host,omitempty"`
+
+		// Hooks are for running commands on certain events
+		Hooks *Hooks `yaml:"hooks,omitempty"`
+
+		// hook refs are internal references of commands for each hook type
+		hookRefs map[string]map[string]*Command
 
 		/*
 			Shell specifies which shell to run the command in, if any.
@@ -123,7 +130,7 @@ type (
 		CmdListFile string
 
 		// use command lists using cron
-		useCron bool
+		cronEnabled bool
 		// Holds commands to execute for the exec command
 		executeCmds []string
 		// Holds lists to execute for the backup command
@@ -187,5 +194,18 @@ type (
 		Lists    []string
 		Commands []string
 		Hosts    []string
+	}
+
+	Hooks struct {
+		Error        []string `yaml:"error,omitempty"`
+		SuccessHooks []string `yaml:"success,omitempty"`
+		FinalHooks   []string `yaml:"final,omitempty"`
+	}
+
+	CmdListResults struct {
+		// name of the list
+		ListName string
+		// command that caused the list to fail
+		ErrCmd string
 	}
 )

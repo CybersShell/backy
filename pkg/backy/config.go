@@ -245,6 +245,7 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 
 				cmdListFilePath := path.Clean(opts.CmdListFile)
 
+				// if path is not absolute, check config directory
 				if !strings.HasPrefix(cmdListFilePath, "/") {
 					opts.CmdListFile = path.Join(backyConfigFileDir, cmdListFilePath)
 				}
@@ -259,7 +260,7 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 					logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
 				}
 
-				log.Info().Str("lists config file", opts.CmdListFile).Send()
+				log.Info().Str("using lists config file", opts.CmdListFile).Send()
 
 			}
 
@@ -269,7 +270,7 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 
 	var cmdNotFoundSliceErr []error
 	for cmdListName, cmdList := range opts.CmdConfigLists {
-		if opts.useCron {
+		if opts.cronEnabled {
 			cron := strings.TrimSpace(cmdList.Cron)
 			if cron == "" {
 				delete(opts.CmdConfigLists, cmdListName)
@@ -291,21 +292,18 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 		cmdNotFoundErrorLog.Errs("commands not found", cmdNotFoundSliceErr).Send()
 	}
 
-	if opts.useCron && (len(opts.CmdConfigLists) == 0) {
+	if opts.cronEnabled && (len(opts.CmdConfigLists) == 0) {
 		logging.ExitWithMSG("No cron fields detected in any command lists", 1, nil)
 	}
 
-	for c := range opts.Cmds {
-		if opts.executeCmds != nil && !contains(opts.executeCmds, c) {
-			delete(opts.Cmds, c)
-		}
+	// process commands
+	if err := processCmds(opts); err != nil {
+		log.Panic().Err(err).Send()
 	}
 
-	if len(opts.executeLists) > 0 {
-		for l := range opts.CmdConfigLists {
-			if !contains(opts.executeLists, l) {
-				delete(opts.CmdConfigLists, l)
-			}
+	for l := range opts.CmdConfigLists {
+		if !contains(opts.executeLists, l) {
+			delete(opts.CmdConfigLists, l)
 		}
 	}
 
@@ -317,23 +315,8 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 		}
 	}
 
-	for _, cmd := range opts.Cmds {
-		if cmd.Host != nil {
-			host, hostFound := opts.Hosts[*cmd.Host]
-			if hostFound {
-				cmd.RemoteHost = host
-				cmd.RemoteHost.Host = host.Host
-				if host.HostName != "" {
-					cmd.RemoteHost.HostName = host.HostName
-				}
-			} else {
-				opts.Hosts[*cmd.Host] = &Host{Host: *cmd.Host}
-				cmd.RemoteHost = &Host{Host: *cmd.Host}
-			}
-		}
-
-	}
 	opts.SetupNotify()
+
 	if err := opts.setupVault(); err != nil {
 		log.Err(err).Send()
 	}
@@ -459,4 +442,95 @@ func GetVaultKey(str string, opts *ConfigOpts, log zerolog.Logger) string {
 		return value
 	}
 	return value
+}
+
+func processCmds(opts *ConfigOpts) error {
+	// process commands
+	for cmdName, cmd := range opts.Cmds {
+		cmd.hookRefs = map[string]map[string]*Command{}
+		cmd.hookRefs["error"] = map[string]*Command{}
+		cmd.hookRefs["success"] = map[string]*Command{}
+
+		if cmd.Name == "" {
+			cmd.Name = cmdName
+		}
+		// println("Cmd.Name = " + cmd.Name)
+		hooks := cmd.Hooks
+		// resolve hooks
+		if hooks != nil {
+			opts.Logger.Debug().Msg("Hooks found")
+
+			errHook, hookRefs, processHookErr := processHooks(hooks.Error, opts.Cmds, "error")
+			if !processHookErr {
+				return fmt.Errorf("error in command %s hook list: hook command %s not found", cmd.Name, errHook)
+			}
+			cmd.hookRefs["error"] = hookRefs
+
+			successHook, SuccessHookRefs, processHookSuccess := processHooks(hooks.Error, opts.Cmds, "error")
+			if !processHookSuccess {
+				return fmt.Errorf("error in command %s hook list: hook command %s not found", cmd.Name, successHook)
+			}
+			cmd.hookRefs["success"] = SuccessHookRefs
+		}
+
+		// resolve hosts
+		if cmd.Host != nil {
+			host, hostFound := opts.Hosts[*cmd.Host]
+			if hostFound {
+				cmd.RemoteHost = host
+				cmd.RemoteHost.Host = host.Host
+				if host.HostName != "" {
+					cmd.RemoteHost.HostName = host.HostName
+				}
+			} else {
+				opts.Hosts[*cmd.Host] = &Host{Host: *cmd.Host}
+				cmd.RemoteHost = &Host{Host: *cmd.Host}
+			}
+		}
+	}
+	return nil
+}
+
+// processHooks evaluates if hooks are valid Commands
+//
+// Takes the following arguments:
+//
+//  1. a []string of hooks
+//  2. a map of Commands as arguments
+//  3. a string hookType, must be the hook type
+//
+// The cmds.hookRef is modified in this function.
+//
+// Returns the following:
+//
+//  1. command string
+//  2. each hook type's command map
+//  2. a bool which determines if the command is valid
+func processHooks(hooks []string, cmds map[string]*Command, hookType string) (hook string, hookRefs map[string]*Command, hookCmdFound bool) {
+	// fmt.Printf("%v\n", hooks)
+	// for _, v := range cmds {
+
+	// 	fmt.Printf("CmdName=%v\n", v.Name)
+	// 	fmt.Printf("Cmd=%v\n", v.Cmd)
+	// }
+	// initialize hook type
+	hookRefs = make(map[string]*Command)
+	// hookRefs[hookType] = map[string]*Command{}
+	for _, hook = range hooks {
+		var hookCmd *Command
+		// TODO: match by Command.Name
+
+		hookCmd, hookCmdFound = cmds[hook]
+
+		if !hookCmdFound {
+			return
+		}
+		hookRefs[hook] = hookCmd
+
+		// Recursive, decide if this is good
+		// if hookCmd.hookRefs == nil {
+		// }
+		// hookRef[hookType][h] = hookCmd
+	}
+	return
 }
