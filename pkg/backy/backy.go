@@ -611,6 +611,9 @@ func (c *ConfigOpts) closeHostConnections() {
 }
 
 func (cmd *Command) ExecuteHooks(hookType string, opts *ConfigOpts) {
+	if cmd.Hooks == nil {
+		return
+	}
 	switch hookType {
 	case "error":
 		for _, v := range cmd.Hooks.Error {
