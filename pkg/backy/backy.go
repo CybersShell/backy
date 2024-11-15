@@ -391,12 +391,11 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 // cmdListWorker
 func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- string, opts *ConfigOpts) {
 	// iterate over list to run
+	res := CmdListResults{}
 	for list := range jobs {
-		res := CmdListResults{}
 		fieldsMap := make(map[string]interface{})
 		fieldsMap["list"] = list.Name
-
-		cmdLog := opts.Logger.Info()
+		var cmdLogger zerolog.Logger
 
 		var count int                // count of how many commands have been executed
 		var cmdsRan []string         // store the commands that have been executed
@@ -408,17 +407,9 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 
 			fieldsMap["cmd"] = opts.Cmds[cmd].Name
 			cmdToRun := opts.Cmds[cmd]
-			cmdLog.Fields(fieldsMap).Send()
 
-			cmdLogger := opts.Logger.With().
-				Str("backy-cmd", cmd).Str("Host", "local machine").
-				Logger()
-
-			if cmdToRun.Host != nil {
-				cmdLogger = opts.Logger.With().
-					Str("backy-cmd", cmd).Str("Host", *cmdToRun.Host).
-					Logger()
-			}
+			cmdLogger = cmdToRun.generateLogger(opts)
+			cmdLogger.Info().Fields(fieldsMap).Send()
 
 			outputArr, runOutErr := cmdToRun.RunCmd(cmdLogger, opts)
 
@@ -456,17 +447,17 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 					tmpErr := msgTemps.err.Execute(&errMsg, errStruct)
 
 					if tmpErr != nil {
-						opts.Logger.Err(tmpErr).Send()
+						cmdLogger.Err(tmpErr).Send()
 					}
 
 					notifySendErr := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s failed", list.Name), errMsg.String())
 
 					if notifySendErr != nil {
-						opts.Logger.Err(notifySendErr).Send()
+						cmdLogger.Err(notifySendErr).Send()
 					}
 				}
 
-				opts.Logger.Err(runOutErr).Send()
+				cmdLogger.Err(runOutErr).Send()
 
 				break
 			} else {
@@ -489,14 +480,14 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 						tmpErr := msgTemps.success.Execute(&successMsg, successStruct)
 
 						if tmpErr != nil {
-							opts.Logger.Err(tmpErr).Send()
+							cmdLogger.Err(tmpErr).Send()
 							break
 						}
 
 						err := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s succeeded", list.Name), successMsg.String())
 
 						if err != nil {
-							opts.Logger.Err(err).Send()
+							cmdLogger.Err(err).Send()
 						}
 					}
 				}
@@ -538,7 +529,7 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 	}
 	close(listChan)
 
-	for a := 0; a <= configListsLen; a++ {
+	for a := 1; a <= configListsLen; a++ {
 		l := <-results
 
 		opts.Logger.Debug().Msg(l)
@@ -546,11 +537,15 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 		if l != "" {
 			// execute error hooks
 			opts.Logger.Debug().Msg("hooks are working")
+			opts.Cmds[l].ExecuteHooks("error", opts)
 		} else {
 			// execute success hooks
+			opts.Cmds[l].ExecuteHooks("success", opts)
 
 		}
+
 		// execute final hooks
+		opts.Cmds[l].ExecuteHooks("final", opts)
 
 	}
 
@@ -560,20 +555,18 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 func (config *ConfigOpts) ExecuteCmds(opts *ConfigOpts) {
 	for _, cmd := range opts.executeCmds {
 		cmdToRun := opts.Cmds[cmd]
-		cmdLogger := opts.Logger.With().
-			Str("backy-cmd", cmd).
-			Logger()
+		cmdLogger := cmdToRun.generateLogger(opts)
 		_, runErr := cmdToRun.RunCmd(cmdLogger, opts)
 		if runErr != nil {
 			opts.Logger.Err(runErr).Send()
 
-			ExecuteHooks(*cmdToRun, "error", opts)
+			cmdToRun.ExecuteHooks("error", opts)
 		} else {
 
-			ExecuteHooks(*cmdToRun, "success", opts)
+			cmdToRun.ExecuteHooks("success", opts)
 		}
 
-		ExecuteHooks(*cmdToRun, "final", opts)
+		cmdToRun.ExecuteHooks("final", opts)
 	}
 
 	opts.closeHostConnections()
@@ -617,7 +610,7 @@ func (c *ConfigOpts) closeHostConnections() {
 	}
 }
 
-func ExecuteHooks(cmd Command, hookType string, opts *ConfigOpts) {
+func (cmd *Command) ExecuteHooks(hookType string, opts *ConfigOpts) {
 	switch hookType {
 	case "error":
 		for _, v := range cmd.Hooks.Error {
@@ -628,5 +621,35 @@ func ExecuteHooks(cmd Command, hookType string, opts *ConfigOpts) {
 			errCmd.RunCmd(cmdLogger, opts)
 		}
 
+	case "success":
+		for _, v := range cmd.Hooks.Success {
+			successCmd := opts.Cmds[v]
+			cmdLogger := opts.Logger.With().
+				Str("backy-cmd", v).
+				Logger()
+			successCmd.RunCmd(cmdLogger, opts)
+		}
+	case "final":
+		for _, v := range cmd.Hooks.Final {
+			finalCmd := opts.Cmds[v]
+			cmdLogger := opts.Logger.With().
+				Str("backy-cmd", v).
+				Logger()
+			finalCmd.RunCmd(cmdLogger, opts)
+		}
 	}
+}
+
+func (cmd *Command) generateLogger(opts *ConfigOpts) zerolog.Logger {
+	cmdLogger := opts.Logger.With().
+		Str("backy-cmd", cmd.Name).Str("Host", "local machine").
+		Logger()
+
+	if cmd.Host != nil {
+		cmdLogger = opts.Logger.With().
+			Str("backy-cmd", cmd.Name).Str("Host", *cmd.Host).
+			Logger()
+
+	}
+	return cmdLogger
 }

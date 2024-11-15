@@ -197,9 +197,9 @@ type (
 	}
 
 	Hooks struct {
-		Error        []string `yaml:"error,omitempty"`
-		SuccessHooks []string `yaml:"success,omitempty"`
-		FinalHooks   []string `yaml:"final,omitempty"`
+		Error   []string `yaml:"error,omitempty"`
+		Success []string `yaml:"success,omitempty"`
+		Final   []string `yaml:"final,omitempty"`
 	}
 
 	CmdListResults struct {

@@ -298,12 +298,14 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 
 	// process commands
 	if err := processCmds(opts); err != nil {
-		log.Panic().Err(err).Send()
+		logging.ExitWithMSG(err.Error(), 1, &opts.Logger)
 	}
 
-	for l := range opts.CmdConfigLists {
-		if !contains(opts.executeLists, l) {
-			delete(opts.CmdConfigLists, l)
+	if len(opts.executeLists) > 0 {
+		for l := range opts.CmdConfigLists {
+			if !contains(opts.executeLists, l) {
+				delete(opts.CmdConfigLists, l)
+			}
 		}
 	}
 
@@ -447,9 +449,6 @@ func GetVaultKey(str string, opts *ConfigOpts, log zerolog.Logger) string {
 func processCmds(opts *ConfigOpts) error {
 	// process commands
 	for cmdName, cmd := range opts.Cmds {
-		cmd.hookRefs = map[string]map[string]*Command{}
-		cmd.hookRefs["error"] = map[string]*Command{}
-		cmd.hookRefs["success"] = map[string]*Command{}
 
 		if cmd.Name == "" {
 			cmd.Name = cmdName
@@ -458,19 +457,19 @@ func processCmds(opts *ConfigOpts) error {
 		hooks := cmd.Hooks
 		// resolve hooks
 		if hooks != nil {
-			opts.Logger.Debug().Msg("Hooks found")
 
-			errHook, hookRefs, processHookErr := processHooks(hooks.Error, opts.Cmds, "error")
-			if !processHookErr {
-				return fmt.Errorf("error in command %s hook list: hook command %s not found", cmd.Name, errHook)
+			processHookSuccess := processHooks(cmd, hooks.Error, opts, "error")
+			if processHookSuccess != nil {
+				return processHookSuccess
 			}
-			cmd.hookRefs["error"] = hookRefs
-
-			successHook, SuccessHookRefs, processHookSuccess := processHooks(hooks.Error, opts.Cmds, "error")
-			if !processHookSuccess {
-				return fmt.Errorf("error in command %s hook list: hook command %s not found", cmd.Name, successHook)
+			processHookSuccess = processHooks(cmd, hooks.Success, opts, "success")
+			if processHookSuccess != nil {
+				return processHookSuccess
 			}
-			cmd.hookRefs["success"] = SuccessHookRefs
+			processHookSuccess = processHooks(cmd, hooks.Final, opts, "final")
+			if processHookSuccess != nil {
+				return processHookSuccess
+			}
 		}
 
 		// resolve hosts
@@ -503,34 +502,31 @@ func processCmds(opts *ConfigOpts) error {
 //
 // Returns the following:
 //
-//  1. command string
-//  2. each hook type's command map
-//  2. a bool which determines if the command is valid
-func processHooks(hooks []string, cmds map[string]*Command, hookType string) (hook string, hookRefs map[string]*Command, hookCmdFound bool) {
-	// fmt.Printf("%v\n", hooks)
-	// for _, v := range cmds {
+//	An error, if any, if the command is not found
+func processHooks(cmd *Command, hooks []string, opts *ConfigOpts, hookType string) error {
 
-	// 	fmt.Printf("CmdName=%v\n", v.Name)
-	// 	fmt.Printf("Cmd=%v\n", v.Cmd)
-	// }
 	// initialize hook type
-	hookRefs = make(map[string]*Command)
-	// hookRefs[hookType] = map[string]*Command{}
-	for _, hook = range hooks {
+	var hookCmdFound bool
+	cmd.hookRefs = map[string]map[string]*Command{}
+	cmd.hookRefs[hookType] = map[string]*Command{}
+
+	for _, hook := range hooks {
+
 		var hookCmd *Command
 		// TODO: match by Command.Name
 
-		hookCmd, hookCmdFound = cmds[hook]
+		hookCmd, hookCmdFound = opts.Cmds[hook]
 
 		if !hookCmdFound {
-			return
+			return fmt.Errorf("error in command %s hook %s list: command %s not found", cmd.Name, hookType, hook)
 		}
-		hookRefs[hook] = hookCmd
+
+		cmd.hookRefs[hookType][hook] = hookCmd
 
 		// Recursive, decide if this is good
 		// if hookCmd.hookRefs == nil {
 		// }
 		// hookRef[hookType][h] = hookCmd
 	}
-	return
+	return nil
 }
