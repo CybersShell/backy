@@ -19,7 +19,14 @@ commands:
       - down
     # if host is not defined, command will be run locally
     # The host has to be defined in either the config file or the SSH Config files
-    host: some-host 
+    host: some-host
+    hooks
+      error:
+        - some-other-command-when-failing
+      success:
+        - success-command
+      final:
+        - final-command
   backup-docker-container-script:
     cmd: /path/to/local/script
     # script file is input as stdin to SSH
@@ -41,6 +48,7 @@ Values available for this section:
 | `host` | If not specified, the command will execute locally. | `string` | no |
 | `scriptEnvFile` | When type is `scriptFile`, the script is appended to this file. | `string` | no |
 | `shell` | Only applicable when host is not specified | `string` | no |
+| `hooks` | Hooks are used at the end of the individual command. Must be another command. | `[]string` | no |
 
 #### cmd
 
@@ -93,9 +101,9 @@ Make sure to escape any shell input.
 
 Path to a file.
 
-When type is `scriptFile`, the script is appended to this file.
+When type is specified, the script is appended to this file.
 
-This is useful for specifiing environment variables or other things so they don't have to be included in the script.
+This is useful for specifying environment variables or other things so they don't have to be included in the script.
 
 ### type
 
@@ -116,3 +124,23 @@ For now, the variables have to be defined in an `.env` file in the same director
 If using it with host specified, the SSH server has to be configured to accept those env variables.
 
 If the command is run locally, the OS's environment is added.
+
+### hooks
+
+Hooks are run after the command is run.
+
+Errors are run if the command errors, success if it returns no error. Final hooks are run regardless of error condition.
+
+Values for hooks are as follows:
+
+```yaml
+command:
+  hook:
+    # these commands are defined elsewhere in the file
+    error:
+      - errcommand
+    success:
+      - successcommand
+    final:
+      - donecommand
+```

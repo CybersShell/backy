@@ -9,6 +9,11 @@ Command lists are for executing commands in sequence and getting notifications f
 
 The top-level object key can be anything you want but not the same as another.
 
+Lists can go in a separate file. Command lists should be in a separate file if:
+
+1. key 'cmd-lists.file' is found
+2. hosts.yml or hosts.yaml is found in the same directory as the backy config file
+
 ```yaml
   test2:
     name: test2
@@ -51,7 +56,7 @@ An array of notification IDs to use on success and failure. Must match any of th
 
 ### Name
 
-Name is optional for logging. If name is not defined, name will be the object's map key.
+Name is optional. If name is not defined, name will be the object's map key.
 
 ### Cron mode
 
