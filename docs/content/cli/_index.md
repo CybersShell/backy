@@ -110,6 +110,7 @@ Usage:
   backy list [--list=list1,list2,... | -l list1, list2,...] [ -cmd cmd1 cmd2 cmd3...] [flags]
 
 Flags:
+  -c, --cmds strings    Accepts comma-separated names of commands to list.
   -h, --help            help for list
   -l, --lists strings   Accepts comma-separated names of command lists to list.
 
