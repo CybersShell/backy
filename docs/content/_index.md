@@ -7,6 +7,8 @@ Backy is a tool for automating data backup and remote command execution. It can 
 
 Why the name Backy? Because I wanted an app for backups.
 
+View the [changelog here](https://git.andrewnw.xyz/CyberShell/backy/src/branch/master/CHANGELOG.md).
+
 {{% notice tip %}}
 Feel free to open a [PR](https://git.andrewnw.xyz/CyberShell/backy/pulls), raise an [issue](https://git.andrewnw.xyz/CyberShell/backy/issues "Open a Gitea Issue")(s), or request new feature(s).
 {{% /notice %}}
