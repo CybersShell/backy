@@ -5,6 +5,10 @@ steps:
       - git submodule foreach 'git fetch origin; git checkout $(git describe --tags `git rev-list --tags --max-count=1`);'
       - cd docs
       - hugo
+    when:
+      - event: push
+        branch: master
+        path: "docs/*"
 
   deploy:
     image: codingkoopa/git-rsync-openssh
@@ -23,7 +27,7 @@ steps:
       - rsync -atv --delete --progress vangen/ backy@backy.cybershell.xyz:vangen-go
     secrets: [ ssh_host_key, ssh_deploy_key, ssh_passphrase ]
 
-    # when:
-    #   - event: push
-    #     branch: master
-    #     path: "docs/*"
+    when:
+      - event: push
+        branch: master
+        path: "docs/*"
