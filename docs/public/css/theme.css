@@ -1,97 +1,7 @@
 @charset "UTF-8";
 
 @import "tags.css";
-
-/* until browsers don't let us set length values based on dppx, we
-need a way to calculate them ourself */
-:root {
-    --dpr: 1;
-    --bpx: 1;
-}
-@media (min-resolution: 105dpi) {
-    :root {
-        --dpr: 1.1;
-        --bpx: 1.1;
-    }
-}
-@media (min-resolution: 115dpi) {
-    :root {
-        --dpr: 1.2;
-        --bpx: 1.2;
-    }
-}
-@media (min-resolution: 120dpi) {
-    :root {
-        --dpr: 1.25;
-        --bpx: 1.25;
-    }
-}
-@media (min-resolution: 128dpi) {
-    :root {
-        --dpr: 1.333;
-        --bpx: 1.333;
-    }
-}
-@media (min-resolution: 144dpi) {
-    :root {
-        --dpr: 1.5;
-        --bpx: 1.5;
-    }
-}
-@media (min-resolution: 160dpi) {
-    :root {
-        --dpr: 1.666;
-        --bpx: 1.666;
-    }
-}
-@media (min-resolution: 168dpi) {
-    :root {
-        --dpr: 1.75;
-        --bpx: 1.75;
-    }
-}
-@media (min-resolution: 192dpi) {
-    :root {
-        --dpr: 2;
-        --bpx: 1;
-    }
-}
-@media (min-resolution: 240dpi) {
-    :root {
-        --dpr: 2.5;
-        --bpx: 1.25;
-    }
-}
-@media (min-resolution: 288dpi) {
-    :root {
-        --dpr: 3;
-        --bpx: 1;
-    }
-}
-@media (min-resolution: 384dpi) {
-    :root {
-        --dpr: 4;
-        --bpx: 1;
-    }
-}
-@media (min-resolution: 480dpi) {
-    :root {
-        --dpr: 5;
-        --bpx: 1.25;
-    }
-}
-@media (min-resolution: 576dpi) {
-    :root {
-        --dpr: 6;
-        --bpx: 1.5;
-    }
-}
-@media (min-resolution: 768dpi) {
-    :root {
-        --dpr: 8;
-        --bpx: 1;
-    }
-}
+@import "tabs.css";
 
 html {
     height: 100%;
@@ -142,13 +52,13 @@ dd {
     flex-shrink: 0;
     font-size: .953125rem;
     height: 100%;
-    inset-inline-start: 0;
+    left: 0;
     line-height: 1.574;
     min-height: 100%;
-    min-width: 18.75rem;
-    max-width: 18.75rem;
+    min-width: 300px;
+    max-width: 300px;
     position: fixed;
-    width: 18.75rem;
+    width: 300px;
 }
 
 #header-wrapper {
@@ -171,8 +81,8 @@ dd {
 }
 
 .searchbox > :first-child {
-    inset-inline-start: .5rem;
     position: absolute;
+    left: .5rem;
 }
 
 .searchbox > button {
@@ -191,8 +101,8 @@ dd {
 
 .searchbox span {
     cursor: pointer;
-    inset-inline-end: .5rem;
     position: absolute;
+    right: .5rem;
     top: .25rem;
 }
 
@@ -213,10 +123,7 @@ dd {
     height: 1.875rem;
     background: transparent;
     border: 0;
-    padding-bottom: 0;
-    padding-inline-end: 1.6rem;
-    padding-inline-start: 1.8rem;
-    padding-top: 0;
+    padding: 0 1.6rem 0 1.8rem;
     margin: 0;
     font-weight: 300;
 }
@@ -226,7 +133,6 @@ dd {
 }
 
 #content-wrapper {
-    --ps-rail-hover-color: rgba( 176, 176, 176, .25 );
     display: flex;
     flex-direction: column;
     flex: 1; /* fill rest of vertical space */
@@ -237,6 +143,60 @@ dd {
 
 #sidebar .padding {
     padding: 0 1rem;
+}
+
+#sidebar ul.topics {
+    margin: 0 1rem;
+}
+
+#sidebar ul.topics ul {
+    display: none;
+}
+
+#sidebar ul.topics li {
+    position: relative;
+}
+
+#sidebar ul.topics > li > ul > li:last-child {
+    padding-bottom: 1rem;
+}
+
+#sidebar ul.topics ul ul {
+    padding-bottom: 0;
+}
+
+#sidebar ul.topics li.parent > ul,
+#sidebar ul.topics li.active > ul,
+#sidebar ul.topics li.alwaysopen > ul {
+    display: block;
+}
+
+#sidebar ul.collapsible-menu > li > .toggle,
+#sidebar ul.topics > li > a {
+    font-size: 1.1rem;
+    line-height: 2rem;
+}
+
+#sidebar ul.topics > li > a b {
+    font-weight: 400;
+}
+
+#sidebar ul.topics > li > a .fa {
+    margin-top: 9px;
+}
+
+#sidebar ul.topics > li {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+#sidebar ul.topics li > a {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
 }
 
 #sidebar ul {
@@ -250,16 +210,47 @@ dd {
 }
 
 #sidebar ul li.visited + span {
-    margin-inline-end: 1rem;
+    margin-right: 16px;
+}
+
+#sidebar ul li a,
+#sidebar ul li button {
+    display: block;
+    padding: 2px 0;
+}
+
+#sidebar ul li a span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#sidebar ul li > a,
+#sidebar ul li > button {
+    padding: 4px 0;
+}
+
+#sidebar ul li li {
+    padding-left: 1rem;
+}
+
+#sidebar ul.topics > li > a .read-icon {
+    margin-top: 9px;
+}
+
+#sidebar #shortcuts li {
+    list-style: none;
+    padding: 2px 0;
 }
 
 #sidebar ul li .read-icon {
     display: none;
-    font-size: .8125rem;
-    inset-inline-end: 1rem;
-    margin: .25rem 0 0 0;
-    min-width: 1rem;
-    position: absolute;
+    float: right;
+    font-size: 13px;
+    margin: 4px 0 0 0;
+    min-width: 16px;
+    text-align: right;
 }
 
 #sidebar ul li.visited > a .read-icon {
@@ -269,10 +260,10 @@ dd {
 #sidebar .nav-title {
     font-size: 2rem;
     font-weight: 200;
-    letter-spacing: -.02175em;
+    letter-spacing: -1px;
     line-height: 110% !important;
     margin: 1rem 0 1rem 0;
-    padding-inline-start: 1rem;
+    padding-left: 1rem;
     text-rendering: optimizeLegibility;
     text-transform: uppercase;
 }
@@ -294,13 +285,13 @@ dd {
     flex-grow: 1;
     flex-shrink: 0;
     height: 100%;
-    margin-inline-start: 18.75rem;
+    margin-left: 300px;
     min-height: 100%;
-    min-width: calc( 100% - 18.75rem);
-    max-width: calc( 100% - 18.75rem);
+    min-width: calc( 100% - 300px);
+    max-width: calc( 100% - 300px);
     overflow-wrap: break-word; /* avoid x-scrolling of body if it is to large to fit */
     position: relative; /* PS */
-    width: calc( 100% - 18.75rem);
+    width: calc( 100% - 300px);
     z-index: 70;
 }
 
@@ -327,7 +318,7 @@ dd {
 
 #body img.shadow,
 #body .video-container.shadow {
-    box-shadow: 0 10px 30px rgba( 176, 176, 176, .666 );
+    box-shadow: 0 10px 30px rgba( 200, 200, 200, .666 );
 }
 
 #body img.inline {
@@ -344,14 +335,14 @@ dd {
     padding: 0 3.25rem 4rem 3.25rem;
     position: relative; /* PS */
 }
-@media screen and (max-width: 60rem) {
+@media screen and (max-width: 59.938em) {
     #body-inner {
-        padding: 0 2rem 1rem 2rem;
+        padding: 0 2rem 15px 2rem;
     }
 }
-@media screen and (max-width: 48rem) {
+@media screen and (max-width: 47.938em) {
     #body-inner {
-        padding: 0 1.25rem .375rem 1.25rem;
+        padding: 0 1.25rem 5px 1.25rem;
     }
 }
 
@@ -365,37 +356,33 @@ dd {
     margin-top: -1rem;
 }
 
-#body .flex-block-wrapper {
-    margin-left: auto;
-    margin-right: auto;
-    max-width: calc( 81.25rem - 18.75rem - 2 * 3.25rem );
-    width: 100%;
-}
-body:not(.print) #body .narrow .flex-block-wrapper {
-    max-width: calc( 81.25rem - 18.75rem - 2 * 9.75rem );
-}
-
 /* we limit width if we have large screens */
-@media screen and ( min-width: 81.25rem ){ /* #sidebar/width + ./max-width */
+@media screen and ( min-width: 1300px ){ /* #sidebar/width + ./max-width */
     #body .flex-block-wrapper {
-        width: calc( 81.25rem - 18.75rem - 2 * 3.25rem );
+        margin-left: auto;
+        margin-right: auto;
+        min-width: calc( 1300px - 300px - 2 * 3.25rem );
+        width: calc( 1300px - 300px - 2 * 3.25rem );
+        max-width: calc( 1300px - 300px - 2 * 3.25rem );
     }
     body:not(.print) #body .narrow .flex-block-wrapper {
-        width: calc( 81.25rem - 18.75rem - 2 * 9.75rem );
+        min-width: calc( 1300px - 300px - 2 * 9.75rem );
+        width: calc( 1300px - 300px - 2 * 9.75rem );
+        max-width: calc( 1300px - 300px - 2 * 9.75rem );
     }
 }
 
 body:not(.print) #body-inner.narrow {
     padding: 2rem 9.75rem;
 }
-@media screen and (max-width: 60rem) {
+@media screen and (max-width: 59.938em) {
     body:not(.print) #body-inner.narrow {
-        padding: 1rem 6.5rem;
+        padding: 15px 6.5rem;
     }
 }
-@media screen and (max-width: 48rem) {
+@media screen and (max-width: 47.938em) {
     body:not(.print) #body-inner.narrow {
-        padding: .375rem 3.25rem;
+        padding: 5px 3.25rem;
     }
 }
 
@@ -412,7 +399,7 @@ body:not(.print) #body-inner.narrow p {
 }
 
 mark {
-    color: rgba( 0, 0, 0, 1 );
+    color: black;
 }
 
 h1 {
@@ -431,12 +418,12 @@ body:not(.print) #body-inner.narrow h1 {
     border-bottom: 4px solid rgba( 134, 134, 134, .125 );
     font-size: 3.5rem;
 }
-@media only screen and (min-width: 48rem) and (max-width: 60rem) {
+@media only screen and (min-width: 48em) and (max-width: 59.938em) {
     body:not(.print) #body-inner.narrow h1 {
         font-size: 2.8rem;
     }
 }
-@media only screen and (max-width: 48rem) {
+@media only screen and (max-width: 47.938em) {
     body:not(.print) #body-inner.narrow h1 {
         font-size: 2.5rem;
     }
@@ -468,7 +455,7 @@ h6 {
 }
 
 h2, h3, .article-subheading, h4, h5, h6 {
-    letter-spacing: -.0625rem;
+    letter-spacing: -1px;
     margin: 2rem 0 1rem 0;
     /* big titles cause a horizontal scrollbar - fixing this by wrapping text */
     overflow-wrap: break-word;
@@ -482,7 +469,7 @@ h2, h3, h4, h5, h6 {
 }
 
 blockquote {
-    border-inline-start: .6rem solid rgba( 134, 134, 134, .4 );
+    border-inline-start: 10px solid rgba( 134, 134, 134, .4 );
 }
 
 blockquote p {
@@ -496,7 +483,7 @@ blockquote cite {
     display: block;
     font-weight: bold;
     opacity: .5;
-    padding-top: .5rem;
+    padding-top: .5em;
     text-align: end;
 }
 
@@ -513,8 +500,6 @@ blockquote cite {
 
 div.box {
     margin: 1.5rem 0;
-    border-style: solid;
-    border-width: 1px;
 }
 
 div.box > .box-label {
@@ -534,11 +519,7 @@ div.box > .box-content {
 #body table td > :first-child,
 #body table td > :first-child :first-child,
 #body div.box > .box-content > :first-child,
-#body div.box > .box-content > :first-child :first-child,
-#body div.expand > .expand-content-text > :first-child,
-#body div.expand > .expand-content-text > :first-child :first-child,
-#body div.tab-content > .tab-content-text > :first-child,
-#body div.tab-content > .tab-content-text > :first-child :first-child {
+#body div.box > .box-content > :first-child :first-child {
     margin-top: 0;
 }
 
@@ -547,11 +528,7 @@ div.box > .box-content {
 #body table td > :last-child,
 #body table td > :last-child :last-child,
 #body div.box > .box-content > :last-child,
-#body div.box > .box-content > :last-child :last-child,
-#body div.expand > .expand-content-text > :last-child,
-#body div.expand > .expand-content-text > :last-child :last-child,
-#body div.tab-content > .tab-content-text > :last-child,
-#body div.tab-content > .tab-content-text > :last-child :last-child {
+#body div.box > .box-content > :last-child :last-child {
     margin-bottom: 0;
 }
 
@@ -567,10 +544,10 @@ div.attachments .box-content {
 
 .children p {
     font-size: .8125rem;
-    margin-bottom:  0;
-    margin-top: 0;
-    padding-bottom: 0;
-    padding-top: 0;
+    margin-bottom:  0px;
+    margin-top: 0px;
+    padding-bottom: 0px;
+    padding-top: 0px;
 }
 
 .children-li p {
@@ -581,10 +558,10 @@ div.attachments .box-content {
 .children-h2 p,
 .children-h3 p {
     font-size: .8125rem;
-    margin-bottom:  0;
-    margin-top: 0;
-    padding-bottom: 0;
-    padding-top: 0;
+    margin-bottom:  0px;
+    margin-top: 0px;
+    padding-bottom: 0px;
+    padding-top: 0px;
 }
 
 #body-inner .children h2,
@@ -627,10 +604,18 @@ code {
 
 span.copy-to-clipboard {
     display: inline-block;
-    white-space: nowrap;
 }
 
 code.copy-to-clipboard-code {
+    border-bottom-right-radius: 0;
+    border-top-right-radius: 0;
+    border-right-width: 0;
+}
+
+span > code.copy-to-clipboard-code {
+    border-bottom-right-radius: 2px;
+    border-top-right-radius: 2px;
+    border-right-width: 1px;
     border-end-end-radius: 0;
     border-start-end-radius: 0;
     border-inline-end-width: 0;
@@ -647,11 +632,10 @@ pre {
     position: relative;
 }
 
-/* pre:has( code ), */
-/* the :has() operator isn't available in FF yet, so we patch this by JS */
-pre.pre-code {
+pre.pre-code,
+pre:has( code ){
+    /* the :has() operator isn't available in FF yet, so we patch this by JS */
     direction: ltr;
-    text-align: left;
 }
 
 pre code {
@@ -700,10 +684,10 @@ td {
 }
 
 .tooltipped:after {
-    background: rgba( 0, 0, 0, 1 );
-    border: 1px solid rgba( 119, 119, 119, 1 );
+    background: rgba(0, 0, 0, 1);
+    border: 1px solid #777;
     border-radius: 3px;
-    color: rgba( 255, 255, 255, 1 );
+    color: #fff;
     content: attr(aria-label);
     display: none;
     font-family: "Work Sans", "Helvetica", "Tahoma", "Geneva", "Arial", sans-serif;
@@ -726,7 +710,7 @@ td {
 
 .tooltipped:before {
     border: 5px solid transparent;
-    color: rgba( 0, 0, 0, 1 );
+    color: rgba(0, 0, 0, 1);
     content: "";
     display: none;
     height: 0;
@@ -757,7 +741,7 @@ td {
 .tooltipped-s:before,
 .tooltipped-se:before,
 .tooltipped-sw:before {
-    border-bottom-color: rgba( 0, 0, 0, .8 );
+    border-bottom-color: rgba(0, 0, 0, 0.8);
     bottom: -5px;
     margin-right: -5px;
     right: 50%;
@@ -785,7 +769,7 @@ td {
 .tooltipped-n:before,
 .tooltipped-ne:before,
 .tooltipped-nw:before {
-    border-top-color: rgba( 0, 0, 0, .8 );
+    border-top-color: rgba(0, 0, 0, 0.8);
     bottom: auto;
     margin-right: -5px;
     right: 50%;
@@ -815,7 +799,7 @@ td {
 }
 
 .tooltipped-w:before {
-    border-left-color: rgba( 0, 0, 0, .8 );
+    border-left-color: rgba(0, 0, 0, 0.8);
     bottom: 50%;
     left: -5px;
     margin-top: -5px;
@@ -830,7 +814,7 @@ td {
 }
 
 .tooltipped-e:before {
-    border-right-color: rgba( 0, 0, 0, .8 );
+    border-right-color: rgba(0, 0, 0, 0.8);
     bottom: 50%;
     margin-top: -5px;
     right: -5px;
@@ -859,21 +843,13 @@ td {
     display: block;
     float: right;
 }
-html[dir="rtl"] .navigation,
-html[dir="rtl"] #top-print-link,
-html[dir="rtl"] #top-github-link {
-    float: left;
-}
 
 .nav,
 .print-link,
 .github-link {
-    border-inline-start: thin solid rgba( 134, 134, 134, .333 );
+    border-left: thin solid rgba( 134, 134, 134, .333 );
     padding-left: 1rem;
     padding-right: 1rem;
-}
-html[dir="rtl"] .nav i {
-    transform: scaleX(-1);
 }
 span.nav i{
     color: rgba( 134, 134, 134, .333 );
@@ -892,12 +868,13 @@ span.nav i{
 }
 #toc-menu,
 #sidebar-toggle-span {
-    border-inline-end: thin solid rgba( 134, 134, 134, .333 );
+    border-right: thin solid rgba( 134, 134, 134, .333 );
     padding-left: 1rem;
     padding-right: 1rem;
 }
 
 #body #breadcrumbs {
+    display: inline-block;
     float: left;
     height: auto;
     line-height: 1.4;
@@ -910,10 +887,7 @@ span.nav i{
     white-space: nowrap;
     width: calc(100% - 5*3.25rem);
 }
-html[dir="rtl"] #body #breadcrumbs {
-    float: right;
-}
-@media screen and (max-width: 48rem) {
+@media screen and (max-width: 47.938em) {
     #body #breadcrumbs {
         text-overflow: unset;
     }
@@ -923,15 +897,15 @@ html[dir="rtl"] #body #breadcrumbs {
     display: none;
 }
 .progress {
-    inset-inline-start: 1rem;
+    left: 1rem;
     top: 1rem;
 }
-@media screen and (max-width: 48rem) {
+@media screen and (max-width: 47.938em) {
     .mobile-support #sidebar-toggle-span {
         display: inline;
     }
     .progress {
-        inset-inline-start: 4.25rem;
+        left: 4.25rem;
     }
 }
 
@@ -939,7 +913,7 @@ html[dir="rtl"] #body #breadcrumbs {
     display: inline;
     padding: 0 .75rem;
 }
-@media screen and (max-width: 48rem) {
+@media screen and (max-width: 47.938em) {
     #body #breadcrumbs .links {
         /* we just hide the breadcrumbs instead of display: none;
         this makes sure that the breadcrumbs are still usable for
@@ -966,48 +940,46 @@ html[dir="rtl"] #body #breadcrumbs {
     text-decoration: none;
 }
 
-@media screen and (max-width: 60rem) {
+@media screen and (max-width: 59.938em) {
     #sidebar {
-        min-width: 14.375rem;
-        max-width: 14.375rem;
-        width: 14.375rem;
+        min-width: 230px;
+        max-width: 230px;
+        width: 230px;
     }
     #body {
-        margin-inline-start: 14.375rem;
-        min-width: calc( 100% - 14.375rem);
-        max-width: calc( 100% - 14.375rem);
-        width: calc( 100% - 14.375rem);
+        margin-left: 230px;
+        min-width: calc( 100% - 230px);
+        max-width: calc( 100% - 230px);
+        width: calc( 100% - 230px);
     }
 }
-@media screen and (max-width: 48rem) {
+@media screen and (max-width: 47.938em) {
     /* we don't support sidebar flyout in mobile */
     .mobile-support #sidebar {
-        inset-inline-start: -14.375rem;
+        left: -230px;
     }
     .mobile-support #navshow{
         display: inline;
     }
     .mobile-support #body {
+        margin-left: 0;
         min-width: 100%;
         max-width: 100%;
         width: 100%;
-    }
-    .mobile-support #body {
-        margin-inline-start: 0;
     }
     .mobile-support.sidebar-flyout {
         overflow: hidden;
     }
     .mobile-support.sidebar-flyout #sidebar {
-        inset-inline-start: 0;
+        left: 0;
         z-index: 90;
     }
     .mobile-support.sidebar-flyout #body {
-        margin-inline-start: 14.375rem;
+        margin-left: 230px;
         overflow: hidden;
     }
     .mobile-support.sidebar-flyout #sidebar-overlay{
-        background-color: rgba( 134, 134, 134, .5 );
+        background-color: rgba(134, 134, 134, 0.5);
         bottom: 0;
         cursor: pointer;
         left: 0;
@@ -1019,14 +991,12 @@ html[dir="rtl"] #body #breadcrumbs {
 }
 
 .copy-to-clipboard-button {
-    border-start-start-radius: 0;
-    border-start-end-radius: 2px;
-    border-end-end-radius: 2px;
-    border-end-start-radius: 0;
+    border-radius: 0 2px 2px 0;
     border-style: solid;
     border-width: 1px;
     cursor: pointer;
-    font-size: .934375rem;
+    font-size: .859625rem;
+    padding-left: 22px;
 }
 
 span > .copy-to-clipboard-button {
@@ -1037,8 +1007,9 @@ span > .copy-to-clipboard-button {
 }
 
 .copy-to-clipboard-button > i {
-    font-size: .859625rem;
+    font-size: .790855rem;
     font-weight: 500;
+    margin-left: -22px;
 }
 
 .copy-to-clipboard-code + .copy-to-clipboard-button > i {
@@ -1051,9 +1022,9 @@ pre > .copy-to-clipboard-button {
     border-radius: 2px;
     border-style: solid;
     border-width: 1px;
-    inset-inline-end: 4px;
-    padding: 5px 3px;
+    padding: 5px 3px 5px 25px;
     position: absolute;
+    right: 4px;
     top: 4px;
 }
 
@@ -1062,15 +1033,15 @@ pre > .copy-to-clipboard-button {
 }
 
 .disableInlineCopyToClipboard span > code.copy-to-clipboard-code {
-    border-start-end-radius: 2px;
     border-end-end-radius: 2px;
+    border-start-end-radius: 2px;
     border-inline-end-width: 1px;
 }
 
 #homelinks {
     border-bottom-style: solid;
     border-bottom-width: 4px;
-    padding: .5rem 0;
+    padding: 7px 0;
 }
 
 option {
@@ -1100,6 +1071,7 @@ option {
 }
 
 .expand > label:after {
+    background-color: var(--INTERNAL-MAIN-LINK-HOVER-color);
     content: "";
     display: block;
     height: 1px;
@@ -1117,7 +1089,6 @@ option {
 }
 
 .expand > .expand-content {
-    margin-inline-start: 1rem;
     margin-top: .5rem;
 }
 /* closed expander */
@@ -1128,6 +1099,7 @@ option {
 .expand > input + label > .fa-chevron-down {
     display: none;
 }
+.expand > input + label > .fa-chevron-left,
 .expand > input + label > .fa-chevron-right {
     display: inline-block;
 }
@@ -1140,26 +1112,26 @@ option {
 .expand > input:checked + label > .fa-chevron-down {
     display: inline-block;
 }
+.expand > input:checked + label > .fa-chevron-left,
 .expand > input:checked + label > .fa-chevron-right {
     display: none;
 }
 
-/* adjust expander for RTL reading direction */
-html[dir="rtl"] .expand > .expand-label > i.fa-chevron-right {
-    transform: scaleX(-1);
+/* turn off unsuitable expander for this reading direction */
+.expand > .expand-label > .expand-rtl.direction-ltr,
+.expand > .expand-label > .expand-ltr.direction-rtl {
+    display: none;
 }
 
 #body footer.footline{
     margin-top: 2rem;
 }
 
-.headline i,
 .footline i{
-    margin-inline-start: .5rem;
+    margin-left: .5rem;
 }
-.headline i:first-child,
 .footline i:first-child{
-    margin-inline-start: 0;
+    margin-left: 0;
 }
 
 .mermaid-container {
@@ -1257,7 +1229,7 @@ html[dir="rtl"] .expand > .expand-label > i.fa-chevron-right {
 }
 
 .progress {
-    border: 0 solid rgba( 134, 134, 134, .166 );
+    border: 0px solid rgba( 134, 134, 134, .166 );
     box-shadow: 1px 2px 5px 1px rgba( 134, 134, 134, .2 );
     height: 0;
     opacity: 0;
@@ -1281,15 +1253,14 @@ html[dir="rtl"] .expand > .expand-label > i.fa-chevron-right {
 .progress ul {
     list-style: none;
     margin: 0;
-    padding: 0 1rem;
+    padding: 0 15px;
 }
 
 #TableOfContents {
-    --ps-rail-hover-color: rgba( 176, 176, 176, .25 );
     font-size: .8125rem !important;
     max-height: 90vh;
     overflow: hidden;
-    padding: 1rem .375rem !important;
+    padding: 15px 5px !important;
     position: relative; /* PS */
 }
 
@@ -1331,11 +1302,6 @@ html[dir="rtl"] .expand > .expand-label > i.fa-chevron-right {
     -webkit-user-select: none;
     user-select: none;
     white-space: nowrap;
-}
-
-.btn > *:after {
-    /* avoid breakage if no content is given */
-    content: "\200b"
 }
 
 #body #body-inner .btn > *.highlight:after {
@@ -1398,6 +1364,45 @@ h6 a {
     margin-top: 1rem;
 }
 
+rapi-doc {
+    /* adjust rapi-doc internals to fill out available space with render-style=view */
+    margin-left: calc( -8px - 24px );
+    width: calc( 100% + 8px + 24px + 8px );
+}
+@media (max-width: 767px) {
+    rapi-doc {
+        margin-left: calc( -12px );
+        width: calc( 100% + 12px + 4px );
+    }
+}
+
+rapi-doc::part(section-main-content) {
+    /* override variables for adapting rapidoc design to theme */
+    --font-mono: var(--INTERNAL-CODE-font);
+    --font-size-mono: .9375rem;
+    --font-regular: var(--INTERNAL-MAIN-font);
+    --font-size-regular: 1.015625rem;
+    --font-size-small: .875rem;
+    font-weight: 300 !important;
+}
+
+rapi-doc::part(section-overview-title) {
+    color: var(--INTERNAL-MAIN-TITLES-H2-color);
+    font-size: 2.55rem;
+    font-weight: 500;
+}
+
+rapi-doc::part(btn) {
+    /* makes download button large enough to not overflow default text */
+    width: unset !important;
+}
+
+rapi-doc::part(section-endpoint-head-method) {
+    /* makes method marker large enough to not overflow on text DELETE */
+    font-size: .6875rem;
+    width: 5.5em;
+}
+
 .select-container i {
     padding-top: .25em;
 }
@@ -1407,19 +1412,10 @@ h6 a {
     display: block;
     float: left;
 }
-html[dir="rtl"] .select-container i,
-html[dir="rtl"] .select-container span {
-    float: right;
-}
-
-#sidebar ul select {
-    padding-left: 0;
-    padding-right: 0;
-}
 
 .select-style {
     border: 0;
-    border-radius: 0;
+    border-radius: 0px;
     height: 1.574em;
     overflow: hidden;
 }
@@ -1443,7 +1439,7 @@ html[dir="rtl"] .select-container span {
 }
 
 .select-style option {
-    color: rgba( 0, 0, 0, 1 );
+    color: #000000;
     padding: 0;
     margin: 0;
 }
@@ -1471,12 +1467,12 @@ html[dir="rtl"] .select-container span {
     appearance: none;
     background: transparent;
 	cursor: pointer;
-    text-align: start;
+    text-align: left;
     text-decoration: none;
     width: 100%;
 }
 
-@media screen and (max-width: 48rem) {
+@media screen and (max-width: 47.938em) {
     #breadcrumbs .links {
         display: none;
     }
@@ -1487,6 +1483,47 @@ input[type="search"]::-webkit-search-decoration,
 input[type="search"]::-webkit-search-cancel-button,
 input[type="search"]::-webkit-search-results-button,
 input[type="search"]::-webkit-search-results-decoration { display: none; }
+
+#sidebar ul.collapsible-menu input.toggle {
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    height: 2rem;
+    left: 1rem;
+    padding-top: .35rem;
+    position: absolute;
+    width: 1px;
+}
+
+#sidebar ul.collapsible-menu > li > input.toggle {
+    padding-top: .25rem;
+}
+
+#sidebar .collapsible-menu input.toggle:before {
+    content: "\f054";
+    font-family: "Font Awesome 5 Free";
+    font-size: .8rem;
+    font-weight: 900;
+    margin-left: -1rem;
+    padding-bottom: .65rem;
+    padding-left: .2rem;
+    padding-right: .2rem;
+    padding-top: .6rem;
+}
+
+#sidebar .collapsible-menu input.toggle:checked:before {
+    content: "\f078";
+    padding-left: .1rem;
+    padding-right: .1rem;
+}
+
+#sidebar .collapsible-menu input.toggle + label.toggle + a + ul {
+    display: none;
+}
+
+#sidebar .collapsible-menu input.toggle:checked + label.toggle + a + ul {
+	display: inline;
+}
 
 .math.align-left > mjx-container{
     text-align: left !important;
@@ -1533,8 +1570,8 @@ input[type="search"]::-webkit-search-results-decoration { display: none; }
     left: 50%;
     text-align: center;
     width: 200px;
-    background: rgba( 255, 255, 255, 1 );
-    color: rgba( 54, 133, 18, 1 );
+    background: #fff;
+    color: #368512;
     padding: .8em 0 .7em;
     font-size: 16px;
     z-index: 5000;
@@ -1580,7 +1617,7 @@ input[type="search"]::-webkit-search-results-decoration { display: none; }
 
 .searchform input::-webkit-input-placeholder,
 .searchform input::placeholder {
-    color: rgba( 134, 134, 134, 1 );
+    color: rgba( 134, 134, 134 );
     opacity: .666;
 }
 
@@ -1642,28 +1679,25 @@ input[type="search"]::-webkit-search-results-decoration { display: none; }
     border-end-start-radius: 0;
 }
 
-.badge-content:after {
-    /* avoid breakage if no content is given */
-    content: "\200b";
-}
-
 /* task list and its checkboxes */
-article ul > li:has(> input[type="checkbox"]) {
+article ul li:has(input[type="checkbox"]) {
     list-style: none;
     margin-inline-start: -1rem;
 }
 
-article ul > li:has(> input[type="checkbox"])::before {
+article ul li:has(input[type="checkbox"])::before {
     content: "\200B"; /* accessibilty for Safari https://developer.mozilla.org/en-US/docs/Web/CSS/list-style */
 }
 
 /* https://moderncss.dev/pure-css-custom-checkbox-style/ */
-article ul > li > input[type="checkbox"] {
+article ul li input[type="checkbox"] {
     -webkit-appearance: none;
     appearance: none;
     /* For iOS < 15 */
+    background-color: var(--INTERNAL-MAIN-BG-color); /* box background */
     border: 0.15em solid currentColor;
     border-radius: 0.15em;
+    color: var(--INTERNAL-MAIN-TEXT-color);
     display: inline-grid;
     font: inherit;
     height: 1.15em;
@@ -1673,7 +1707,7 @@ article ul > li > input[type="checkbox"] {
     width: 1.15em;
 }
 
-article ul > li > input[type="checkbox"]::before {
+article ul li input[type="checkbox"]::before {
     box-shadow: inset 1em 1em var(--INTERNAL-PRIMARY-color);
     clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
     content: "";
@@ -1686,14 +1720,14 @@ article ul > li > input[type="checkbox"]::before {
     background-color: CanvasText;
 }
 
-article ul > li > input[type="checkbox"]:checked::before {
+article ul li input[type="checkbox"]:checked::before {
     transform: scale(1);
 }
 
 /* CSS Lightbox https://codepen.io/gschier/pen/kyRXVx */
 .lightbox {
     align-items: center;
-    background: rgba( 0, 0, 0, .8 );
+    background: rgba(0, 0, 0, 0.8);
     bottom: 0;
     display: none;
     justify-content: center;
@@ -1715,252 +1749,4 @@ article ul > li > input[type="checkbox"]:checked::before {
     max-width: 95%;
     overflow: auto;
     padding: min(2vh, 2vw);
-}
-
-/* basic menu list styles (non-collapsible) */
-
-#sidebar ul > li > a {
-    display: block;
-    position: relative;
-}
-
-#sidebar ul.space > li > * {
-    padding-bottom: .125rem;
-    padding-top: .125rem;
-}
-#sidebar ul.space > li > ul {
-    padding-bottom: 0;
-    padding-top: 0;
-}
-
-#sidebar ul.morespace > li > * {
-    padding-bottom: .25rem;
-    padding-top: .25rem;
-}
-#sidebar ul.morespace > li > ul {
-    padding-bottom: 0;
-    padding-top: 0;
-}
-
-#sidebar ul.enlarge > li > a {
-    font-size: 1.1rem;
-    line-height: 2rem;
-}
-#sidebar ul.enlarge > li > a > .read-icon {
-    margin-top: .5rem;
-}
-#sidebar ul.enlarge > li > ul > li:last-child {
-    padding-bottom: 1rem;
-}
-
-#sidebar ul ul {
-    padding-inline-start: 1rem;
-}
-
-/* collapsible menu style overrides */
-
-#sidebar ul.collapsible-menu > li {
-    position: relative;
-}
-
-#sidebar ul.collapsible-menu > li > input {
-    -webkit-appearance: none;
-    appearance: none;
-    cursor: pointer;
-    display: inline-block;
-    margin-left: 0;
-    margin-right: 0;
-    margin-top: .65rem;
-    position: absolute;
-    width: 1rem;
-    z-index: 1;
-}
-#sidebar ul.collapsible-menu.enlarge > li > input {
-    margin-top: .9rem;
-}
-
-#sidebar ul.collapsible-menu > li > label {
-    cursor: pointer;
-    display: inline-block;
-    inset-inline-start: 0;
-    margin-bottom: 0; /* nucleus */
-    padding-inline-start: .125rem;
-    position: absolute;
-    width: 1rem;
-    z-index: 2;
-}
-#sidebar ul.collapsible-menu.enlarge > li > label {
-    font-size: 1.1rem;
-    line-height: 2rem;
-}
-
-#sidebar ul.collapsible-menu > li > label:after {
-    content: "";
-    display: block;
-    height: 1px;
-    transition: width 0.5s ease;
-    width: 0%;
-}
-
-#sidebar ul.collapsible-menu > li > label:hover:after {
-    width: 100%;
-}
-
-#sidebar ul.collapsible-menu > li > label > .fas {
-    font-size: .8rem;
-    width: .6rem;
-}
-
-#sidebar ul.collapsible-menu > li > a {
-    display: inline-block;
-    width: 100%;
-}
-
-/* menu states for not(.collapsible-menu) */
-
-#sidebar ul ul {
-    display: none;
-}
-
-#sidebar ul > li.parent > ul,
-#sidebar ul > li.active > ul,
-#sidebar ul > li.alwaysopen > ul {
-    display: block;
-}
-
-/* closed menu */
-
-#sidebar ul.collapsible-menu > li > input + label ~ ul {
-    display: none;
-}
-
-#sidebar ul.collapsible-menu > li > input + label > .fa-chevron-down {
-    display: none;
-}
-#sidebar ul.collapsible-menu > li > input + label > .fa-chevron-right {
-    display: inline-block;
-}
-
-/* open menu  */
-
-#sidebar ul.collapsible-menu > li > input:checked + label ~ ul {
-	display: block;
-}
-
-#sidebar ul.collapsible-menu > li > input:checked + label > .fa-chevron-down {
-    display: inline-block;
-}
-#sidebar ul.collapsible-menu > li > input:checked + label > .fa-chevron-right {
-    display: none;
-}
-
-/* adjust menu for RTL reading direction */
-
-html[dir="rtl"] #sidebar ul.collapsible-menu > li > label > i.fa-chevron-right {
-    transform: scaleX(-1);
-}
-
-.columnize{
-    column-count: 2;
-}
-@media screen and (min-width: 79.25rem) {
-    .columnize{
-        column-count: 3;
-    }
-}
-
-#body .tab-panel{
-    margin-bottom: 1.5rem;
-    margin-top: 1.5rem;
-}
-
-#body .tab-nav{
-    display: flex;
-    flex-wrap: wrap;
-}
-
-#body .tab-nav-title{
-    font-size: .9rem;
-    font-weight: 400;
-    line-height: 1.42857143;
-    padding: .2rem 0;
-    margin-inline-start: .6rem;
-}
-
-#body .tab-nav-button{
-    -webkit-appearance: none;
-    appearance: none;
-    background-color: transparent;
-    border: 1px solid transparent;
-    display: block;
-    font-size: .9rem;
-    font-weight: 300;
-    line-height: 1.42857143;
-    margin-inline-start: .6rem;
-}
-
-#body .tab-nav-button.active{
-    border-radius: 2px 2px 0 0;
-    cursor: default;
-}
-
-#body .tab-nav-button > *{
-    position: relative;
-}
-
-#body .tab-nav-button.active > *{
-    border-radius: 1px 1px 0 0;
-}
-
-#body .tab-nav-button > * > *{
-    border-bottom-style: solid;
-    border-bottom-width: .2rem;
-    padding: .2rem .6rem 0 .6rem;
-}
-
-#body .tab-nav-button.active > * > *{
-    border-bottom-color: transparent;
-    font-weight: 500;
-}
-
-#body .tab-nav-button > * > .tab-nav-hidden{
-    font-weight: 500;
-    visibility: hidden;
-}
-
-#body .tab-nav-button > * > .tab-nav-text{
-    position: absolute;
-    top: 0;
-}
-
-#body .tab-content{
-    border-style: solid;
-    border-width: 1px;
-    display: none;
-    /* if setting a border to 1px, a browser instead sets it to 1dppx which is not
-    usable as a unit yet, so we have to calculate it ourself */
-    margin-top: calc( -1px / var(--bpx) );
-    z-index: 10;
-}
-
-#body .tab-content.active{
-    display: block;
-}
-
-#body .tab-content-text{
-    padding: 1rem;
-}
-
-/* remove margin if only a single code block is contained in the tab (FF without :has using .codify style) */
-#body .tab-content.codify > .tab-content-text{
-    padding: 0;
-}
-#body .tab-content-text:has(> div.highlight:only-child){
-    padding: 0;
-}
-
-/* remove border from a code block if single  */
-#body .tab-content-text > div.highlight:only-child > pre,
-#body .tab-content-text > pre.pre-code:only-child{
-    border: 0;
 }

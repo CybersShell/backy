@@ -7,7 +7,7 @@ description: >
 
 This is the section on the config file.
 
-To use a specific file use the `-f` CLI flag:
+To use a specific file:
 ```backy [command] -f /path/to/file```
 
 If you leave the config path blank, the following paths will be searched in order:
