@@ -1,6 +1,7 @@
 steps:
   build:
     image: klakegg/hugo:ext-debian-ci
+    pull: true
     commands:
       - git submodule foreach 'git fetch origin; git checkout $(git describe --tags `git rev-list --tags --max-count=1`);'
       - cd docs

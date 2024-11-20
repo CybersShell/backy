@@ -11,34 +11,134 @@
       <link>http://example.org/getting-started/index.html</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>http://example.org/getting-started/index.html</guid>
-      <description>If you have not installed Backy, see the install documentation.</description>
+      <description>&lt;p&gt;If you have not installed Backy, &lt;a href=&#34;install&#34;&gt;see the install documentation&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;If you need to configure it, &lt;a href=&#34;config&#34;&gt;see the config page&lt;/a&gt;.&lt;/p&gt;</description>
     </item>
     <item>
       <title>Configuring Backy</title>
       <link>http://example.org/config/index.html</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>http://example.org/config/index.html</guid>
-      <description>This is the section on the config file.
-To use a specific file: backy backup -f /path/to/file
-If you leave the config path blank, the following paths will be searched in order:
-./backy.yml ./backy.yaml ~/.config/backy.yml ~/.config/backy.yaml Create a file at ~/.config/backy.yml.
-See the documentation in this section to configure it.</description>
+      <description>&lt;p&gt;This is the section on the config file.&lt;/p&gt;
+&lt;p&gt;To use a specific file:
+&lt;code&gt;backy [command] -f /path/to/file&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;If you leave the config path blank, the following paths will be searched in order:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;code&gt;./backy.yml&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;./backy.yaml&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;~/.config/backy.yml&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;~/.config/backy.yaml&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Create a file at &lt;code&gt;~/.config/backy.yml&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;See the rest of the documentation in this section to configure it.&lt;/p&gt;</description>
     </item>
     <item>
       <title>CLI</title>
       <link>http://example.org/cli/index.html</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>http://example.org/cli/index.html</guid>
-      <description>This page lists documentation for the CLI.
-Subcommands backy backup Backup executes commands defined in config file. Use the --lists flag to execute the specified commands. If not specified, all lists will be executed. Usage: backy backup [--lists=list1,list2] [flags] Flags: -h, --help help for backup -l, --lists strings Accepts comma-separated names of command lists to execute. Global Flags: -f, --config string config file to read from -v, --verbose Sets verbose level backy exec Exec executes commands defined in config file.</description>
+      <description>&lt;p&gt;This page lists documentation for the CLI.&lt;/p&gt;
+&lt;h2 id=&#34;backy&#34;&gt;Backy&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;Backy is a command-line application useful for configuring backups, or any commands run in sequence.
+
+Usage:
+  backy [command]
+
+Available Commands:
+  backup      Runs commands defined in config file.
+  completion  Generate the autocompletion script for the specified shell
+  cron        Starts a scheduler that runs lists defined in config file.
+  exec        Runs commands defined in config file in order given.
+  help        Help about any command
+  list        Lists commands, lists, or hosts defined in config file.
+  version     Prints the version and exits
+
+Flags:
+  -f, --config string   config file to read from
+  -h, --help            help for backy
+  -v, --verbose         Sets verbose level
+
+Use &amp;#34;backy [command] --help&amp;#34; for more information about a command.
+&lt;/code&gt;&lt;/pre&gt;&lt;h1 id=&#34;subcommands&#34;&gt;Subcommands&lt;/h1&gt;
+&lt;h2 id=&#34;backup&#34;&gt;backup&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;Backup executes commands defined in config file.
+Use the --lists or -l flag to execute the specified lists. If not flag is not given, all lists will be executed.
+
+Usage:
+  backy backup [--lists=list1,list2,... | -l list1, list2,...] [flags]
+
+Flags:
+  -h, --help            help for backup
+  -l, --lists strings   Accepts comma-separated names of command lists to execute.
+
+Global Flags:
+  -f, --config string   config file to read from
+  -v, --verbose         Sets verbose level
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;cron&#34;&gt;cron&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;Cron starts a scheduler that executes command lists at the time defined in config file.
+
+Usage:
+  backy cron [flags]
+
+Flags:
+  -h, --help   help for cron
+
+Global Flags:
+  -f, --config string   config file to read from
+  -v, --verbose         Sets verbose level
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;exec&#34;&gt;exec&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;Exec executes commands defined in config file in order given.
+
+Usage:
+  backy exec command ... [flags]
+
+Flags:
+  -h, --help   help for exec
+
+Global Flags:
+  -f, --config string   config file to read from
+  -v, --verbose         Sets verbose level
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;version&#34;&gt;version&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;Prints the version and exits. No arguments just prints the version number only.
+
+Usage:
+  backy version [flags]
+
+Flags:
+  -h, --help   help for version
+  -n, --num    Output the version number only.
+  -V, --vpre   Output the version with v prefixed.
+
+Global Flags:
+  -f, --config string   config file to read from
+  -v, --verbose         Sets verbose level
+&lt;/code&gt;&lt;/pre&gt;&lt;h2 id=&#34;list&#34;&gt;list&lt;/h2&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;Backup lists commands or groups defined in config file.
+Use the --lists or -l flag to list the specified lists. If not flag is not given, all lists will be executed.
+
+Usage:
+  backy list [--list=list1,list2,... | -l list1, list2,...] [ -cmd cmd1 cmd2 cmd3...] [flags]
+
+Flags:
+  -c, --cmds strings    Accepts comma-separated names of commands to list.
+  -h, --help            help for list
+  -l, --lists strings   Accepts comma-separated names of command lists to list.
+
+Global Flags:
+  -f, --config string   config file to read from
+  -v, --verbose         Sets verbose level
+&lt;/code&gt;&lt;/pre&gt;</description>
     </item>
     <item>
       <title>Repositories</title>
       <link>http://example.org/repositories/index.html</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       <guid>http://example.org/repositories/index.html</guid>
-      <description>The repo mirrors are:
-https://git.andrewnw.xyz/CyberShell/backy https://git.vern.cc/cybershell/backy https://github.com/CybersShell/backy </description>
+      <description>&lt;p&gt;The repo mirrors are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://git.andrewnw.xyz/CyberShell/backy&#34; target=&#34;_blank&#34;&gt;https://git.andrewnw.xyz/CyberShell/backy&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://github.com/CybersShell/backy&#34; target=&#34;_blank&#34;&gt;https://github.com/CybersShell/backy&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</description>
     </item>
   </channel>
 </rss>

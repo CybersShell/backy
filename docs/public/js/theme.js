@@ -9,15 +9,26 @@ if( isIE ){
 else{
     document.querySelector( 'body' ).classList.add( 'mobile-support' );
 }
+
 var isPrint = document.querySelector( 'body' ).classList.contains( 'print' );
+
+var isRtl = document.querySelector( 'html' ).getAttribute( 'dir' ) == 'rtl';
+var dir_padding_start = 'padding-left';
+var dir_padding_end = 'padding-right';
+var dir_key_start = 37;
+var dir_key_end = 39;
+var dir_scroll = 1;
+if( isRtl && !isIE ){
+    dir_padding_start = 'padding-right';
+    dir_padding_end = 'padding-left';
+    dir_key_start = 39;
+    dir_key_end = 37;
+    dir_scroll = -1;
+}
 
 var touchsupport = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0)
 
 var formelements = 'button, datalist, fieldset, input, label, legend, meter, optgroup, option, output, progress, select, textarea';
-
-// rapidoc: #280 disable broad document syntax highlightning
-window.Prism = window.Prism || {};
-Prism.manual = true;
 
 // PerfectScrollbar
 var psc;
@@ -26,7 +37,7 @@ var pst;
 var elc = document.querySelector('#body-inner');
 
 function documentFocus(){
-    document.querySelector( '#body-inner' ).focus();
+    elc.focus();
     psc && psc.scrollbarY.focus();
 }
 
@@ -45,13 +56,34 @@ function scrollbarWidth(){
 
 var scrollbarSize = scrollbarWidth();
 function adjustContentWidth(){
-    var left = parseFloat( getComputedStyle( elc ).getPropertyValue( 'padding-left' ) );
-    var right = left;
+    var start = parseFloat( getComputedStyle( elc ).getPropertyValue( dir_padding_start ) );
+    var end = start;
     if( elc.scrollHeight > elc.clientHeight ){
-        // if we have a scrollbar reduce the right margin by the scrollbar width
-        right = Math.max( 0, left - scrollbarSize );
+        // if we have a scrollbar reduce the end margin by the scrollbar width
+        end = Math.max( 0, start - scrollbarSize );
     }
-    elc.style[ 'padding-right' ] = '' + right + 'px';
+    elc.style[ dir_padding_end ] = '' + end + 'px';
+}
+
+function fixCodeTabs(){
+    /* if only a single code block is contained in the tab and no style was selected, treat it like style=code */
+    var codeTabContents = Array.from( document.querySelectorAll( '.tab-content.tab-panel-style' ) ).filter( function( tabContent ){
+        return tabContent.querySelector( '*:scope > .tab-content-text > div.highlight:only-child, *:scope > .tab-content-text > pre.pre-code:only-child');
+    });
+
+    codeTabContents.forEach( function( tabContent ){
+        var tabId = tabContent.dataset.tabItem;
+        var tabPanel = tabContent.parentNode.parentNode;
+        var tabButton = tabPanel.querySelector( '.tab-nav-button.tab-panel-style[data-tab-item="'+tabId+'"]' );
+        if( tabContent.classList.contains( 'initial' ) ){
+            tabButton.classList.remove( 'initial' );
+            tabButton.classList.add( 'code' );
+            tabContent.classList.remove( 'initial' );
+            tabContent.classList.add( 'code' );
+        }
+        // mark code blocks for FF without :has()
+        tabContent.classList.add( 'codify' );
+    });
 }
 
 function switchTab(tabGroup, tabId) {
@@ -126,21 +158,27 @@ function initMermaid( update, attrs ) {
     };
 
     var parseGraph = function( graph ){
-        var d = /^\s*(%%\s*\{\s*\w+\s*:([^%]*?)%%\s*\n?)/g;
+        // See https://github.com/mermaid-js/mermaid/blob/9a080bb975b03b2b1d4ef6b7927d09e6b6b62760/packages/mermaid/src/diagram-api/frontmatter.ts#L10
+        // for reference on the regex originally taken from jekyll
+        var YAML=1;
+        var INIT=2;
+        var GRAPH=3;
+        var d = /^(?:\s*[\n\r])*(-{3}\s*[\n\r](?:.*?)[\n\r]-{3}(?:\s*[\n\r]+)+)?(?:\s*(?:%%\s*\{\s*\w+\s*:([^%]*?)%%\s*[\n\r]?))?(.*)$/s
         var m = d.exec( graph );
+        var yaml = '';
         var dir = {};
         var content = graph;
-        if( m && m.length == 3 ){
-            dir = JSON.parse( '{ "dummy": ' + m[2] ).dummy;
-            content = graph.substring( d.lastIndex );
+        if( m && m.length == 4 ){
+            yaml = m[YAML] ? m[YAML] : yaml;
+            dir = m[INIT] ? JSON.parse( '{ "init": ' + m[INIT] ).init : dir;
+            content = m[GRAPH] ? m[GRAPH] : content;
         }
-        content = content.trim();
-        return { dir: dir, content: content };
+        var ret = { yaml: yaml, dir: dir, content: content.trim() }
+        return ret;
     };
 
     var serializeGraph = function( graph ){
-        var s = '%%{init: ' + JSON.stringify( graph.dir ) + '}%%\n';
-        s += graph.content;
+        var s = graph.yaml + '%%{init: ' + JSON.stringify( graph.dir ) + '}%%\n' + graph.content;
         return s;
     };
 
@@ -247,7 +285,11 @@ function initMermaid( update, attrs ) {
     }
 }
 
-function initSwagger( update, attrs ){
+function initOpenapi( update, attrs ){
+    if( isIE ){
+        return;
+    }
+
     var state = this;
     if( update && !state.is_initialized ){
         return;
@@ -259,39 +301,162 @@ function initSwagger( update, attrs ){
     if( !state.is_initialized ){
         state.is_initialized = true;
         window.addEventListener( 'beforeprint', function(){
-            initSwagger( true, {
-                'bg-color': variants.getColorValue( 'PRINT-MAIN-BG-color' ),
-                'mono-font': variants.getColorValue( 'PRINT-CODE-font' ),
-                'primary-color': variants.getColorValue( 'PRINT-TAG-BG-color' ),
-                'regular-font': variants.getColorValue( 'PRINT-MAIN-font' ),
-                'text-color': variants.getColorValue( 'PRINT-MAIN-TEXT-color' ),
-                'theme': variants.getColorValue( 'PRINT-SWAGGER-theme' ),
-            });
+            initOpenapi( true, { isPrintPreview: true } );
         }.bind( this ) );
         window.addEventListener( 'afterprint', function(){
-            initSwagger( true );
+            initOpenapi( true, { isPrintPreview: false } );
         }.bind( this ) );
     }
 
     attrs = attrs || {
-        'bg-color': variants.getColorValue( 'MAIN-BG-color' ),
-        'mono-font': variants.getColorValue( 'CODE-font' ),
-        'primary-color': variants.getColorValue( 'TAG-BG-color' ),
-        'regular-font': variants.getColorValue( 'MAIN-font' ),
-        'text-color': variants.getColorValue( 'MAIN-TEXT-color' ),
-        'theme': variants.getColorValue( 'SWAGGER-theme' ),
+        isPrintPreview: false
     };
-    document.querySelectorAll( 'rapi-doc' ).forEach( function( e ){
-        Object.keys( attrs ).forEach( function( key ){
-            /* this doesn't work for FF 102, maybe related to custom elements? */
-            e.setAttribute( key, attrs[key] );
-        });
-    });
+
+    function addFunctionToResizeEvent(){
+
+    }
+    function getFirstAncestorByClass(){
+
+    }
+    function renderOpenAPI(oc) {
+        var buster = window.themeUseOpenapi.assetsBuster ? '?' + window.themeUseOpenapi.assetsBuster : '';
+        var print = isPrint || attrs.isPrintPreview ? "PRINT-" : "";
+		var theme = print ? `${baseUri}/css/theme-relearn-light.css` : document.querySelector( '#variant-style' ).attributes.href.value
+        var swagger_theme = variants.getColorValue( print + 'OPENAPI-theme' );
+        var swagger_code_theme = variants.getColorValue( print + 'OPENAPI-CODE-theme' );
+
+        const openapiId = 'relearn-swagger-ui';
+        const openapiIframeId = openapiId + "-iframe";
+        const openapiIframe = document.getElementById(openapiIframeId);
+        if (openapiIframe) {
+            openapiIframe.remove();
+        }
+        const openapiErrorId = openapiId + '-error';
+        const openapiError = document.getElementById(openapiErrorId);
+        if (openapiError) {
+            openapiError.remove();
+        }
+        const oi = document.createElement('iframe');
+        oi.id = openapiIframeId;
+        oi.classList.toggle('sc-openapi-iframe', true);
+        oi.srcdoc =
+            '<!doctype html>' +
+            '<html lang="en">' +
+                '<head>' +
+                    '<link rel="stylesheet" href="' + window.themeUseOpenapi.css + '">' +
+                    '<link rel="stylesheet" href="' + theme + '">' +
+                    '<link rel="stylesheet" href="' + baseUri + '/css/swagger.css' + buster + '">' +
+                    '<link rel="stylesheet" href="' + baseUri + '/css/swagger-' + swagger_theme + '.css' + buster + '">' +
+                '</head>' +
+                '<body>' +
+                    '<a class="relearn-expander" href="" onclick="return relearn_collapse_all()">Collapse all</a>' +
+                    '<a class="relearn-expander" href="" onclick="return relearn_expand_all()">Exapnd all</a>' +
+                    '<div id="relearn-swagger-ui"></div>' +
+                    '<script>' +
+                        'function relearn_expand_all(){' +
+                            'document.querySelectorAll( ".opblock-summary-control[aria-expanded=false]" ).forEach( btn => btn.click() );' +
+                            'document.querySelectorAll( ".model-container > .model-box > button[aria-expanded=false]" ).forEach( btn => btn.click() );' +
+                            'return false;' +
+                        '}' +
+                        'function relearn_collapse_all(){' +
+                            'document.querySelectorAll( ".opblock-summary-control[aria-expanded=true]" ).forEach( btn => btn.click() );' +
+                            'document.querySelectorAll( ".model-container > .model-box > .model-box > .model > span > button[aria-expanded=true]" ).forEach( btn => btn.click() );' +
+                            'return false;' +
+                        '}' +
+                    '</script>' +
+                '</body>' +
+            '</html>';
+        oi.height = '100%';
+        oi.width = '100%';
+        oi.onload = function(){
+            const openapiWrapper = getFirstAncestorByClass(oc, 'sc-openapi-wrapper');
+            const openapiPromise = new Promise( function(resolve){ resolve() });
+            openapiPromise
+                .then( function(){
+                    SwaggerUIBundle({
+                        defaultModelsExpandDepth: 2,
+                        defaultModelExpandDepth: 2,
+                        docExpansion: isPrint || attrs.isPrintPreview ? 'full' : 'list',
+                        domNode: oi.contentWindow.document.getElementById(openapiId),
+                        filter: !( isPrint || attrs.isPrintPreview ),
+                        layout: 'BaseLayout',
+                        onComplete: function(){
+                            if( isPrint || attrs.isPrintPreview ){
+                                oi.contentWindow.document.querySelectorAll( '.model-container > .model-box > button[aria-expanded=false]' ).forEach( function(btn){ btn.click() });
+                                setOpenAPIHeight(oi);
+                            }
+                        },
+                        plugins: [
+                            SwaggerUIBundle.plugins.DownloadUrl
+                        ],
+                        presets: [
+                            SwaggerUIBundle.presets.apis,
+                            SwaggerUIStandalonePreset,
+                        ],
+                        syntaxHighlight: {
+                            activated: true,
+                            theme: swagger_code_theme,
+                        },
+                        url: oc.getAttribute('openapi-url'),
+                        validatorUrl: 'none',
+                    });
+                })
+                .then( function(){
+                    let observerCallback = function () {
+                        setOpenAPIHeight(oi);
+                    };
+                    let observer = new MutationObserver(observerCallback);
+                    observer.observe(oi.contentWindow.document.documentElement, {
+                        childList: true,
+                        subtree: true,
+                    });
+                })
+                .then( function(){
+                    if (openapiWrapper) {
+                        openapiWrapper.classList.toggle('is-loading', false);
+                    }
+                    setOpenAPIHeight(oi);
+                })
+                .catch( function(error){
+                    const ed = document.createElement('div');
+                    ed.classList.add('sc-alert', 'sc-alert-error');
+                    ed.innerHTML = error;
+                    ed.id = openapiErrorId;
+                    while (oc.lastChild) {
+                        oc.removeChild(oc.lastChild);
+                    }
+                    if (openapiWrapper) {
+                        openapiWrapper.classList.toggle('is-loading', false);
+                        openapiWrapper.insertAdjacentElement('afterbegin', ed);
+                    }
+                });
+        };
+        oc.appendChild(oi);
+    }
+    function setOpenAPIHeight(oi) {
+        // add empirical offset if in print preview (GC 103)
+        oi.style.height =
+            (oi.contentWindow.document.documentElement.getBoundingClientRect().height + (attrs.isPrintPreview ? 200 : 0) )+
+            'px';
+    }
+    function resizeOpenAPI() {
+        let divi = document.getElementsByClassName('sc-openapi-iframe');
+        for (let i = 0; i < divi.length; i++) {
+            setOpenAPIHeight(divi[i]);
+        }
+    };
+    let divo = document.getElementsByClassName('sc-openapi-container');
+    for (let i = 0; i < divo.length; i++) {
+        renderOpenAPI(divo[i]);
+    }
+    if (divo.length) {
+        addFunctionToResizeEvent(resizeOpenAPI);
+    }
 }
 
 function initAnchorClipboard(){
     document.querySelectorAll( 'h1~h2,h1~h3,h1~h4,h1~h5,h1~h6').forEach( function( element ){
-        var url = encodeURI(document.location.origin + document.location.pathname);
+        var url = encodeURI( (document.location.origin == "null" ? (document.location.protocol + "//" + document.location.host) : document.location.origin )+ document.location.pathname);
         var link = url + "#" + element.id;
         var new_element = document.createElement( 'span' );
         new_element.classList.add( 'anchor' );
@@ -312,9 +477,8 @@ function initAnchorClipboard(){
     var clip = new ClipboardJS( '.anchor' );
     clip.on( 'success', function( e ){
         e.clearSelection();
-        var rtl = e.trigger.closest( '*[dir]' ).getAttribute( 'dir' ) == 'rtl';
         e.trigger.setAttribute( 'aria-label', window.T_Link_copied_to_clipboard );
-        e.trigger.classList.add( 'tooltipped', 'tooltipped-s'+(rtl?'e':'w') );
+        e.trigger.classList.add( 'tooltipped', 'tooltipped-s'+(isRtl?'e':'w') );
     });
 }
 
@@ -356,19 +520,17 @@ function initCodeClipboard(){
             clip.on( 'success', function( e ){
                 e.clearSelection();
                 var inPre = e.trigger.parentNode.tagName.toLowerCase() == 'pre';
-                var rtl = e.trigger.closest( '*[dir]' ).getAttribute( 'dir' ) == 'rtl';
                 e.trigger.setAttribute( 'aria-label', window.T_Copied_to_clipboard );
-                e.trigger.classList.add( 'tooltipped', 'tooltipped-' + (inPre ? 'w' : 's'+(rtl?'e':'w')) );
+                e.trigger.classList.add( 'tooltipped', 'tooltipped-' + (inPre ? 'w' : 's'+(isRtl?'e':'w')) );
             });
 
             clip.on( 'error', function( e ){
                 var inPre = e.trigger.parentNode.tagName.toLowerCase() == 'pre';
-                var rtl = e.trigger.closest( '*[dir]' ).getAttribute( 'dir' ) == 'rtl';
                 e.trigger.setAttribute( 'aria-label', fallbackMessage(e.action) );
-                e.trigger.classList.add( 'tooltipped', 'tooltipped-' + (inPre ? 'w' : 's'+(rtl?'e':'w')) );
+                e.trigger.classList.add( 'tooltipped', 'tooltipped-' + (inPre ? 'w' : 's'+(isRtl?'e':'w')) );
                 var f = function(){
                     e.trigger.setAttribute( 'aria-label', window.T_Copied_to_clipboard );
-                    e.trigger.classList.add( 'tooltipped', 'tooltipped-' + (inPre ? 'w' : 's'+(rtl?'e':'w')) );
+                    e.trigger.classList.add( 'tooltipped', 'tooltipped-' + (inPre ? 'w' : 's'+(isRtl?'e':'w')) );
                     document.removeEventListener( 'copy', f );
                 };
                 document.addEventListener( 'copy', f );
@@ -377,7 +539,7 @@ function initCodeClipboard(){
             code.classList.add( 'copy-to-clipboard-code' );
             if( inPre ){
                 code.classList.add( 'copy-to-clipboard' );
-                code.classList.add( 'pre-code' );
+                code.parentNode.classList.add( 'pre-code' );
             }
             else{
                 var clone = code.cloneNode( true );
@@ -392,7 +554,6 @@ function initCodeClipboard(){
             button.setAttribute( 'title', window.T_Copy_to_clipboard );
             button.innerHTML = '<i class="fas fa-copy"></i>';
             button.addEventListener( 'mouseleave', function() {
-                var rtl = this.closest( '*[dir]' ).getAttribute( 'dir' ) == 'rtl';
                 this.removeAttribute( 'aria-label' );
                 this.classList.remove( 'tooltipped', 'tooltipped-w', 'tooltipped-se', 'tooltipped-sw' );
             });
@@ -416,41 +577,41 @@ function initArrowNav(){
     // avoid prev/next navigation if we are not at the start/end of the
     // horizontal area
     var el = document.querySelector('#body-inner');
-    var scrollLeft = 0;
-    var scrollRight = 0;
+    var scrollStart = 0;
+    var scrollEnd = 0;
     document.addEventListener('keydown', function(event){
         if( !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey ){
-            if( event.which == '37' ){
-                if( !scrollLeft && +el.scrollLeft.toFixed() <= 0 ){
+            if( event.which == dir_key_start ){
+                if( !scrollStart && +el.scrollLeft.toFixed()*dir_scroll <= 0 ){
                     prev && prev.click();
                 }
-                else if( scrollLeft != -1 ){
-                    clearTimeout( scrollLeft );
+                else if( scrollStart != -1 ){
+                    clearTimeout( scrollStart );
                 }
-                scrollLeft = -1;
+                scrollStart = -1;
             }
-            if( event.which == '39' ){
-                if( !scrollRight && +el.scrollLeft.toFixed() + +el.clientWidth.toFixed() >= +el.scrollWidth.toFixed() ){
+            if( event.which == dir_key_end ){
+                if( !scrollEnd && +el.scrollLeft.toFixed()*dir_scroll + +el.clientWidth.toFixed() >= +el.scrollWidth.toFixed() ){
                     next && next.click();
                 }
-                else if( scrollRight != -1 ){
-                    clearTimeout( scrollRight );
+                else if( scrollEnd != -1 ){
+                    clearTimeout( scrollEnd );
                 }
-                scrollRight = -1;
+                scrollEnd = -1;
             }
         }
     });
     document.addEventListener('keyup', function(event){
         if( !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey ){
-            if( event.which == '37' ){
+            if( event.which == dir_key_start ){
                 // check for false indication if keyup is delayed after navigation
-                if( scrollLeft == -1 ){
-                    scrollLeft = setTimeout( function(){ scrollLeft = 0; }, 300 );
+                if( scrollStart == -1 ){
+                    scrollStart = setTimeout( function(){ scrollStart = 0; }, 300 );
                 }
             }
-            if( event.which == '39' ){
-                if( scrollRight == -1 ){
-                    scrollRight = setTimeout( function(){ scrollRight = 0; }, 300 );
+            if( event.which == dir_key_end ){
+                if( scrollEnd == -1 ){
+                    scrollEnd = setTimeout( function(){ scrollEnd = 0; }, 300 );
                 }
             }
         }
@@ -459,7 +620,7 @@ function initArrowNav(){
     // avoid keyboard navigation for input fields
     document.querySelectorAll( formelements ).forEach( function( e ){
         e.addEventListener( 'keydown', function( event ){
-            if( event.which == 37 || event.which == 39 ){
+            if( event.which == dir_key_start || event.which == dir_key_end ){
                 event.stopPropagation();
             }
         });
@@ -534,19 +695,24 @@ function initMenuScrollbar(){
     // on resize, we have to redraw the scrollbars to let new height
     // affect their size
     window.addEventListener('resize', function(){
-        pst && pst.update();
-        psm && psm.update();
-        psc && psc.update();
+        pst && setTimeout( function(){ pst.update(); }, 10 );
+        psm && setTimeout( function(){ psm.update(); }, 10 );
+        psc && setTimeout( function(){ psc.update(); }, 10 );
     });
     // now that we may have collapsible menus, we need to call a resize
     // for the menu scrollbar if sections are expanded/collapsed
-    document.querySelectorAll('#sidebar .collapsible-menu input.toggle').forEach( function(e){
+    document.querySelectorAll('#sidebar .collapsible-menu input').forEach( function(e){
         e.addEventListener('change', function(){
-            psm && psm.update();
+            psm && setTimeout( function(){ psm.update(); }, 10 );
         });
     });
+    // bugfix for PS in RTL mode: the initial scrollbar position is off;
+    // calling update() once, fixes this
+    pst && setTimeout( function(){ pst.update(); }, 10 );
+    psm && setTimeout( function(){ psm.update(); }, 10 );
+    psc && setTimeout( function(){ psc.update(); }, 10 );
 
-    // finally, we want to adjust the contents right padding if there is a scrollbar visible
+    // finally, we want to adjust the contents end padding if there is a scrollbar visible
     window.addEventListener('resize', adjustContentWidth );
     adjustContentWidth();
 }
@@ -652,7 +818,7 @@ function showToc(){
     var b = document.querySelector( 'body' );
     b.classList.toggle( 'toc-flyout' );
     if( b.classList.contains( 'toc-flyout' ) ){
-        pst && pst.update();
+        pst && setTimeout( function(){ pst.update(); }, 10 );
         pst && pst.scrollbarY.focus();
         document.querySelector( '.toc-wrapper ul a' ).focus();
         document.addEventListener( 'keydown', tocEscapeHandler );
@@ -800,31 +966,71 @@ function initHistory() {
     }
 }
 
-function scrollToActiveMenu() {
-    window.setTimeout(function(){
-        var e = document.querySelector( '#sidebar ul.topics li.active a' );
+function initScrollPositionSaver(){
+    function savePosition( event ){
+        var state = window.history.state || {};
+        state = Object.assign( {}, ( typeof state === 'object' ) ? state : {} );
+        state.contentScrollTop = +elc.scrollTop;
+        window.history.replaceState( state, '', window.location );
+    };
+    window.addEventListener( 'pagehide', savePosition );
+}
+
+function scrollToPositions() {
+    // show active menu entry
+    window.setTimeout( function(){
+        var e = document.querySelector( '#sidebar li.active a' );
         if( e && e.scrollIntoView ){
             e.scrollIntoView({
                 block: 'center',
             });
         }
-    }, 10);
-}
+    }, 10 );
 
-function scrollToFragment() {
-    if( !window.location.hash || window.location.hash.length <= 1 ){
+    // scroll the content to point of interest;
+    // if we have a scroll position saved, the user was here
+    // before in his history stack and we want to reposition
+    // to the position he was when he left the page;
+    // otherwise if he used page search before, we want to position
+    // to its last outcome;
+    // otherwise he may want to see a specific fragment
+
+    var state = window.history.state || {};
+    state = ( typeof state === 'object')  ? state : {};
+    if( state.hasOwnProperty( 'contentScrollTop' ) ){
+        window.setTimeout( function(){
+            elc.scrollTop = +state.contentScrollTop;
+        }, 10 );
         return;
     }
-    window.setTimeout(function(){
-        try{
-            var e = document.querySelector( window.location.hash );
-            if( e && e.scrollIntoView ){
-                e.scrollIntoView({
-                    block: 'start',
-                });
+
+    var search = sessionStorage.getItem( baseUriFull+'search-value' );
+    if( search && search.length ){
+        var found = elementContains( search, elc );
+        var searchedElem = found.length && found[ 0 ];
+        if( searchedElem ){
+            searchedElem.scrollIntoView( true );
+            var scrolledY = window.scrollY;
+            if( scrolledY ){
+                window.scroll( 0, scrolledY - 125 );
             }
-        } catch( e ){}
-    }, 10);
+        }
+        return;
+    }
+
+    if( window.location.hash && window.location.hash.length > 1 ){
+        window.setTimeout( function(){
+            try{
+                var e = document.querySelector( window.location.hash );
+                if( e && e.scrollIntoView ){
+                    e.scrollIntoView({
+                        block: 'start',
+                    });
+                }
+            } catch( e ){}
+        }, 10 );
+        return;
+    }
 }
 
 function mark() {
@@ -855,8 +1061,8 @@ function mark() {
 					expandInputs[0].checked = true;
 				}
 			}
-			if( parent.tagName.toLowerCase() === 'li' ){
-				var toggleInputs = parent.querySelectorAll( 'input.toggle:not(.menu-marked)' );
+			if( parent.tagName.toLowerCase() === 'li' && parent.parentNode && parent.parentNode.tagName.toLowerCase() === 'ul' && parent.parentNode.classList.contains( 'collapsible-menu' )){
+				var toggleInputs = parent.querySelectorAll( 'input:not(.menu-marked)' );
 				if( toggleInputs.length ){
 					toggleInputs[0].classList.add( 'menu-marked' );
 					toggleInputs[0].dataset.checked = toggleInputs[0].checked ? 'true' : 'false';
@@ -866,7 +1072,7 @@ function mark() {
 			parent = parent.parentNode;
 		}
 	}
-    psm && psm.update();
+    psm && setTimeout( function(){ psm.update(); }, 10 );
 }
 window.relearn.markSearch = mark;
 
@@ -932,8 +1138,8 @@ function unmark() {
 	for( var i = 0; i < markedElements.length; i++ ){
 		var parent = markedElements[i].parentNode;
 		while( parent && parent.classList ){
-			if( parent.tagName.toLowerCase() === 'li' ){
-				var toggleInputs = parent.querySelectorAll( 'input.toggle.menu-marked' );
+			if( parent.tagName.toLowerCase() === 'li' && parent.parentNode && parent.parentNode.tagName.toLowerCase() === 'ul' && parent.parentNode.classList.contains( 'collapsible-menu' )){
+				var toggleInputs = parent.querySelectorAll( 'input.menu-marked' );
 				if( toggleInputs.length ){
 					toggleInputs[0].checked = toggleInputs[0].dataset.checked === 'true';
 					toggleInputs[0].dataset.checked = null;
@@ -954,7 +1160,7 @@ function unmark() {
 
 	var highlighted = document.querySelectorAll( '.highlightable' );
     unhighlight( highlighted, { element: 'mark' } );
-    psm && psm.update();
+    psm && setTimeout( function(){ psm.update(); }, 10 );
 }
 
 function unhighlight( es, options ){
@@ -1049,25 +1255,15 @@ function initSearch() {
     }
     mark();
 
-    // set initial search value on page load
+    // set initial search value for inputs on page load
     if( sessionStorage.getItem( baseUriFull+'search-value' ) ){
-        var searchValue = sessionStorage.getItem( baseUriFull+'search-value' );
+        var search = sessionStorage.getItem( baseUriFull+'search-value' );
         inputs.forEach( function( e ){
-            e.value = searchValue;
+            e.value = search;
             var event = document.createEvent( 'Event' );
             event.initEvent( 'input', false, false );
             e.dispatchEvent( event );
         });
-
-        var found = elementContains( searchValue, document.querySelector( '#body-inner' ) );
-        var searchedElem = found.length && found[ 0 ];
-        if( searchedElem ){
-            searchedElem.scrollIntoView( true );
-            var scrolledY = window.scrollY;
-            if( scrolledY ){
-                window.scroll( 0, scrolledY - 125 );
-            }
-        }
     }
 
     window.relearn.isSearchInit = true;
@@ -1077,18 +1273,19 @@ function initSearch() {
 ready( function(){
     initArrowNav();
     initMermaid();
-    initSwagger();
+    initOpenapi();
     initMenuScrollbar();
-    scrollToActiveMenu();
-    scrollToFragment();
     initToc();
     initAnchorClipboard();
     initCodeClipboard();
+    fixCodeTabs();
     restoreTabSelections();
     initSwipeHandler();
     initHistory();
     initSearch();
     initImage();
+    initScrollPositionSaver();
+    scrollToPositions();
 });
 
 function useMermaid( config ){
@@ -1108,12 +1305,11 @@ if( window.themeUseMermaid ){
     useMermaid( window.themeUseMermaid );
 }
 
-function useSwagger( config ){
-    if( config.theme && variants ){
-        var write_style = variants.findLoadedStylesheet( 'variant-style' );
-        write_style.setProperty( '--CONFIG-SWAGGER-theme', config.theme );
+function useOpenapi( config ){
+    if( config.css && config.css.startsWith( '/' ) ){
+        config.css = baseUri + config.css;
     }
 }
-if( window.themeUseSwagger ){
-    useSwagger( window.themeUseSwagger );
+if( window.themeUseOpenapi ){
+    useOpenapi( window.themeUseOpenapi );
 }

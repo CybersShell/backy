@@ -3,24 +3,24 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="height=device-height, width=device-width, initial-scale=1.0, minimum-scale=1.0">
-    <meta name="generator" content="Hugo 0.110.0">
-    <meta name="generator" content="Relearn 5.11.2">
+    <meta name="generator" content="Hugo 0.135.0">
+    <meta name="generator" content="Relearn 5.16.2">
     <meta name="description" content="This page tells you how to configure Backy.
 ">
     <title>Config File Definitions - A tool for commands</title>
     <!-- https://github.com/filamentgroup/loadCSS/blob/master/README.md#how-to-use -->
-    <link href="/css/fontawesome-all.min.css?1676866111" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/fontawesome-all.min.css?1676866111" rel="stylesheet"></noscript>
-    <link href="/css/auto-complete.css?1676866111" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/auto-complete.css?1676866111" rel="stylesheet"></noscript>
-    <link href="/css/perfect-scrollbar.min.css?1676866111" rel="stylesheet">
-    <link href="/css/nucleus.css?1676866111" rel="stylesheet">
-    <link href="/css/fonts.css?1676866111" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/fonts.css?1676866111" rel="stylesheet"></noscript>
-    <link href="/css/theme.css?1676866111" rel="stylesheet">
-    <link href="/css/theme-auto.css?1676866111" rel="stylesheet" id="variant-style">
-    <link href="/css/ie.css?1676866111" rel="stylesheet">
-    <link href="/css/variant.css?1676866111" rel="stylesheet">
-    <link href="/css/print.css?1676866111" rel="stylesheet" media="print">
-    <script src="/js/url.js?1676866111"></script>
-    <script src="/js/variant.js?1676866111"></script>
+    <link href="/css/fontawesome-all.min.css?1732082585" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/fontawesome-all.min.css?1732082585" rel="stylesheet"></noscript>
+    <link href="/css/nucleus.css?1732082585" rel="stylesheet">
+    <link href="/css/auto-complete.css?1732082585" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/auto-complete.css?1732082585" rel="stylesheet"></noscript>
+    <link href="/css/perfect-scrollbar.min.css?1732082585" rel="stylesheet">
+    <link href="/css/fonts.css?1732082585" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/fonts.css?1732082585" rel="stylesheet"></noscript>
+    <link href="/css/theme.css?1732082585" rel="stylesheet">
+    <link href="/css/theme-auto.css?1732082585" rel="stylesheet" id="variant-style">
+    <link href="/css/variant.css?1732082585" rel="stylesheet">
+    <link href="/css/print.css?1732082585" rel="stylesheet" media="print">
+    <link href="/css/ie.css?1732082585" rel="stylesheet">
+    <script src="/js/url.js?1732082585"></script>
+    <script src="/js/variant.js?1732082585"></script>
     <script>
       // hack to let hugo tell us how to get to the root when using relativeURLs, it needs to be called *url= for it to do its magic:
       // https://github.com/gohugoio/hugo/blob/145b3fcce35fbac25c7033c91c1b7ae6d1179da8/transform/urlreplacers/absurlreplacer.go#L72
@@ -43,7 +43,7 @@
     <div id="body" class="default-animation">
       <div id="sidebar-overlay"></div>
       <div id="toc-overlay"></div>
-      <nav id="topbar" class="highlightable" dir="ltr">
+      <nav id="topbar" class="highlightable">
         <div>
           <div id="breadcrumbs">
             <span id="sidebar-toggle-span">
@@ -55,8 +55,7 @@
             </span>
           </div>
           <div class="default-animation progress">
-            <div class="toc-wrapper" dir="ltr">
-<nav id="TableOfContents">
+            <div class="toc-wrapper"><nav id="TableOfContents">
   <ul>
     <li>
       <ul>
@@ -65,6 +64,7 @@
         <li><a href="#hosts">Hosts</a></li>
         <li><a href="#notifications">Notifications</a></li>
         <li><a href="#logging">Logging</a></li>
+        <li><a href="#vault">Vault</a></li>
       </ul>
     </li>
   </ul>
@@ -75,49 +75,55 @@
       </nav>
       <main id="body-inner" class="highlightable default" tabindex="-1">
         <div class="flex-block-wrapper">
-          <div id="head-tags">
-          </div>
           <article class="default">
+            <header class="headline">
+            </header>
 <h1 id="config-file-definitions">Config File Definitions</h1>
 
 <h3 id="commands">Commands</h3>
 <p>The commands section is for defining commands. These can be run with or without a shell and on a host or locally.</p>
 <p>See the <a href="/config/commands">commands documentation</a> for further information.</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">commands</span>:
-</span></span><span style="display:flex;"><span><span style="color:#f92672">  stop-docker-container</span>:
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    cmd</span>: <span style="color:#ae81ff">docker</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    args</span>:
-</span></span><span style="display:flex;"><span><span style="color:#ae81ff">      - compose</span>
-</span></span><span style="display:flex;"><span><span style="color:#ae81ff">      - -f /some/path/to/docker-compose.yaml</span>
-</span></span><span style="display:flex;"><span><span style="color:#ae81ff">      - down</span>
-</span></span><span style="display:flex;"><span><span style="color:#ae81ff">   </span> <span style="color:#75715e"># if host is not defined, cmd will be run locally</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    host</span>: <span style="color:#ae81ff">some-host </span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">  backup-docker-container-script</span>:
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    cmd</span>: <span style="color:#ae81ff">/path/to/script</span>
-</span></span><span style="display:flex;"><span><span style="color:#ae81ff">   </span> <span style="color:#75715e"># The host has to be defined in the config file</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    host</span>: <span style="color:#ae81ff">some-host</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    environment</span>:
-</span></span><span style="display:flex;"><span><span style="color:#ae81ff">      - FOO=BAR</span>
-</span></span><span style="display:flex;"><span>  <span style="color:#ae81ff">    - APP=$VAR</span> <span style="color:#75715e"># defined in .env file in config directory</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">  shell-cmd</span>:
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    cmd</span>: <span style="color:#ae81ff">rsync</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    shell</span>: <span style="color:#ae81ff">bash</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    args</span>:
-</span></span><span style="display:flex;"><span><span style="color:#ae81ff">      - -av</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">stop-docker-container</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">output</span>: <span style="color:#66d9ef">true</span> <span style="color:#75715e"># Optional and only when run in list and notifications are sent</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">docker</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">args</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">compose</span>
+</span></span><span style="display:flex;"><span>      - -<span style="color:#ae81ff">f /some/path/to/docker-compose.yaml</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">down</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># if host is not defined, cmd will be run locally</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">host</span>: <span style="color:#ae81ff">some-host </span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">backup-docker-container-script</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">/path/to/script</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># The host has to be defined in the config file</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">host</span>: <span style="color:#ae81ff">some-host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">FOO=BAR</span>
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">APP=$VAR</span> <span style="color:#75715e"># defined in .env file in config directory</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">shell-cmd</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">rsync</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">shell</span>: <span style="color:#ae81ff">bash</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">args</span>:
+</span></span><span style="display:flex;"><span>      - -<span style="color:#ae81ff">av</span>
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">some-host:/path/to/data </span>
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">~/Docker/Backups/docker-data</span>
-</span></span><span style="display:flex;"><span><span style="color:#f92672">  hostname</span>:
-</span></span><span style="display:flex;"><span><span style="color:#f92672">    cmd</span>: <span style="color:#ae81ff">hostname</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">script</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">type</span>: <span style="color:#ae81ff">scriptFile</span> <span style="color:#75715e"># run a local script on a remote host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">path/to/your/script.sh</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">host</span>: <span style="color:#ae81ff">some-host  </span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">hostname</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">hostname</span>
 </span></span></code></pre></div><h3 id="lists">Lists</h3>
 <p>To execute groups of commands in sequence, use a list configuration.</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">cmd-configs</span>:
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">cmd-lists</span>:
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">cmds-to-run</span>: <span style="color:#75715e"># this can be any name you want</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># all commands have to be defined</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># all commands have to be defined in the commands section</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">order</span>:
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">stop-docker-container</span>
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">backup-docker-container-script</span>
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">shell-cmd</span>
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">hostname</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">getOutput</span>: <span style="color:#66d9ef">true</span> <span style="color:#75715e"># Optional and only for when notifications are sent</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">notifications</span>:
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">matrix</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">name</span>: <span style="color:#ae81ff">backup-some-server</span>
@@ -133,11 +139,12 @@
 <div class="box notices cstyle info">
   <div class="box-label"><i class="fa-fw fas fa-info-circle"></i> Info</div>
   <div class="box-content">
+
 <p>If any <code>host</code> from a commands object does not match any <code>host</code> object, the needed values will be checked in the default SSH config files.</p>
-  </div>
+</div>
 </div>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">hosts</span>:
-</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># any ssh_config(5) keys/values not listed here will be looked up in the config file or the default config file</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e"># any needed ssh_config(5) keys/values not listed here will be looked up in the config file or the default config file</span>
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">some-host</span>:
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">hostname</span>: <span style="color:#ae81ff">some-hostname</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">config</span>: <span style="color:#ae81ff">~/.ssh/config</span>
@@ -152,7 +159,7 @@
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">proxyjump</span>: <span style="color:#ae81ff">some-proxy-host</span>
 </span></span></code></pre></div><h3 id="notifications">Notifications</h3>
 <p>The notifications object can have two forms.</p>
-<p>For more, <a href="/config/notifications">see the notification object documentation</a>. The top-level map key is id that has to be referenced by the <code>cmd-configs</code> key <code>notifications</code>.</p>
+<p>For more, <a href="/config/notifications">see the notification object documentation</a>. The top-level map key is id that has to be referenced by the <code>cmd-lists</code> key <code>notifications</code>.</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">notifications</span>:
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">prod-email</span>:
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">type</span>: <span style="color:#ae81ff">mail</span>
@@ -179,14 +186,30 @@
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">file</span>: <span style="color:#ae81ff">path/to/log/file.log</span>
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">console-disabled</span>: <span style="color:#66d9ef">false</span>
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">cmd-std-out</span>: <span style="color:#66d9ef">false</span>
-</span></span></code></pre></div>
+</span></span></code></pre></div><h3 id="vault">Vault</h3>
+<p><a href="https://www.vaultproject.io/" target="_blank">Vault</a> can be used to get some configuration values and ENV variables securely.</p>
+<pre tabindex="0"><code>vault:
+  token: hvs.tXqcASvTP8wg92f7riyvGyuf
+  address: http://127.0.0.1:8200
+  enabled: false
+  keys:
+    - name: mongourl
+      mountpath: secret
+      path: mongo/url
+      type:  # KVv1 or KVv2
+    - name:
+      path:
+      type:
+      mountpath: 
+</code></pre>
             <footer class="footline">
+
             </footer>
           </article>
         </div>
       </main>
     </div>
-    <aside id="sidebar" class="default-animation" dir="ltr">
+    <aside id="sidebar" class="default-animation">
       <div id="header-wrapper" class="default-animation">
         <div id="header" class="default-animation">
           <style>
@@ -245,27 +268,28 @@
         <script>
           var contentLangs=['en'];
         </script>
-        <script src="/js/auto-complete.js?1676866111" defer></script>
-        <script src="/js/lunr/lunr.min.js?1676866111" defer></script>
-        <script src="/js/lunr/lunr.stemmer.support.min.js?1676866111" defer></script>
-        <script src="/js/lunr/lunr.multi.min.js?1676866111" defer></script>
-        <script src="/js/lunr/lunr.en.min.js?1676866111" defer></script>
-        <script src="/js/search.js?1676866111" defer></script>
+        <script src="/js/auto-complete.js?1732082585" defer></script>
+        <script src="/js/lunr/lunr.min.js?1732082585" defer></script>
+        <script src="/js/lunr/lunr.stemmer.support.min.js?1732082585" defer></script>
+        <script src="/js/lunr/lunr.multi.min.js?1732082585" defer></script>
+        <script src="/js/lunr/lunr.en.min.js?1732082585" defer></script>
+        <script src="/js/search.js?1732082585" defer></script>
       </div>
       <div id="content-wrapper" class="highlightable">
-        <ul class="topics collapsible-menu">
-          <li data-nav-id="/getting-started/index.html" class="dd-item parent"><input type="checkbox" id="section-c727fab97b4d77e5b28ce8c448fb9000" aria-controls="subsections-c727fab97b4d77e5b28ce8c448fb9000" class="toggle" checked><label class="a11y-only toggle" for="section-c727fab97b4d77e5b28ce8c448fb9000" >Submenu Getting started</label><a href="/getting-started/index.html">Getting started</a><ul id="subsections-c727fab97b4d77e5b28ce8c448fb9000">
-          <li data-nav-id="/getting-started/install/index.html" class="dd-item"><a href="/getting-started/install/index.html">Install Backy</a></li>
-          <li data-nav-id="/getting-started/config/index.html" class="dd-item active"><a href="/getting-started/config/index.html">Config File Definitions</a></li></ul></li>
-          <li data-nav-id="/config/index.html" class="dd-item"><input type="checkbox" id="section-98a8c13bcd8ebb34cfcbafd00ee6590b" aria-controls="subsections-98a8c13bcd8ebb34cfcbafd00ee6590b" class="toggle"><label class="a11y-only toggle" for="section-98a8c13bcd8ebb34cfcbafd00ee6590b" >Submenu Configuring Backy</label><a href="/config/index.html">Configuring Backy</a><ul id="subsections-98a8c13bcd8ebb34cfcbafd00ee6590b">
-          <li data-nav-id="/config/command-lists/index.html" class="dd-item"><a href="/config/command-lists/index.html">Command Lists</a></li>
-          <li data-nav-id="/config/commands/index.html" class="dd-item"><a href="/config/commands/index.html">Commands</a></li>
-          <li data-nav-id="/config/notifications/index.html" class="dd-item"><a href="/config/notifications/index.html">Notifications</a></li></ul></li>
-          <li data-nav-id="/cli/index.html" class="dd-item"><a href="/cli/index.html">CLI</a></li>
-          <li data-nav-id="/repositories/index.html" class="dd-item"><a href="/repositories/index.html">Repositories</a></li>
+        <ul class="topics enlarge morespace collapsible-menu">
+          <li data-nav-id="/getting-started/index.html" class="parent "><input type="checkbox" id="section-ffe9773a38b1e1cbc000aa49823cb86b" aria-controls="subsections-ffe9773a38b1e1cbc000aa49823cb86b" checked><label for="section-ffe9773a38b1e1cbc000aa49823cb86b"><i class="fas fa-chevron-down"></i><i class="fas fa-chevron-right"></i><span class="a11y-only">Submenu Getting started</span></label><a class="padding" href="/getting-started/index.html">Getting started</a><ul id="subsections-ffe9773a38b1e1cbc000aa49823cb86b" class="morespace collapsible-menu">
+          <li data-nav-id="/getting-started/install/index.html" class=""><a class="padding" href="/getting-started/install/index.html">Install Backy</a></li>
+          <li data-nav-id="/getting-started/config/index.html" class="active"><a class="padding" href="/getting-started/config/index.html">Config File Definitions</a></li></ul></li>
+          <li data-nav-id="/config/index.html" class=""><input type="checkbox" id="section-05a1934784c32ed5016a6c9b2dd9e019" aria-controls="subsections-05a1934784c32ed5016a6c9b2dd9e019"><label for="section-05a1934784c32ed5016a6c9b2dd9e019"><i class="fas fa-chevron-down"></i><i class="fas fa-chevron-right"></i><span class="a11y-only">Submenu Configuring Backy</span></label><a class="padding" href="/config/index.html">Configuring Backy</a><ul id="subsections-05a1934784c32ed5016a6c9b2dd9e019" class="morespace collapsible-menu">
+          <li data-nav-id="/config/commands/index.html" class=""><a class="padding" href="/config/commands/index.html">Commands</a></li>
+          <li data-nav-id="/config/command-lists/index.html" class=""><a class="padding" href="/config/command-lists/index.html">Command Lists</a></li>
+          <li data-nav-id="/config/notifications/index.html" class=""><a class="padding" href="/config/notifications/index.html">Notifications</a></li>
+          <li data-nav-id="/config/vault/index.html" class=""><a class="padding" href="/config/vault/index.html">Vault</a></li></ul></li>
+          <li data-nav-id="/cli/index.html" class=""><a class="padding" href="/cli/index.html">CLI</a></li>
+          <li data-nav-id="/repositories/index.html" class=""><a class="padding" href="/repositories/index.html">Repositories</a></li>
         </ul>
-        <div class="footermargin footerLangSwitch footerVariantSwitch footerVisitedLinks footerFooter showFooter"></div>
-        <hr class="default-animation footerLangSwitch footerVariantSwitch footerVisitedLinks footerFooter showFooter">
+        <div class="padding footermargin footerLangSwitch footerVariantSwitch footerVisitedLinks footerFooter showFooter"></div>
+        <hr class="padding default-animation footerLangSwitch footerVariantSwitch footerVisitedLinks footerFooter showFooter">
         <div id="prefooter" class="footerLangSwitch footerVariantSwitch footerVisitedLinks">
           <ul>
             <li id="select-language-container" class="footerLangSwitch">
@@ -275,6 +299,7 @@
                 <div class="select-style">
                   <label class="a11y-only" for="select-language">Language</label>
                   <select id="select-language" onchange="location = baseUri + this.value;">
+                    <option lang="en" id="en" value="/getting-started/config/index.html" selected></option>
                   </select>
                 </div>
                 <div class="select-clear"></div>
@@ -294,7 +319,7 @@
               </div>
               <script>window.variants && variants.markSelectedVariant();</script>
             </li>
-            <li class="footerVisitedLinks"><button class="padding" onclick="clearHistory();"><i class="fas fa-history fa-fw"></i> Clear History</button></li>
+            <li class="footerVisitedLinks"><button class="padding" onclick="clearHistory();"><i class="fas fa-history fa-fw"></i><span>&nbsp;</span>Clear History</button></li>
           </ul>
         </div>
         <div id="footer" class="footerFooter showFooter">
@@ -302,8 +327,8 @@
         </div>
       </div>
     </aside>
-    <script src="/js/clipboard.min.js?1676866111" defer></script>
-    <script src="/js/perfect-scrollbar.min.js?1676866111" defer></script>
+    <script src="/js/clipboard.min.js?1732082585" defer></script>
+    <script src="/js/perfect-scrollbar.min.js?1732082585" defer></script>
     <script>
       function useMathJax( config ){
         if( !Object.assign ){
@@ -333,23 +358,19 @@
       useMathJax( JSON.parse("{}") );
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script src="/js/d3/d3-color.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-dispatch.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-drag.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-ease.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-interpolate.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-selection.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-timer.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-transition.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-zoom.min.js?1676866111" defer></script>
+    <script src="/js/d3/d3-color.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-dispatch.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-drag.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-ease.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-interpolate.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-selection.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-timer.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-transition.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-zoom.min.js?1732082585" defer></script>
     <script src="https://unpkg.com/mermaid/dist/mermaid.min.js" defer></script>
     <script>
       window.themeUseMermaid = JSON.parse("{ \"theme\": \"default\" }");
     </script>
-    <script src="https://unpkg.com/rapidoc/dist/rapidoc-min.js" defer></script>
-    <script>
-      window.themeUseSwagger = JSON.parse("{ \"theme\": \"light\" }");
-    </script>
-    <script src="/js/theme.js?1676866111" defer></script>
+    <script src="/js/theme.js?1732082585" defer></script>
   </body>
 </html>

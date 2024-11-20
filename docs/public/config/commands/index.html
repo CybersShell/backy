@@ -3,23 +3,23 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="height=device-height, width=device-width, initial-scale=1.0, minimum-scale=1.0">
-    <meta name="generator" content="Hugo 0.110.0">
-    <meta name="generator" content="Relearn 5.11.2">
+    <meta name="generator" content="Hugo 0.135.0">
+    <meta name="generator" content="Relearn 5.16.2">
     <meta name="description" content="">
     <title>Commands - A tool for commands</title>
     <!-- https://github.com/filamentgroup/loadCSS/blob/master/README.md#how-to-use -->
-    <link href="/css/fontawesome-all.min.css?1676866111" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/fontawesome-all.min.css?1676866111" rel="stylesheet"></noscript>
-    <link href="/css/auto-complete.css?1676866111" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/auto-complete.css?1676866111" rel="stylesheet"></noscript>
-    <link href="/css/perfect-scrollbar.min.css?1676866111" rel="stylesheet">
-    <link href="/css/nucleus.css?1676866111" rel="stylesheet">
-    <link href="/css/fonts.css?1676866111" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/fonts.css?1676866111" rel="stylesheet"></noscript>
-    <link href="/css/theme.css?1676866111" rel="stylesheet">
-    <link href="/css/theme-auto.css?1676866111" rel="stylesheet" id="variant-style">
-    <link href="/css/ie.css?1676866111" rel="stylesheet">
-    <link href="/css/variant.css?1676866111" rel="stylesheet">
-    <link href="/css/print.css?1676866111" rel="stylesheet" media="print">
-    <script src="/js/url.js?1676866111"></script>
-    <script src="/js/variant.js?1676866111"></script>
+    <link href="/css/fontawesome-all.min.css?1732082585" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/fontawesome-all.min.css?1732082585" rel="stylesheet"></noscript>
+    <link href="/css/nucleus.css?1732082585" rel="stylesheet">
+    <link href="/css/auto-complete.css?1732082585" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/auto-complete.css?1732082585" rel="stylesheet"></noscript>
+    <link href="/css/perfect-scrollbar.min.css?1732082585" rel="stylesheet">
+    <link href="/css/fonts.css?1732082585" rel="stylesheet" media="print" onload="this.media='all';this.onload=null;"><noscript><link href="/css/fonts.css?1732082585" rel="stylesheet"></noscript>
+    <link href="/css/theme.css?1732082585" rel="stylesheet">
+    <link href="/css/theme-auto.css?1732082585" rel="stylesheet" id="variant-style">
+    <link href="/css/variant.css?1732082585" rel="stylesheet">
+    <link href="/css/print.css?1732082585" rel="stylesheet" media="print">
+    <link href="/css/ie.css?1732082585" rel="stylesheet">
+    <script src="/js/url.js?1732082585"></script>
+    <script src="/js/variant.js?1732082585"></script>
     <script>
       // hack to let hugo tell us how to get to the root when using relativeURLs, it needs to be called *url= for it to do its magic:
       // https://github.com/gohugoio/hugo/blob/145b3fcce35fbac25c7033c91c1b7ae6d1179da8/transform/urlreplacers/absurlreplacer.go#L72
@@ -42,7 +42,7 @@
     <div id="body" class="default-animation">
       <div id="sidebar-overlay"></div>
       <div id="toc-overlay"></div>
-      <nav id="topbar" class="highlightable" dir="ltr">
+      <nav id="topbar" class="highlightable">
         <div>
           <div id="breadcrumbs">
             <span id="sidebar-toggle-span">
@@ -54,14 +54,17 @@
             </span>
           </div>
           <div class="default-animation progress">
-            <div class="toc-wrapper" dir="ltr">
-<nav id="TableOfContents">
+            <div class="toc-wrapper"><nav id="TableOfContents">
   <ul>
     <li>
       <ul>
-        <li></li>
+        <li><a href="#example-config">Example Config</a></li>
+        <li><a href="#getoutput">getOutput</a></li>
         <li><a href="#shell">shell</a></li>
+        <li><a href="#scriptenvfile">scriptEnvFile</a></li>
+        <li><a href="#type">type</a></li>
         <li><a href="#environment">environment</a></li>
+        <li><a href="#hooks">hooks</a></li>
       </ul>
     </li>
   </ul>
@@ -72,13 +75,14 @@
       </nav>
       <main id="body-inner" class="highlightable default" tabindex="-1">
         <div class="flex-block-wrapper">
-          <div id="head-tags">
-          </div>
           <article class="default">
+            <header class="headline">
+            </header>
 <h1 id="commands">Commands</h1>
 
 <p>The yaml top-level map can be any string.</p>
 <p>The top-level name must be unique.</p>
+<h3 id="example-config">Example Config</h3>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">commands</span>:
 </span></span><span style="display:flex;"><span>  <span style="color:#f92672">stop-docker-container</span>:
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">docker</span>
@@ -87,56 +91,88 @@
 </span></span><span style="display:flex;"><span>      - -<span style="color:#ae81ff">f /some/path/to/docker-compose.yaml</span>
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">down</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e"># if host is not defined, command will be run locally</span>
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">host</span>: <span style="color:#ae81ff">some-host </span>
-</span></span><span style="display:flex;"><span>  <span style="color:#f92672">backup-docker-container-script</span>:
-</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">/path/to/script</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e"># The host has to be defined in either the config file or the SSH Config files</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">host</span>: <span style="color:#ae81ff">some-host</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">hooks</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">error</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#ae81ff">some-other-command-when-failing</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">success</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#ae81ff">success-command</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">final</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#ae81ff">final-command</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">backup-docker-container-script</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">cmd</span>: <span style="color:#ae81ff">/path/to/local/script</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># script file is input as stdin to SSH</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">type</span>: <span style="color:#ae81ff">scriptFile</span> <span style="color:#75715e"># also can be script</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">environment</span>:
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">FOO=BAR</span>
 </span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">APP=$VAR</span>
 </span></span></code></pre></div><p>Values available for this section:</p>
 <table>
-<thead>
-<tr>
-<th>name</th>
-<th>description</th>
-<th>type</th>
-<th>required</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>cmd</code></td>
-<td>Defines the command to execute</td>
-<td><code>string</code></td>
-<td>yes</td>
-</tr>
-<tr>
-<td><code>args</code></td>
-<td>Defines the arguments to the command</td>
-<td><code>[]string</code></td>
-<td>no</td>
-</tr>
-<tr>
-<td><code>environment</code></td>
-<td>Defines evironment variables for the command</td>
-<td><code>[]string</code></td>
-<td>no</td>
-</tr>
-<tr>
-<td><code>host</code></td>
-<td>If not specified, the command will execute locally.</td>
-<td><code>string</code></td>
-<td>no</td>
-</tr>
-<tr>
-<td><code>shell</code></td>
-<td>Only applicable when host is not specified</td>
-<td><code>string</code></td>
-<td>no</td>
-</tr>
-</tbody>
+  <thead>
+      <tr>
+          <th style="text-align: left">name</th>
+          <th style="text-align: left">notes</th>
+          <th style="text-align: left">type</th>
+          <th style="text-align: left">required</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td style="text-align: left"><code>cmd</code></td>
+          <td style="text-align: left">Defines the command to execute</td>
+          <td style="text-align: left"><code>string</code></td>
+          <td style="text-align: left">yes</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>args</code></td>
+          <td style="text-align: left">Defines the arguments to the command</td>
+          <td style="text-align: left"><code>[]string</code></td>
+          <td style="text-align: left">no</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>environment</code></td>
+          <td style="text-align: left">Defines evironment variables for the command</td>
+          <td style="text-align: left"><code>[]string</code></td>
+          <td style="text-align: left">no</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>type</code></td>
+          <td style="text-align: left">May be <code>scriptFile</code> or <code>script</code>. Runs script from local machine on remote. Only applicable when <code>host</code> is defined.</td>
+          <td style="text-align: left"><code>string</code></td>
+          <td style="text-align: left">no</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>getOutput</code></td>
+          <td style="text-align: left">Command(s) output is in the notification(s)</td>
+          <td style="text-align: left"><code>bool</code></td>
+          <td style="text-align: left">no</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>host</code></td>
+          <td style="text-align: left">If not specified, the command will execute locally.</td>
+          <td style="text-align: left"><code>string</code></td>
+          <td style="text-align: left">no</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>scriptEnvFile</code></td>
+          <td style="text-align: left">When type is <code>scriptFile</code>, the script is appended to this file.</td>
+          <td style="text-align: left"><code>string</code></td>
+          <td style="text-align: left">no</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>shell</code></td>
+          <td style="text-align: left">Only applicable when host is not specified</td>
+          <td style="text-align: left"><code>string</code></td>
+          <td style="text-align: left">no</td>
+      </tr>
+      <tr>
+          <td style="text-align: left"><code>hooks</code></td>
+          <td style="text-align: left">Hooks are used at the end of the individual command. Must be another command.</td>
+          <td style="text-align: left"><code>[]string</code></td>
+          <td style="text-align: left">no</td>
+      </tr>
+  </tbody>
 </table>
 <h4 id="cmd">cmd</h4>
 <p>cmd must be a valid command or script to execute.</p>
@@ -148,43 +184,70 @@
 </span></span><span style="display:flex;"><span>  - <span style="color:#ae81ff">arg1</span>
 </span></span><span style="display:flex;"><span>  - <span style="color:#ae81ff">arg2</span>
 </span></span><span style="display:flex;"><span>  - <span style="color:#ae81ff">arg3</span>
-</span></span></code></pre></div><h4 id="host">host</h4>
+</span></span></code></pre></div><h3 id="getoutput">getOutput</h3>
+<p>Get command output when a notification is sent.</p>
+<p>Is not required. Can be <code>true</code> or <code>false</code>.</p>
+<h4 id="host">host</h4>
 
 <div class="box notices cstyle info">
   <div class="box-label"><i class="fa-fw fas fa-info-circle"></i> Info</div>
   <div class="box-content">
+
 <p>If any <code>host</code> is not defined or left blank, the command will run on the local machine.</p>
-  </div>
+</div>
 </div>
 <p>Host may or may not be defined in the <code>hosts</code> section.</p>
 
 <div class="box notices cstyle info">
   <div class="box-label"><i class="fa-fw fas fa-info-circle"></i> Info</div>
   <div class="box-content">
+
 <p>If any <code>host</code> from the commands section does not match any object in the <code>hosts</code> section, the <code>Host</code> is assumed to be this value. This value will be used to search in the default SSH config files.</p>
 <p>For example, say that I have a host defined in my SSH config with the <code>Host</code> defined as <code>web-prod</code>.
 If I assign a value to host as <code>host: web-prod</code> and don&rsquo;t specify this value in the <code>hosts</code> object, web-prod will be used as the <code>Host</code> in searching the SSH config files.</p>
-  </div>
+</div>
 </div>
 <h3 id="shell">shell</h3>
 <p>If shell is defined and host is NOT defined, the command will run in the specified shell.
 Make sure to escape any shell input.</p>
+<h3 id="scriptenvfile">scriptEnvFile</h3>
+<p>Path to a file.</p>
+<p>When type is specified, the script is appended to this file.</p>
+<p>This is useful for specifying environment variables or other things so they don&rsquo;t have to be included in the script.</p>
+<h3 id="type">type</h3>
+<p>May be <code>scriptFile</code> or <code>script</code>. Runs script from local machine on remote host passed to the SSH session as standard input.</p>
+<p>If <code>type</code> is <code>script</code>, <code>cmd</code> is used as the script.</p>
+<p>If <code>type</code> is <code>scriptFile</code>, cmd must be a script file.</p>
 <h3 id="environment">environment</h3>
 <p>The environment variables support expansion:</p>
 <ul>
 <li>using escaped values <code>$VAR</code> or <code>${VAR}</code></li>
 </ul>
-<p>For now the variables have to be defined in an <code>.env</code> file in the same directory as the config file.</p>
+<p>For now, the variables have to be defined in an <code>.env</code> file in the same directory as the config file.</p>
 <p>If using it with host specified, the SSH server has to be configured to accept those env variables.</p>
 <p>If the command is run locally, the OS&rsquo;s environment is added.</p>
-
+<h3 id="hooks">hooks</h3>
+<p>Hooks are run after the command is run.</p>
+<p>Errors are run if the command errors, success if it returns no error. Final hooks are run regardless of error condition.</p>
+<p>Values for hooks are as follows:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">command</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">hook</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e"># these commands are defined elsewhere in the file</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">error</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">errcommand</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">success</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">successcommand</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">final</span>:
+</span></span><span style="display:flex;"><span>      - <span style="color:#ae81ff">donecommand</span>
+</span></span></code></pre></div>
             <footer class="footline">
+
             </footer>
           </article>
         </div>
       </main>
     </div>
-    <aside id="sidebar" class="default-animation" dir="ltr">
+    <aside id="sidebar" class="default-animation">
       <div id="header-wrapper" class="default-animation">
         <div id="header" class="default-animation">
           <style>
@@ -243,27 +306,28 @@ Make sure to escape any shell input.</p>
         <script>
           var contentLangs=['en'];
         </script>
-        <script src="/js/auto-complete.js?1676866111" defer></script>
-        <script src="/js/lunr/lunr.min.js?1676866111" defer></script>
-        <script src="/js/lunr/lunr.stemmer.support.min.js?1676866111" defer></script>
-        <script src="/js/lunr/lunr.multi.min.js?1676866111" defer></script>
-        <script src="/js/lunr/lunr.en.min.js?1676866111" defer></script>
-        <script src="/js/search.js?1676866111" defer></script>
+        <script src="/js/auto-complete.js?1732082585" defer></script>
+        <script src="/js/lunr/lunr.min.js?1732082585" defer></script>
+        <script src="/js/lunr/lunr.stemmer.support.min.js?1732082585" defer></script>
+        <script src="/js/lunr/lunr.multi.min.js?1732082585" defer></script>
+        <script src="/js/lunr/lunr.en.min.js?1732082585" defer></script>
+        <script src="/js/search.js?1732082585" defer></script>
       </div>
       <div id="content-wrapper" class="highlightable">
-        <ul class="topics collapsible-menu">
-          <li data-nav-id="/getting-started/index.html" class="dd-item"><input type="checkbox" id="section-c727fab97b4d77e5b28ce8c448fb9000" aria-controls="subsections-c727fab97b4d77e5b28ce8c448fb9000" class="toggle"><label class="a11y-only toggle" for="section-c727fab97b4d77e5b28ce8c448fb9000" >Submenu Getting started</label><a href="/getting-started/index.html">Getting started</a><ul id="subsections-c727fab97b4d77e5b28ce8c448fb9000">
-          <li data-nav-id="/getting-started/install/index.html" class="dd-item"><a href="/getting-started/install/index.html">Install Backy</a></li>
-          <li data-nav-id="/getting-started/config/index.html" class="dd-item"><a href="/getting-started/config/index.html">Config File Definitions</a></li></ul></li>
-          <li data-nav-id="/config/index.html" class="dd-item parent"><input type="checkbox" id="section-98a8c13bcd8ebb34cfcbafd00ee6590b" aria-controls="subsections-98a8c13bcd8ebb34cfcbafd00ee6590b" class="toggle" checked><label class="a11y-only toggle" for="section-98a8c13bcd8ebb34cfcbafd00ee6590b" >Submenu Configuring Backy</label><a href="/config/index.html">Configuring Backy</a><ul id="subsections-98a8c13bcd8ebb34cfcbafd00ee6590b">
-          <li data-nav-id="/config/command-lists/index.html" class="dd-item"><a href="/config/command-lists/index.html">Command Lists</a></li>
-          <li data-nav-id="/config/commands/index.html" class="dd-item active"><a href="/config/commands/index.html">Commands</a></li>
-          <li data-nav-id="/config/notifications/index.html" class="dd-item"><a href="/config/notifications/index.html">Notifications</a></li></ul></li>
-          <li data-nav-id="/cli/index.html" class="dd-item"><a href="/cli/index.html">CLI</a></li>
-          <li data-nav-id="/repositories/index.html" class="dd-item"><a href="/repositories/index.html">Repositories</a></li>
+        <ul class="topics enlarge morespace collapsible-menu">
+          <li data-nav-id="/getting-started/index.html" class=""><input type="checkbox" id="section-ffe9773a38b1e1cbc000aa49823cb86b" aria-controls="subsections-ffe9773a38b1e1cbc000aa49823cb86b"><label for="section-ffe9773a38b1e1cbc000aa49823cb86b"><i class="fas fa-chevron-down"></i><i class="fas fa-chevron-right"></i><span class="a11y-only">Submenu Getting started</span></label><a class="padding" href="/getting-started/index.html">Getting started</a><ul id="subsections-ffe9773a38b1e1cbc000aa49823cb86b" class="morespace collapsible-menu">
+          <li data-nav-id="/getting-started/install/index.html" class=""><a class="padding" href="/getting-started/install/index.html">Install Backy</a></li>
+          <li data-nav-id="/getting-started/config/index.html" class=""><a class="padding" href="/getting-started/config/index.html">Config File Definitions</a></li></ul></li>
+          <li data-nav-id="/config/index.html" class="parent "><input type="checkbox" id="section-05a1934784c32ed5016a6c9b2dd9e019" aria-controls="subsections-05a1934784c32ed5016a6c9b2dd9e019" checked><label for="section-05a1934784c32ed5016a6c9b2dd9e019"><i class="fas fa-chevron-down"></i><i class="fas fa-chevron-right"></i><span class="a11y-only">Submenu Configuring Backy</span></label><a class="padding" href="/config/index.html">Configuring Backy</a><ul id="subsections-05a1934784c32ed5016a6c9b2dd9e019" class="morespace collapsible-menu">
+          <li data-nav-id="/config/commands/index.html" class="active"><a class="padding" href="/config/commands/index.html">Commands</a></li>
+          <li data-nav-id="/config/command-lists/index.html" class=""><a class="padding" href="/config/command-lists/index.html">Command Lists</a></li>
+          <li data-nav-id="/config/notifications/index.html" class=""><a class="padding" href="/config/notifications/index.html">Notifications</a></li>
+          <li data-nav-id="/config/vault/index.html" class=""><a class="padding" href="/config/vault/index.html">Vault</a></li></ul></li>
+          <li data-nav-id="/cli/index.html" class=""><a class="padding" href="/cli/index.html">CLI</a></li>
+          <li data-nav-id="/repositories/index.html" class=""><a class="padding" href="/repositories/index.html">Repositories</a></li>
         </ul>
-        <div class="footermargin footerLangSwitch footerVariantSwitch footerVisitedLinks footerFooter showFooter"></div>
-        <hr class="default-animation footerLangSwitch footerVariantSwitch footerVisitedLinks footerFooter showFooter">
+        <div class="padding footermargin footerLangSwitch footerVariantSwitch footerVisitedLinks footerFooter showFooter"></div>
+        <hr class="padding default-animation footerLangSwitch footerVariantSwitch footerVisitedLinks footerFooter showFooter">
         <div id="prefooter" class="footerLangSwitch footerVariantSwitch footerVisitedLinks">
           <ul>
             <li id="select-language-container" class="footerLangSwitch">
@@ -273,6 +337,7 @@ Make sure to escape any shell input.</p>
                 <div class="select-style">
                   <label class="a11y-only" for="select-language">Language</label>
                   <select id="select-language" onchange="location = baseUri + this.value;">
+                    <option lang="en" id="en" value="/config/commands/index.html" selected></option>
                   </select>
                 </div>
                 <div class="select-clear"></div>
@@ -292,7 +357,7 @@ Make sure to escape any shell input.</p>
               </div>
               <script>window.variants && variants.markSelectedVariant();</script>
             </li>
-            <li class="footerVisitedLinks"><button class="padding" onclick="clearHistory();"><i class="fas fa-history fa-fw"></i> Clear History</button></li>
+            <li class="footerVisitedLinks"><button class="padding" onclick="clearHistory();"><i class="fas fa-history fa-fw"></i><span>&nbsp;</span>Clear History</button></li>
           </ul>
         </div>
         <div id="footer" class="footerFooter showFooter">
@@ -300,8 +365,8 @@ Make sure to escape any shell input.</p>
         </div>
       </div>
     </aside>
-    <script src="/js/clipboard.min.js?1676866111" defer></script>
-    <script src="/js/perfect-scrollbar.min.js?1676866111" defer></script>
+    <script src="/js/clipboard.min.js?1732082585" defer></script>
+    <script src="/js/perfect-scrollbar.min.js?1732082585" defer></script>
     <script>
       function useMathJax( config ){
         if( !Object.assign ){
@@ -331,23 +396,19 @@ Make sure to escape any shell input.</p>
       useMathJax( JSON.parse("{}") );
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script src="/js/d3/d3-color.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-dispatch.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-drag.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-ease.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-interpolate.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-selection.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-timer.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-transition.min.js?1676866111" defer></script>
-    <script src="/js/d3/d3-zoom.min.js?1676866111" defer></script>
+    <script src="/js/d3/d3-color.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-dispatch.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-drag.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-ease.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-interpolate.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-selection.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-timer.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-transition.min.js?1732082585" defer></script>
+    <script src="/js/d3/d3-zoom.min.js?1732082585" defer></script>
     <script src="https://unpkg.com/mermaid/dist/mermaid.min.js" defer></script>
     <script>
       window.themeUseMermaid = JSON.parse("{ \"theme\": \"default\" }");
     </script>
-    <script src="https://unpkg.com/rapidoc/dist/rapidoc-min.js" defer></script>
-    <script>
-      window.themeUseSwagger = JSON.parse("{ \"theme\": \"light\" }");
-    </script>
-    <script src="/js/theme.js?1676866111" defer></script>
+    <script src="/js/theme.js?1732082585" defer></script>
   </body>
 </html>
