@@ -12,10 +12,10 @@ To use a specific file:
 
 If you leave the config path blank, the following paths will be searched in order:
 
-- `./backy.yml`
-- `./backy.yaml`
-- `~/.config/backy.yml`
-- `~/.config/backy.yaml`
+1. `./backy.yml`
+2. `./backy.yaml`
+3. `~/.config/backy.yml`
+4. `~/.config/backy.yaml`
 
 Create a file at `~/.config/backy.yml`.
 
