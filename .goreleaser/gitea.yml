@@ -32,9 +32,9 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
-  skip: false
+  disable: false
 
 gitea_urls:
   api: https://git.andrewnw.xyz/api/v1
