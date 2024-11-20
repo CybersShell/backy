@@ -8,3 +8,7 @@ steps:
     image: golangci/golangci-lint:v1.53.3
     commands:
       - golangci-lint run -v --timeout 5m
+
+when:
+  - event: push
+    branch: develop
