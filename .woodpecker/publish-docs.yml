@@ -25,6 +25,4 @@ steps:
     secrets: [ ssh_host_key, ssh_deploy_key, ssh_passphrase ]
 
 when:
-  - event: push
-    branch: master
-    path: "docs/*"
+  - path: "docs/*"

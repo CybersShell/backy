@@ -2,7 +2,7 @@
 title: Exec
 ---
 
-The `exec` subcommand can do somethings that the configuration file can't do yet. The command `exec host` can execute commands on many hosts.
+The `exec` subcommand can do some things that the configuration file can't do yet. The command `exec host` can execute commands on many hosts.
 
 `exec host` takes the following arguments:
 
