@@ -19,6 +19,8 @@ Feel free to open a [PR](https://git.andrewnw.xyz/CyberShell/backy/pulls), raise
 
 - Allows for running package operations
 
+- Allows configuring failure, success, and final hooks
+
 - Allows for commands to be run on many hosts over SSH
 
 - Commands can be grouped in list to run in specific order
