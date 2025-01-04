@@ -25,4 +25,4 @@ steps:
     secrets: [ ssh_host_key, ssh_deploy_key, ssh_passphrase ]
 
 when:
-  - path: "docs/*"
+  - branch: master
