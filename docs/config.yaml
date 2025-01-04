@@ -1,0 +1,77 @@
+baseURL: https://backy.cybershell.xyz/
+languageCode: en-us
+title: A tool for commands
+theme:
+  - hugo-theme-relearn
+  - plausible-hugo
+outputs:
+  home:
+    - HTML
+    - RSS
+    - PRINT
+module:
+  imports:
+    - path: github.com/divinerites/plausible-hugo
+params:
+  themeVariant:
+    - auto: []
+      identifier: relearn-auto
+      name: Relearn Light/Dark
+    - identifier: relearn-light
+    - identifier: relearn-dark
+    - identifier: relearn-bright
+    - auto:
+        - zen-light
+        - zen-dark
+      identifier: zen-auto
+      name: Zen Light/Dark
+    - identifier: zen-light
+    - identifier: zen-dark
+    - auto:
+        - learn
+        - neon
+      identifier: retro-auto
+      name: Retro Learn/Neon
+    - identifier: neon
+    - identifier: learn
+  plausible:
+    enable: true
+    domain: backy.cybershell.xyz
+    outbound_link: true
+    gitstar: false
+    selfhosted_domain: stats.andrewnw.com
+  author:
+    name: Andrew Woodlee
+    alwaysopen: false
+    editURL: ""
+    description: ""
+    showVisitedLinks: false
+    disableSearch: false
+    disableSearchHiddenPages: false
+    disableSeoHiddenPages: false
+    disableTagHiddenPages: false
+    disableAssetsBusting: false
+    disableGeneratorVersion: false
+    disableInlineCopyToClipBoard: false
+    disableShortcutsTitle: false
+    disableLandingPageButton: true
+    disableLanguageSwitchingButton: false
+    disableBreadcrumb: true
+    disableToc: false
+    math: true
+    customMathJaxURL: https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+    mathJaxInitialize: "{}"
+    mermaid: true
+    customMermaidURL: https://unpkg.com/mermaid/dist/mermaid.min.js
+    mermaidInitialize: '{ "theme": "default" }'
+    disableSwagger: false
+    customSwaggerURL: https://unpkg.com/rapidoc/dist/rapidoc-min.js
+    swaggerInitialize: '{ "theme": "light" }'
+    disableNextPrev: true
+    ordersectionsby: weight
+    titleSeparator: "-"
+    collapsibleMenu: true
+    additionalContentLanguage:
+      - en
+    disableExplicitIndexURLs: false
+    externalLinkTarget: _blank
