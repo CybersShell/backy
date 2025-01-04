@@ -1,0 +1,3 @@
+kind: Added
+body: Exec subcommand `host` allows for parallel execution of commands on hosts. [See docs](https://backy.cybershell.xyz/cli/exec)
+time: 2025-01-03T23:00:44.417463429-06:00
