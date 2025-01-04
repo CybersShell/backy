@@ -2,6 +2,8 @@ module git.andrewnw.xyz/CyberShell/backy
 
 go 1.20
 
+replace git.andrewnw.xyz/CyberShell/backy => /home/andrew/Projects/backy
+
 require (
 	github.com/go-co-op/gocron v1.33.1
 	github.com/hashicorp/vault/api v1.10.0

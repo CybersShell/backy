@@ -1,2 +1,4 @@
 github.com/McShelby/hugo-theme-relearn v0.0.0-20230209073138-890d12ea922d h1:weq1mrQ/qNAvGrNgvZVL1K8adbT3bswZf2ABLr/LCIA=
 github.com/McShelby/hugo-theme-relearn v0.0.0-20230209073138-890d12ea922d/go.mod h1:mKQQdxZNIlLvAj8X3tMq+RzntIJSr9z7XdzuMomt0IM=
+github.com/divinerites/plausible-hugo v1.21.1 h1:ZTWwjhZ0PmLMacCVGlcGiYFEZW7VaYE767tchDskOug=
+github.com/divinerites/plausible-hugo v1.21.1/go.mod h1:cxr+YB3FUwbLon8KCs4pV4Ankbkq6lJxTQUpNb5KqPo=

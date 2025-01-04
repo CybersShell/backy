@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
+	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
@@ -485,6 +486,32 @@ func processCmds(opts *ConfigOpts) error {
 				opts.Hosts[*cmd.Host] = &Host{Host: *cmd.Host}
 				cmd.RemoteHost = &Host{Host: *cmd.Host}
 			}
+		}
+
+		// Parse package commands
+		if cmd.Type == "package" {
+			if cmd.PackageManager == "" {
+				return fmt.Errorf("package manager is required for package command %s", cmd.PackageName)
+			}
+			if cmd.PackageOperation == "" {
+				return fmt.Errorf("package operation is required for package command %s", cmd.PackageName)
+			}
+			if cmd.PackageName == "" {
+				return fmt.Errorf("package name is required for package command %s", cmd.PackageName)
+			}
+			var err error
+
+			// Validate the operation
+			switch cmd.PackageOperation {
+			case "install", "remove", "upgrade":
+				cmd.pkgMan, err = pkgman.PackageManagerFactory(cmd.PackageManager, pkgman.WithoutAuth())
+				if err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported package operation %s for command %s", cmd.PackageOperation, cmd.Name)
+			}
+
 		}
 	}
 	return nil

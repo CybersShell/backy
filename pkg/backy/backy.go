@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 	"text/template"
 
 	"embed"
@@ -50,257 +49,14 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		ArgsStr += fmt.Sprintf(" %s", v)
 	}
 
+	command = getPackageCommand(command)
+
+	var errSSH error
 	// is host defined
 	if command.Host != nil {
-		command.Type = strings.TrimSpace(command.Type)
-
-		if command.Type != "" {
-			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running script %s on host %s", command.Name, *command.Host)).Send()
-		} else {
-			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on host %s", command.Name, *command.Host)).Send()
-		}
-
-		if command.RemoteHost.SshClient == nil {
-			err := command.RemoteHost.ConnectToSSHHost(opts)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// create new ssh session
-		commandSession, err := command.RemoteHost.SshClient.NewSession()
-
-		// Retry connecting to host; if that fails, error. If it does not fail, try to create new session
-		if err != nil {
-			connErr := command.RemoteHost.ConnectToSSHHost(opts)
-			if connErr != nil {
-				return nil, fmt.Errorf("error creating session: %v, and error creating new connection to host: %v", err, connErr)
-			}
-			commandSession, err = command.RemoteHost.SshClient.NewSession()
-
-			if err != nil {
-				return nil, fmt.Errorf("error creating session: %v", err)
-			}
-		}
-
-		defer commandSession.Close()
-
-		injectEnvIntoSSH(envVars, commandSession, opts, cmdCtxLogger)
-		cmd := command.Cmd
-		for _, a := range command.Args {
-			cmd += " " + a
-		}
-
-		cmdOutWriters = io.MultiWriter(&cmdOutBuf)
-
-		if IsCmdStdOutEnabled() {
-			cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
-		}
-
-		commandSession.Stdout = cmdOutWriters
-		commandSession.Stderr = cmdOutWriters
-		// Is command type defined. That is, is it local or not
-		if command.Type != "" {
-
-			var (
-				script               *bytes.Buffer
-				buffer               bytes.Buffer
-				scriptEnvFileBuffer  bytes.Buffer
-				scriptFileBuffer     bytes.Buffer
-				dirErr               error
-				scriptEnvFilePresent bool
-			)
-
-			defer func() {
-				// did the program panic while writing to the buffer?
-				if err := recover(); err != nil {
-					// cmdCtxLogger.Debug().Msg(fmt.Sprintf("script buffer: %v", script))
-					cmdCtxLogger.Info().Msg(fmt.Sprintf("panic occurred writing to buffer: %v", err))
-				}
-			}()
-
-			if command.Type == "script" {
-
-				if command.ScriptEnvFile != "" {
-
-					command.ScriptEnvFile, dirErr = resolveDir(command.ScriptEnvFile)
-					if dirErr != nil {
-						return nil, dirErr
-					}
-					file, err := os.Open(command.ScriptEnvFile)
-					if err != nil {
-						return nil, err
-					}
-					defer file.Close()
-					_, err = io.Copy(&scriptEnvFileBuffer, file)
-					if err != nil {
-						return nil, err
-					}
-
-					// Bug: writing to buffer triggers panic
-					// why?
-					// use bytes.Buffer instead of pointer to memory (*bytes.Buffer)
-
-					_, err = buffer.WriteString(scriptEnvFileBuffer.String())
-					if err != nil {
-						return nil, err
-					}
-					// write newline
-					buffer.WriteByte(0x0A)
-
-					_, err = buffer.WriteString(cmd)
-					if err != nil {
-						return nil, err
-					}
-					script = &buffer
-
-				} else {
-					script = bytes.NewBufferString(cmd + "\n")
-				}
-
-				commandSession.Stdin = script
-				if err := commandSession.Shell(); err != nil {
-					return nil, err
-				}
-
-				if err := commandSession.Wait(); err != nil {
-					outScanner := bufio.NewScanner(&cmdOutBuf)
-					for outScanner.Scan() {
-						outMap := make(map[string]interface{})
-						outMap["cmd"] = command.Name
-						outMap["output"] = outScanner.Text()
-						if str, ok := outMap["output"].(string); ok {
-							outputArr = append(outputArr, str)
-						}
-						cmdCtxLogger.Info().Fields(outMap).Send()
-					}
-					return outputArr, err
-				}
-
-				outScanner := bufio.NewScanner(&cmdOutBuf)
-				for outScanner.Scan() {
-					outMap := make(map[string]interface{})
-					outMap["cmd"] = command.Name
-					outMap["output"] = outScanner.Text()
-					if str, ok := outMap["output"].(string); ok {
-						outputArr = append(outputArr, str)
-					}
-					cmdCtxLogger.Info().Fields(outMap).Send()
-				}
-				return outputArr, nil
-			}
-
-			if command.Type == "scriptFile" {
-
-				if command.ScriptEnvFile != "" {
-
-					command.ScriptEnvFile, dirErr = resolveDir(command.ScriptEnvFile)
-					if dirErr != nil {
-						return nil, dirErr
-					}
-					file, err := os.Open(command.ScriptEnvFile)
-					if err != nil {
-						return nil, err
-					}
-					defer file.Close()
-					_, err = io.Copy(&scriptEnvFileBuffer, file)
-					if err != nil {
-						return nil, err
-					}
-					scriptEnvFilePresent = true
-				}
-
-				command.Cmd, dirErr = resolveDir(command.Cmd)
-
-				if dirErr != nil {
-					return nil, dirErr
-				}
-
-				// treat command.Cmd as a file
-				file, err := os.Open(command.Cmd)
-
-				if err != nil {
-					return nil, err
-				}
-
-				_, err = io.Copy(&scriptFileBuffer, file)
-
-				if err != nil {
-					return nil, err
-				}
-
-				defer file.Close()
-
-				// append scriptEnvFile to scriptFileBuffer
-				if scriptEnvFilePresent {
-					_, err := buffer.WriteString(scriptEnvFileBuffer.String())
-					if err != nil {
-						return nil, err
-					}
-					// write newline
-					buffer.WriteByte(0x0A)
-
-					_, err = buffer.WriteString(scriptFileBuffer.String())
-					if err != nil {
-						return nil, err
-					}
-				} else {
-					_, err = io.Copy(&buffer, file)
-					if err != nil {
-						return nil, err
-					}
-				}
-
-				script := &buffer
-
-				commandSession.Stdin = script
-				if err := commandSession.Shell(); err != nil {
-					return nil, err
-				}
-				if err := commandSession.Wait(); err != nil {
-					outScanner := bufio.NewScanner(&cmdOutBuf)
-					for outScanner.Scan() {
-						outMap := make(map[string]interface{})
-						outMap["cmd"] = cmd
-						outMap["output"] = outScanner.Text()
-						if str, ok := outMap["output"].(string); ok {
-							outputArr = append(outputArr, str)
-						}
-						cmdCtxLogger.Info().Fields(outMap).Send()
-					}
-					return outputArr, err
-				}
-
-				outScanner := bufio.NewScanner(&cmdOutBuf)
-				for outScanner.Scan() {
-					outMap := make(map[string]interface{})
-					outMap["cmd"] = cmd
-					outMap["output"] = outScanner.Text()
-					if str, ok := outMap["output"].(string); ok {
-						outputArr = append(outputArr, str)
-					}
-					cmdCtxLogger.Info().Fields(outMap).Send()
-				}
-				return outputArr, nil
-			}
-			return nil, fmt.Errorf("command type not recognized")
-		}
-
-		err = commandSession.Run(cmd)
-		outScanner := bufio.NewScanner(&cmdOutBuf)
-		for outScanner.Scan() {
-			outMap := make(map[string]interface{})
-			outMap["cmd"] = command.Name
-			outMap["output"] = outScanner.Text()
-			if str, ok := outMap["output"].(string); ok {
-				outputArr = append(outputArr, str)
-			}
-			cmdCtxLogger.Info().Fields(outMap).Send()
-		}
-
-		if err != nil {
-			cmdCtxLogger.Error().Err(fmt.Errorf("error when running cmd: %s: %w", command.Name, err)).Send()
-			return outputArr, err
+		outputArr, errSSH = command.RunCmdSSH(cmdCtxLogger, opts)
+		if errSSH != nil {
+			return outputArr, errSSH
 		}
 	} else {
 
@@ -408,7 +164,7 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 			fieldsMap["cmd"] = opts.Cmds[cmd].Name
 			cmdToRun := opts.Cmds[cmd]
 
-			cmdLogger = cmdToRun.generateLogger(opts)
+			cmdLogger = cmdToRun.GenerateLogger(opts)
 			cmdLogger.Info().Fields(fieldsMap).Send()
 
 			outputArr, runOutErr := cmdToRun.RunCmd(cmdLogger, opts)
@@ -555,7 +311,7 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 func (config *ConfigOpts) ExecuteCmds(opts *ConfigOpts) {
 	for _, cmd := range opts.executeCmds {
 		cmdToRun := opts.Cmds[cmd]
-		cmdLogger := cmdToRun.generateLogger(opts)
+		cmdLogger := cmdToRun.GenerateLogger(opts)
 		_, runErr := cmdToRun.RunCmd(cmdLogger, opts)
 		if runErr != nil {
 			opts.Logger.Err(runErr).Send()
@@ -575,7 +331,6 @@ func (config *ConfigOpts) ExecuteCmds(opts *ConfigOpts) {
 
 func (c *ConfigOpts) closeHostConnections() {
 	for _, host := range c.Hosts {
-		c.Logger.Info().Str("server", host.HostName)
 		if host.isProxyHost {
 			continue
 		}
@@ -643,16 +398,33 @@ func (cmd *Command) ExecuteHooks(hookType string, opts *ConfigOpts) {
 	}
 }
 
-func (cmd *Command) generateLogger(opts *ConfigOpts) zerolog.Logger {
+func (cmd *Command) GenerateLogger(opts *ConfigOpts) zerolog.Logger {
 	cmdLogger := opts.Logger.With().
-		Str("backy-cmd", cmd.Name).Str("Host", "local machine").
+		Str("Backy-cmd", cmd.Name).Str("Host", "local machine").
 		Logger()
 
 	if cmd.Host != nil {
 		cmdLogger = opts.Logger.With().
-			Str("backy-cmd", cmd.Name).Str("Host", *cmd.Host).
+			Str("Backy-cmd", cmd.Name).Str("Host", *cmd.Host).
 			Logger()
 
 	}
 	return cmdLogger
+}
+
+func (opts *ConfigOpts) ExecCmdsSSH(cmdList []string, hostsList []string) {
+	// Iterate over hosts and exec commands
+	for _, h := range hostsList {
+		host := opts.Hosts[h]
+		for _, c := range cmdList {
+			cmd := opts.Cmds[c]
+			cmd.RemoteHost = host
+			cmd.Host = &host.Host
+			opts.Logger.Info().Str("host", h).Str("cmd", c).Send()
+			_, err := cmd.RunCmdSSH(cmd.GenerateLogger(opts), opts)
+			if err != nil {
+				opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
+			}
+		}
+	}
 }

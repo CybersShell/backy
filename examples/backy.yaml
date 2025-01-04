@@ -6,7 +6,12 @@ commands:
       - -f /some/path/to/docker-compose.yaml
       - down
     # if host is not defined, cmd will be run locally
-    host: some-host 
+    host: some-host
+    hooks:
+      final:
+        - hostname
+      error:
+        - hostname
   backup-docker-container-script:
     cmd: /path/to/script
     # The host has to be defined in the config file
@@ -21,6 +26,11 @@ commands:
       - -av some-host:/path/to/data ~/Docker/Backups/docker-data
   hostname:
     cmd: hostname
+  update-docker:
+    type: package
+    packageManager: apt
+    packageName: docker-ce
+    packageVersion: "5:27.4.1-1~debian.12~bookworm"
 
 cmd-lists:
   cmds-to-run: # this can be any name you want
@@ -31,7 +41,7 @@ cmd-lists:
       - shell-cmd
       - hostname
     notifications:
-      - matrix
+      - matrix.matrix
     name: backup-some-server
     cron: "0 0 1 * * *"
   hostname:
@@ -39,7 +49,7 @@ cmd-lists:
     order:
       - hostname
     notifications:
-      - prod-email
+      - mail.prod-email
 
 hosts:
   # any ssh_config(5) keys/values not listed here will be looked up in the config file or the default config file
@@ -63,20 +73,22 @@ logging:
 
 
 notifications:
-  prod-email:
-    id: prod-email
-    type: mail
-    host: yourhost.tld
-    port: 587
-    senderAddress: email@domain.tld
-    to:
-      - admin@domain.tld
-    username: smtp-username@domain.tld
-    password: your-password-here
+  mail:
+    prod-email:
+      id: prod-email
+      type: mail
+      host: yourhost.tld
+      port: 587
+      senderAddress: email@domain.tld
+      to:
+        - admin@domain.tld
+      username: smtp-username@domain.tld
+      password: your-password-here
   matrix:
-    id: matrix
-    type: matrix
-    home-server: your-home-server.tld
-    room-id: room-id
-    access-token: your-access-token
-    user-id: your-user-id
+    matrix:
+      id: matrix
+      type: matrix
+      home-server: your-home-server.tld
+      room-id: room-id
+      access-token: your-access-token
+      user-id: your-user-id

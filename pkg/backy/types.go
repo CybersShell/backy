@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
+	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/kevinburke/ssh_config"
 	"github.com/knadh/koanf/v2"
@@ -89,6 +90,53 @@ type (
 		GetOutput bool `yaml:"getOutput,omitempty"`
 
 		ScriptEnvFile string `yaml:"scriptEnvFile"`
+
+		PackageManager string `yaml:"packageManager,omitempty"`
+
+		PackageName string `yaml:"packageName,omitempty"`
+
+		// Version specifies the desired version for package execution
+		PackageVersion string `yaml:"packageVersion,omitempty"`
+
+		// PackageOperation specifies the action for package-related commands (e.g., "install" or "remove")
+		PackageOperation string `yaml:"packageOperation,omitempty"`
+
+		pkgMan pkgman.PackageManager
+
+		packageCmdSet bool
+
+		// RemoteSource specifies a URL to fetch the command or configuration remotely
+		RemoteSource string `yaml:"remoteSource,omitempty"`
+
+		// FetchBeforeExecution determines if the remoteSource should be fetched before running
+		FetchBeforeExecution bool `yaml:"fetchBeforeExecution,omitempty"`
+
+		// Username specifies the username for user creation or related operations
+		Username string `yaml:"username,omitempty"`
+
+		// Groups specifies the groups to add the user to
+		Groups []string `yaml:"groups,omitempty"`
+
+		// Home specifies the home directory for the user
+		Home string `yaml:"home,omitempty"`
+
+		// System specifies whether the user is a system account
+		System bool `yaml:"system,omitempty"`
+
+		// Password specifies the password for the user (can be file: or plain text)
+		Password string `yaml:"password,omitempty"`
+
+		// Operation specifies the action for user-related commands (e.g., "create" or "remove")
+		Operation string `yaml:"operation,omitempty"`
+	}
+
+	RemoteSource struct {
+		URL  string `yaml:"url"`
+		Type string `yaml:"type"` // e.g., yaml
+		Auth struct {
+			AccessKey string `yaml:"accessKey"`
+			SecretKey string `yaml:"secretKey"`
+		} `yaml:"auth"`
 	}
 
 	BackyOptionFunc func(*ConfigOpts)
@@ -103,6 +151,8 @@ type (
 		NotifyOnSuccess bool     `yaml:"notifyOnSuccess,omitempty"`
 
 		NotifyConfig *notify.Notify
+		Source       string `yaml:"source"` // URL to fetch remote commands
+		Type         string `yaml:"type"`
 	}
 
 	ConfigOpts struct {

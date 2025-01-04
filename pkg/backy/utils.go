@@ -233,3 +233,23 @@ func expandEnvVars(backyEnv map[string]string, envVars []string) {
 		}
 	}
 }
+
+// getPackageCommand checks for command type of package and if the command has already been set
+// Returns the modified Command with the packageManager command as Cmd and the packageOperation as args, plus any additional Args
+func getPackageCommand(command *Command) *Command {
+
+	if command.Type == "package" && !command.packageCmdSet {
+		command.packageCmdSet = true
+		switch command.PackageOperation {
+		case "install":
+			command.Cmd, command.Args = command.pkgMan.Install(command.PackageName, command.PackageVersion, command.Args)
+		case "remove":
+			command.Cmd, command.Args = command.pkgMan.Remove(command.PackageName, command.Args)
+		case "upgrade":
+			command.Cmd, command.Args = command.pkgMan.Upgrade(command.PackageName, command.PackageVersion)
+		}
+	} else if command.Type != "package" {
+		command.packageCmdSet = false
+	}
+	return command
+}

@@ -42,6 +42,13 @@ eval "${BACKYCOMMAND} exec -h >>  _index.md"
 echo "\`\`\`" >> _index.md
 echo "" >> _index.md
 
+echo "### exec host" >> _index.md
+echo "" >> _index.md
+echo "\`\`\`" >> _index.md
+eval "${BACKYCOMMAND} exec host -h >>  _index.md"
+echo "\`\`\`" >> _index.md
+echo "" >> _index.md
+
 
 echo "## version" >> _index.md
 echo "" >> _index.md

@@ -101,21 +101,25 @@ For more, [see the notification object documentation](/config/notifications). Th
 
 ```yaml
 notifications:
-  prod-email:
-    type: mail
-    host: yourhost.tld
-    port: 587
-    senderAddress: email@domain.tld
-    recipients:
-      - admin@domain.tld
-    username: smtp-username@domain.tld
-    password: your-password-here
+  mail:
+    prod-email:
+      id: prod-email
+      type: mail
+      host: yourhost.tld
+      port: 587
+      senderAddress: email@domain.tld
+      to:
+        - admin@domain.tld
+      username: smtp-username@domain.tld
+      password: your-password-here
   matrix:
-    type: matrix
-    home-server: your-home-server.tld
-    room-id: room-id
-    access-token: your-access-token
-    user-id: your-user-id
+    matrix:
+      id: matrix
+      type: matrix
+      home-server: your-home-server.tld
+      room-id: room-id
+      access-token: your-access-token
+      user-id: your-user-id
 ```
 
 ### Logging

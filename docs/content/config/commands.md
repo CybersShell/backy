@@ -36,27 +36,27 @@ commands:
       - APP=$VAR
 ```
 
-Values available for this section:
+Values available for this section **(case-sensitive)**:
 
 | name | notes | type | required
 | --- | --- | --- | --- |
 | `cmd` | Defines the command to execute | `string` | yes |
-| `args` | Defines the arguments to the command | `[]string` | no |
+| `Args` | Defines the arguments to the command | `[]string` | no |
 | `environment` | Defines evironment variables for the command | `[]string` | no |
-| `type` | May be `scriptFile` or `script`. Runs script from local machine on remote. Only applicable when `host` is defined. | `string` | no |
+| `type` | May be `scriptFile`, `script`, or `package`. Runs script from local machine on remote. `Package` is the only one that can be run on local and remote hosts. | `string` | no |
 | `getOutput` | Command(s) output is in the notification(s) | `bool` | no |
 | `host` | If not specified, the command will execute locally. | `string` | no |
-| `scriptEnvFile` | When type is `scriptFile`, the script is appended to this file. | `string` | no |
-| `shell` | Only applicable when host is not specified | `string` | no |
-| `hooks` | Hooks are used at the end of the individual command. Must be another command. | `[]string` | no |
+| `scriptEnvFile` | When type is `scriptFile` or `script`, this file is prepended to the input. | `string` | no |
+| `shell` | Run the command in the shell | `string` | no |
+| `hooks` | Hooks are used at the end of the individual command. Must have at least `error`, `success`, or `final`. | `map[string][]string` | no |
 
 #### cmd
 
 cmd must be a valid command or script to execute.
 
-#### args
+#### Args
 
-args must be arguments to cmd as they would be on the command-line:
+args must be arguments to cmd as they would be passed on the command-line:
 
 ```sh
 cmd [arg1 arg2 ...]
@@ -65,7 +65,7 @@ cmd [arg1 arg2 ...]
 Define them in an array:
 
 ```yaml
-args:
+Args:
   - arg1
   - arg2
   - arg3
@@ -94,14 +94,14 @@ If I assign a value to host as `host: web-prod` and don't specify this value in 
 
 ### shell
 
-If shell is defined and host is NOT defined, the command will run in the specified shell.
+If shell is defined, the command will run in the specified shell.
 Make sure to escape any shell input.
 
 ### scriptEnvFile
 
 Path to a file.
 
-When type is specified, the script is appended to this file.
+When type is `script` or `scriptFile` , the script is appended to this file.
 
 This is useful for specifying environment variables or other things so they don't have to be included in the script.
 
@@ -112,6 +112,8 @@ May be `scriptFile` or `script`. Runs script from local machine on remote host p
 If `type` is `script`, `cmd` is used as the script.
 
 If `type` is `scriptFile`, cmd must be a script file.
+
+If `type` is `package`, there are additional fields that must be specified.
 
 ### environment
 
@@ -144,3 +146,7 @@ command:
     final:
       - donecommand
 ```
+
+### packages
+
+See the [dedicated page](/config/packages) for package configuration.

@@ -1,13 +1,17 @@
-baseURL = 'http://example.org/'
+baseURL = 'http://backy.cybershell.xyz/'
 languageCode = 'en-us'
 title = 'A tool for commands'
 
 # Change the default theme to be use when building the site with Hugo
-theme = "hugo-theme-relearn"
+theme = [ "hugo-theme-relearn", "plausible-hugo"]  # Add this theme to your already existing other themes
 
 # For search functionality
 [outputs]
-home = [ "HTML", "RSS", "SEARCH"]
+home = [ "HTML", "RSS", "PRINT"]
+
+[module]
+  [[module.imports]]
+    path = "github.com/divinerites/plausible-hugo"
 
 [params]
   # This controls whether submenus will be expanded (true), or collapsed (false) in the
@@ -18,8 +22,6 @@ home = [ "HTML", "RSS", "SEARCH"]
   # Useful to give opportunity to people to create merge request for your doc.
   # See the config.toml file from this documentation site to have an example.
   editURL = ""
-  # Author of the site, will be used in meta information
-  author = ""
   # Description of the site, will be used in meta information
   description = ""
   # Shows a checkmark for visited pages on the menu
@@ -52,13 +54,13 @@ home = [ "HTML", "RSS", "SEARCH"]
   # If set to true, hide table of contents menu in the header of all pages
   disableToc = false
   # If set to false, load the MathJax module on every page regardless if a MathJax shortcode is present
-  disableMathJax = false
+  math = true
   # Specifies the remote location of the MathJax js
   customMathJaxURL = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
   # Initialization parameter for MathJax, see MathJax documentation
   mathJaxInitialize = "{}"
   # If set to false, load the Mermaid module on every page regardless if a Mermaid shortcode or Mermaid codefence is present
-  disableMermaid = false
+  mermaid = true
   # Specifies the remote location of the Mermaid js
   customMermaidURL = "https://unpkg.com/mermaid/dist/mermaid.min.js"
   # Initialization parameter for Mermaid, see Mermaid documentation
@@ -74,8 +76,42 @@ home = [ "HTML", "RSS", "SEARCH"]
   # Order sections in menu by "weight" or "title". Default to "weight";
   # this can be overridden in the pages frontmatter
   ordersectionsby = "weight"
-  # Change default color scheme with a variant one. Eg. can be "auto", "red", "blue", "green" or an array like [ "blue", "green" ].
-  themeVariant = "auto"
+  
+  [[params.themeVariant]]
+    auto = []
+    identifier = 'relearn-auto'
+    name = 'Relearn Light/Dark'
+
+  [[params.themeVariant]]
+    identifier = 'relearn-light'
+
+  [[params.themeVariant]]
+    identifier = 'relearn-dark'
+
+  [[params.themeVariant]]
+    identifier = 'relearn-bright'
+
+  [[params.themeVariant]]
+    auto = ['zen-light', 'zen-dark']
+    identifier = 'zen-auto'
+    name = 'Zen Light/Dark'
+
+  [[params.themeVariant]]
+    identifier = 'zen-light'
+
+  [[params.themeVariant]]
+    identifier = 'zen-dark'
+
+  [[params.themeVariant]]
+    auto = ['learn', 'neon']
+    identifier = 'retro-auto'
+    name = 'Retro Learn/Neon'
+
+  [[params.themeVariant]]
+    identifier = 'neon'
+
+  [[params.themeVariant]]
+    identifier = 'learn'
   # Change the title separator. Default to "::".
   titleSeparator = "-"
   # If set to true, the menu in the sidebar will be displayed in a collapsible tree view. Although the functionality works with old browsers (IE11), the display of the expander icons is limited to modern browsers
@@ -87,4 +123,15 @@ home = [ "HTML", "RSS", "SEARCH"]
   disableExplicitIndexURLs = false
   # For external links you can define how they are opened in your browser; this setting will only be applied to the content area but not the shortcut menu
   externalLinkTarget = "_blank"
+  # Author of the site, will be used in meta information
+  [params.author]
+    name = "Andrew Woodlee"
+
+
+  [params.plausible]
+    enable = true  # Whether to enable plausible tracking
+    domain = "backy.cybershell.xyz"  # Plausible "domain" name/id in your dashboard
+    outbound_link = true
+    gitstar = false
+    selfhosted_domain = "stats.andrewnw.com"  # Self-hosted plausible domain
   

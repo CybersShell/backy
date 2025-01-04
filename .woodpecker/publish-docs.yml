@@ -4,6 +4,7 @@ steps:
     commands:
       - git submodule foreach 'git fetch origin; git checkout $(git describe --tags `git rev-list --tags --max-count=1`);'
       - cd docs
+      - hugo mod get -u ./...
       - hugo
     when:
       - event: push

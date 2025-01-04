@@ -6,7 +6,9 @@ package backy
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"strconv"
@@ -23,12 +25,12 @@ import (
 var PrivateKeyExtraInfoErr = errors.New("Private key may be encrypted. \nIf encrypted, make sure the password is specified correctly in the correct section. This may be done in one of three ways: \n privatekeypassword: env:PR_KEY_PASS \n privatekeypassword: file:/path/to/password-file \n privatekeypassword: password (not recommended). \n ")
 var TS = strings.TrimSpace
 
-// ConnectToSSHHost connects to a host by looking up the config values in the directory ~/.ssh/config
+// ConnectToHost connects to a host by looking up the config values in the file ~/.ssh/config
 // It uses any set values and looks up an unset values in the config files
-// It returns an ssh.Client used to run commands against.
+// remoteConfig is modified directly. The *ssh.Client is returned as part of remoteConfig,
 // If configFile is empty, any required configuration is looked up in the default config files
 // If any value is not found, defaults are used
-func (remoteConfig *Host) ConnectToSSHHost(opts *ConfigOpts) error {
+func (remoteConfig *Host) ConnectToHost(opts *ConfigOpts) error {
 
 	var connectErr error
 
@@ -476,4 +478,212 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *Confi
 	hosts[remoteConfig.Host] = remoteConfig
 
 	return nil
+}
+
+// RunCmdSSH runs commands over SSH.
+func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([]string, error) {
+	var (
+		ArgsStr       string
+		cmdOutBuf     bytes.Buffer
+		cmdOutWriters io.Writer
+
+		envVars = environmentVars{
+			file: command.Env,
+			env:  command.Environment,
+		}
+	)
+
+	command.Type = strings.TrimSpace(command.Type)
+	command = getPackageCommand(command)
+
+	// Prepare command arguments
+	for _, v := range command.Args {
+		ArgsStr += fmt.Sprintf(" %s", v)
+	}
+
+	cmdCtxLogger.Info().
+		Str("Command", command.Name).
+		Str("Host", *command.Host).
+		Msgf("Running %s on host %s", getCommandTypeLabel(command.Type), *command.Host)
+
+	cmdCtxLogger.Debug().Str("cmd", command.Cmd).Strs("args", command.Args).Send()
+
+	// Ensure SSH client is connected
+	if command.RemoteHost.SshClient == nil {
+		if err := command.RemoteHost.ConnectToHost(opts); err != nil {
+			return nil, fmt.Errorf("failed to connect to host: %w", err)
+		}
+	}
+
+	// Create new SSH session
+	commandSession, err := command.createSSHSession(opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create SSH session: %w", err)
+	}
+	defer commandSession.Close()
+
+	// Inject environment variables
+	injectEnvIntoSSH(envVars, commandSession, opts, cmdCtxLogger)
+
+	// Set output writers
+	cmdOutWriters = io.MultiWriter(&cmdOutBuf)
+	if IsCmdStdOutEnabled() {
+		cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
+	}
+	commandSession.Stdout = cmdOutWriters
+	commandSession.Stderr = cmdOutWriters
+
+	// Handle command execution based on type
+	switch command.Type {
+	case "script":
+		return command.runScript(commandSession, cmdCtxLogger, &cmdOutBuf)
+	case "scriptFile":
+		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
+	default:
+		if command.Shell != "" {
+			ArgsStr = fmt.Sprintf("%s -c '%s %s'", command.Shell, command.Cmd, ArgsStr)
+		} else {
+			ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
+		}
+		cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
+		// Run simple command
+		if err := commandSession.Run(ArgsStr); err != nil {
+			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger), fmt.Errorf("error running command: %w", err)
+		}
+	}
+
+	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger), nil
+}
+
+// getCommandTypeLabel returns a human-readable label for the command type.
+func getCommandTypeLabel(commandType string) string {
+	if commandType == "" {
+		return "command"
+	}
+	return fmt.Sprintf("%s command", commandType)
+}
+
+// createSSHSession attempts to create a new SSH session and retries on failure.
+func (command *Command) createSSHSession(opts *ConfigOpts) (*ssh.Session, error) {
+	session, err := command.RemoteHost.SshClient.NewSession()
+	if err == nil {
+		return session, nil
+	}
+
+	// Retry connection and session creation
+	if connErr := command.RemoteHost.ConnectToHost(opts); connErr != nil {
+		return nil, fmt.Errorf("session creation failed: %v, connection retry failed: %v", err, connErr)
+	}
+	return command.RemoteHost.SshClient.NewSession()
+}
+
+// runScript handles the execution of inline scripts.
+func (command *Command) runScript(session *ssh.Session, cmdCtxLogger zerolog.Logger, outputBuf *bytes.Buffer) ([]string, error) {
+	script, err := command.prepareScriptBuffer()
+	if err != nil {
+		return nil, err
+	}
+	session.Stdin = script
+
+	if err := session.Shell(); err != nil {
+		return nil, fmt.Errorf("error starting shell: %w", err)
+	}
+
+	if err := session.Wait(); err != nil {
+		return collectOutput(outputBuf, command.Name, cmdCtxLogger), fmt.Errorf("error waiting for shell: %w", err)
+	}
+
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger), nil
+}
+
+// runScriptFile handles the execution of script files.
+func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger zerolog.Logger, outputBuf *bytes.Buffer) ([]string, error) {
+	script, err := command.prepareScriptFileBuffer()
+	if err != nil {
+		return nil, err
+	}
+	session.Stdin = script
+
+	if err := session.Shell(); err != nil {
+		return nil, fmt.Errorf("error starting shell: %w", err)
+	}
+
+	if err := session.Wait(); err != nil {
+		return collectOutput(outputBuf, command.Name, cmdCtxLogger), fmt.Errorf("error waiting for shell: %w", err)
+	}
+
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger), nil
+}
+
+// prepareScriptBuffer prepares a buffer for inline scripts.
+func (command *Command) prepareScriptBuffer() (*bytes.Buffer, error) {
+	var buffer bytes.Buffer
+
+	if command.ScriptEnvFile != "" {
+		envBuffer, err := readFileToBuffer(command.ScriptEnvFile)
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(envBuffer.Bytes())
+		buffer.WriteByte('\n')
+	}
+
+	buffer.WriteString(command.Cmd + "\n")
+	return &buffer, nil
+}
+
+// prepareScriptFileBuffer prepares a buffer for script files.
+func (command *Command) prepareScriptFileBuffer() (*bytes.Buffer, error) {
+	var buffer bytes.Buffer
+
+	// Handle script environment file
+	if command.ScriptEnvFile != "" {
+		envBuffer, err := readFileToBuffer(command.ScriptEnvFile)
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(envBuffer.Bytes())
+		buffer.WriteByte('\n')
+	}
+
+	// Handle script file
+	scriptBuffer, err := readFileToBuffer(command.Cmd)
+	if err != nil {
+		return nil, err
+	}
+	buffer.Write(scriptBuffer.Bytes())
+
+	return &buffer, nil
+}
+
+// readFileToBuffer reads a file into a buffer.
+func readFileToBuffer(filePath string) (*bytes.Buffer, error) {
+	resolvedPath, err := resolveDir(filePath)
+	if err != nil {
+		return nil, err
+	}
+	file, err := os.Open(resolvedPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var buffer bytes.Buffer
+	if _, err := io.Copy(&buffer, file); err != nil {
+		return nil, err
+	}
+
+	return &buffer, nil
+}
+
+// collectOutput collects output from a buffer and logs it.
+func collectOutput(buf *bytes.Buffer, commandName string, logger zerolog.Logger) []string {
+	var outputArr []string
+	scanner := bufio.NewScanner(buf)
+	for scanner.Scan() {
+		line := scanner.Text()
+		outputArr = append(outputArr, line)
+		logger.Info().Str("cmd", commandName).Str("output", line).Send()
+	}
+	return outputArr
 }

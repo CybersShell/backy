@@ -73,9 +73,34 @@ Exec executes commands defined in config file in order given.
 
 Usage:
   backy exec command ... [flags]
+  backy exec [command]
+
+Available Commands:
+  host        Runs command defined in config file on the hosts in order specified.
 
 Flags:
   -h, --help   help for exec
+
+Global Flags:
+  -f, --config string   config file to read from
+  -v, --verbose         Sets verbose level
+
+Use "backy exec [command] --help" for more information about a command.
+```
+
+### exec host
+
+```
+Host executes specified commands on the hosts defined in config file.
+Use the --commands or -c flag to choose the commands.
+
+Usage:
+  backy exec host [--commands=command1,command2, ... | -c command1,command2, ...] [--hosts=host1,hosts2, ... | -m host1,host2, ...]  [flags]
+
+Flags:
+  -c, --commands strings   Accepts comma-separated names of commands.
+  -h, --help               help for host
+  -m, --hosts strings      Accepts comma-separated names of hosts.
 
 Global Flags:
   -f, --config string   config file to read from
