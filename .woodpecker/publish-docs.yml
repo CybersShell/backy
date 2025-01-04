@@ -4,7 +4,8 @@ steps:
     commands:
       - git submodule foreach 'git fetch origin; git checkout $(git describe --tags `git rev-list --tags --max-count=1`);'
       - cd docs
-      - hugo mod get -u ./...
+      - hugo mod get -u github.com/divinerites/plausible-hugo
+      - hugo mod get -u github.com/McShelby/hugo-theme-relearn@7.3.1
       - hugo
 
   deploy:
