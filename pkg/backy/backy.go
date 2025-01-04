@@ -144,115 +144,123 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 	return outputArr, nil
 }
 
-// cmdListWorker
-func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- string, opts *ConfigOpts) {
-	// iterate over list to run
-	res := CmdListResults{}
+func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- CmdResult, opts *ConfigOpts) {
 	for list := range jobs {
-		fieldsMap := make(map[string]interface{})
-		fieldsMap["list"] = list.Name
+		fieldsMap := map[string]interface{}{"list": list.Name}
 		var cmdLogger zerolog.Logger
-
-		var count int                // count of how many commands have been executed
-		var cmdsRan []string         // store the commands that have been executed
-		var outStructArr []outStruct // stores output messages
+		var cmdsRan []string
+		var outStructArr []outStruct
+		var hasError bool // Tracks if any command in the list failed
 
 		for _, cmd := range list.Order {
-
-			currentCmd := opts.Cmds[cmd].Name
-
-			fieldsMap["cmd"] = opts.Cmds[cmd].Name
 			cmdToRun := opts.Cmds[cmd]
-
+			currentCmd := cmdToRun.Name
+			fieldsMap["cmd"] = currentCmd
 			cmdLogger = cmdToRun.GenerateLogger(opts)
 			cmdLogger.Info().Fields(fieldsMap).Send()
 
-			outputArr, runOutErr := cmdToRun.RunCmd(cmdLogger, opts)
+			outputArr, runErr := cmdToRun.RunCmd(cmdLogger, opts)
+			cmdsRan = append(cmdsRan, cmd)
 
-			if list.NotifyConfig != nil {
+			if runErr != nil {
 
-				// check if the command output should be included
-				if cmdToRun.GetOutput || list.GetOutput {
-					outputStruct := outStruct{
-						CmdName:     cmdToRun.Name,
-						CmdExecuted: currentCmd,
-						Output:      outputArr,
-					}
+				// Log the error and send a failed result
+				cmdLogger.Err(runErr).Send()
+				results <- CmdResult{CmdName: cmd, ListName: list.Name, Error: runErr}
 
-					outStructArr = append(outStructArr, outputStruct)
+				// Execute error hooks for the failed command
+				cmdToRun.ExecuteHooks("error", opts)
 
-				}
-			}
-			count++
-			if runOutErr != nil {
-				res.ErrCmd = cmd
+				// Notify failure
 				if list.NotifyConfig != nil {
-					var errMsg bytes.Buffer
-					errStruct := make(map[string]interface{})
-
-					errStruct["listName"] = list.Name
-					errStruct["Command"] = currentCmd
-					errStruct["Cmd"] = cmd
-					errStruct["Args"] = opts.Cmds[cmd].Args
-					errStruct["Err"] = runOutErr
-					errStruct["CmdsRan"] = cmdsRan
-					errStruct["Output"] = outputArr
-
-					errStruct["CmdOutput"] = outStructArr
-
-					tmpErr := msgTemps.err.Execute(&errMsg, errStruct)
-
-					if tmpErr != nil {
-						cmdLogger.Err(tmpErr).Send()
-					}
-
-					notifySendErr := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s failed", list.Name), errMsg.String())
-
-					if notifySendErr != nil {
-						cmdLogger.Err(notifySendErr).Send()
-					}
+					notifyError(cmdLogger, msgTemps, list, cmdsRan, outStructArr, runErr, cmdToRun, opts)
 				}
-
-				cmdLogger.Err(runOutErr).Send()
-
+				hasError = true
 				break
-			} else {
+			}
 
-				cmdsRan = append(cmdsRan, cmd)
-
-				if count == len(list.Order) {
-					var successMsg bytes.Buffer
-
-					// if notification config is not nil, and NotifyOnSuccess is true or GetOuput is true,
-					// then send notification
-					if list.NotifyConfig != nil && (list.NotifyOnSuccess || list.GetOutput) {
-						successStruct := make(map[string]interface{})
-
-						successStruct["listName"] = list.Name
-						successStruct["CmdsRan"] = cmdsRan
-
-						successStruct["CmdOutput"] = outStructArr
-
-						tmpErr := msgTemps.success.Execute(&successMsg, successStruct)
-
-						if tmpErr != nil {
-							cmdLogger.Err(tmpErr).Send()
-							break
-						}
-
-						err := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s succeeded", list.Name), successMsg.String())
-
-						if err != nil {
-							cmdLogger.Err(err).Send()
-						}
-					}
-				}
+			// Collect output if required
+			if list.GetOutput || cmdToRun.GetOutput {
+				outStructArr = append(outStructArr, outStruct{
+					CmdName:     currentCmd,
+					CmdExecuted: currentCmd,
+					Output:      outputArr,
+				})
 			}
 		}
 
-		results <- res.ErrCmd
-	}
+		// Notify success if no errors occurred
+		if !hasError && list.NotifyConfig != nil && (list.NotifyOnSuccess || list.GetOutput) {
+			notifySuccess(cmdLogger, msgTemps, list, cmdsRan, outStructArr)
+		}
 
+		// Execute success and final hooks for all commands
+		for _, cmd := range list.Order {
+			cmdToRun := opts.Cmds[cmd]
+
+			// Execute success hooks if the command succeeded
+			if !hasError || cmdsRanContains(cmd, cmdsRan) {
+				cmdToRun.ExecuteHooks("success", opts)
+			}
+
+			// Execute final hooks for every command
+			cmdToRun.ExecuteHooks("final", opts)
+		}
+
+		// Send the final result for the list
+		if hasError {
+			results <- CmdResult{CmdName: cmdsRan[len(cmdsRan)-1], ListName: list.Name, Error: fmt.Errorf("list execution failed")}
+		} else {
+			results <- CmdResult{CmdName: cmdsRan[len(cmdsRan)-1], ListName: list.Name, Error: nil}
+		}
+	}
+}
+
+// Helper to check if a command is in the list of executed commands
+func cmdsRanContains(cmd string, cmdsRan []string) bool {
+	for _, c := range cmdsRan {
+		if c == cmd {
+			return true
+		}
+	}
+	return false
+}
+
+// Helper to notify errors
+func notifyError(logger zerolog.Logger, templates *msgTemplates, list *CmdList, cmdsRan []string, outStructArr []outStruct, err error, cmd *Command, opts *ConfigOpts) {
+	errStruct := map[string]interface{}{
+		"listName":  list.Name,
+		"CmdsRan":   cmdsRan,
+		"CmdOutput": outStructArr,
+		"Err":       err,
+		"Command":   cmd.Name,
+		"Args":      cmd.Args,
+	}
+	var errMsg bytes.Buffer
+	if e := templates.err.Execute(&errMsg, errStruct); e != nil {
+		logger.Err(e).Send()
+		return
+	}
+	if e := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s failed", list.Name), errMsg.String()); e != nil {
+		logger.Err(e).Send()
+	}
+}
+
+// Helper to notify success
+func notifySuccess(logger zerolog.Logger, templates *msgTemplates, list *CmdList, cmdsRan []string, outStructArr []outStruct) {
+	successStruct := map[string]interface{}{
+		"listName":  list.Name,
+		"CmdsRan":   cmdsRan,
+		"CmdOutput": outStructArr,
+	}
+	var successMsg bytes.Buffer
+	if e := templates.success.Execute(&successMsg, successStruct); e != nil {
+		logger.Err(e).Send()
+		return
+	}
+	if e := list.NotifyConfig.Send(context.Background(), fmt.Sprintf("List %s succeeded", list.Name), successMsg.String()); e != nil {
+		logger.Err(e).Send()
+	}
 }
 
 // RunListConfig runs a command list from the ConfigFile.
@@ -263,49 +271,38 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 	}
 	configListsLen := len(opts.CmdConfigLists)
 	listChan := make(chan *CmdList, configListsLen)
-	results := make(chan string)
+	results := make(chan CmdResult, configListsLen)
 
-	// This starts up list workers, initially blocked
-	// because there are no jobs yet.
+	// Start workers
 	for w := 1; w <= configListsLen; w++ {
 		go cmdListWorker(mTemps, listChan, results, opts)
 	}
 
+	// Enqueue jobs
 	for listName, cmdConfig := range opts.CmdConfigLists {
 		if cmdConfig.Name == "" {
 			cmdConfig.Name = listName
 		}
-		if cron != "" {
-			if cron == cmdConfig.Cron {
-				listChan <- cmdConfig
-			}
-		} else {
+		if cron == "" || cron == cmdConfig.Cron {
 			listChan <- cmdConfig
 		}
 	}
 	close(listChan)
 
+	// Process results
 	for a := 1; a <= configListsLen; a++ {
-		l := <-results
+		result := <-results
+		opts.Logger.Debug().Msgf("Processing result for list %s, command %s", result.ListName, result.CmdName)
 
-		opts.Logger.Debug().Msg(l)
-
-		if l != "" {
-			// execute error hooks
-			opts.Logger.Debug().Msg("hooks are working")
-			opts.Cmds[l].ExecuteHooks("error", opts)
-		} else {
-			// execute success hooks
-			opts.Cmds[l].ExecuteHooks("success", opts)
-
-		}
-
-		// execute final hooks
-		opts.Cmds[l].ExecuteHooks("final", opts)
-
+		// Process final hooks for the list (already handled in worker)
 	}
-
 	opts.closeHostConnections()
+}
+
+type CmdResult struct {
+	CmdName  string // Name of the command executed
+	ListName string // Name of the command list
+	Error    error  // Error encountered, if any
 }
 
 func (config *ConfigOpts) ExecuteCmds(opts *ConfigOpts) {
