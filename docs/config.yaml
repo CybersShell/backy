@@ -12,6 +12,7 @@ outputs:
 module:
   imports:
     - path: github.com/divinerites/plausible-hugo
+    - path: github.com/McShelby/hugo-theme-relearn
 params:
   themeVariant:
     - auto: []
