@@ -49,63 +49,56 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		ArgsStr += fmt.Sprintf(" %s", v)
 	}
 
-	command = getPackageCommand(command)
+	command = getCommandType(command)
+
+	if command.Type == "user" {
+		if command.UserOperation == "password" {
+			cmdCtxLogger.Info().Str("password", command.UserPassword).Msg("user password to be updated")
+		}
+	}
 
 	var errSSH error
 	// is host defined
 	if command.Host != nil {
+		print("host is defined")
 		outputArr, errSSH = command.RunCmdSSH(cmdCtxLogger, opts)
 		if errSSH != nil {
 			return outputArr, errSSH
 		}
 	} else {
 
+		// Handle package operations
+		if command.Type == "package" && command.PackageOperation == "checkVersion" {
+			cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Checking package versions")
+
+			// Execute the package version command
+			cmd := exec.Command(command.Cmd, command.Args...)
+			cmdOutWriters = io.MultiWriter(&cmdOutBuf)
+			cmd.Stdout = cmdOutWriters
+			cmd.Stderr = cmdOutWriters
+
+			if err := cmd.Run(); err != nil {
+				return nil, fmt.Errorf("error running command %s policy: %w", ArgsStr, err)
+			}
+
+			return parsePackageVersion(cmdOutBuf.String(), cmdCtxLogger, command, cmdOutBuf)
+		}
+
+		var localCMD *exec.Cmd
 		var err error
 		if command.Shell != "" {
 			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine in %s", command.Name, command.Shell)).Send()
 
 			ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
 
-			localCMD := exec.Command(command.Shell, "-c", ArgsStr)
+			localCMD = exec.Command(command.Shell, "-c", ArgsStr)
 
-			if command.Dir != nil {
-				localCMD.Dir = *command.Dir
-			}
-			injectEnvIntoLocalCMD(envVars, localCMD, cmdCtxLogger)
+		} else {
 
-			cmdOutWriters = io.MultiWriter(&cmdOutBuf)
+			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine", command.Name)).Send()
 
-			if IsCmdStdOutEnabled() {
-				cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
-			}
-
-			localCMD.Stdout = cmdOutWriters
-			localCMD.Stderr = cmdOutWriters
-
-			err = localCMD.Run()
-
-			outScanner := bufio.NewScanner(&cmdOutBuf)
-
-			for outScanner.Scan() {
-				outMap := make(map[string]interface{})
-				outMap["cmd"] = command.Name
-				outMap["output"] = outScanner.Text()
-				if str, ok := outMap["output"].(string); ok {
-					outputArr = append(outputArr, str)
-				}
-				cmdCtxLogger.Info().Fields(outMap).Send()
-			}
-
-			if err != nil {
-				cmdCtxLogger.Error().Err(fmt.Errorf("error when running cmd %s: %w", command.Name, err)).Send()
-				return outputArr, err
-			}
-			return outputArr, nil
+			localCMD = exec.Command(command.Cmd, command.Args...)
 		}
-
-		cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine", command.Name)).Send()
-
-		localCMD := exec.Command(command.Cmd, command.Args...)
 
 		if command.Dir != nil {
 			localCMD.Dir = *command.Dir
@@ -134,7 +127,9 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			if str, ok := outMap["output"].(string); ok {
 				outputArr = append(outputArr, str)
 			}
+			// if command.GetOutput {
 			cmdCtxLogger.Info().Fields(outMap).Send()
+			// }
 		}
 		if err != nil {
 			cmdCtxLogger.Error().Err(fmt.Errorf("error when running cmd %s: %w", command.Name, err)).Send()
@@ -173,7 +168,7 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 
 				// Notify failure
 				if list.NotifyConfig != nil {
-					notifyError(cmdLogger, msgTemps, list, cmdsRan, outStructArr, runErr, cmdToRun, opts)
+					notifyError(cmdLogger, msgTemps, list, cmdsRan, outStructArr, runErr, cmdToRun)
 				}
 				hasError = true
 				break
@@ -227,7 +222,7 @@ func cmdsRanContains(cmd string, cmdsRan []string) bool {
 }
 
 // Helper to notify errors
-func notifyError(logger zerolog.Logger, templates *msgTemplates, list *CmdList, cmdsRan []string, outStructArr []outStruct, err error, cmd *Command, opts *ConfigOpts) {
+func notifyError(logger zerolog.Logger, templates *msgTemplates, list *CmdList, cmdsRan []string, outStructArr []outStruct, err error, cmd *Command) {
 	errStruct := map[string]interface{}{
 		"listName":  list.Name,
 		"CmdsRan":   cmdsRan,
@@ -299,13 +294,7 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 	opts.closeHostConnections()
 }
 
-type CmdResult struct {
-	CmdName  string // Name of the command executed
-	ListName string // Name of the command list
-	Error    error  // Error encountered, if any
-}
-
-func (config *ConfigOpts) ExecuteCmds(opts *ConfigOpts) {
+func (opts *ConfigOpts) ExecuteCmds() {
 	for _, cmd := range opts.executeCmds {
 		cmdToRun := opts.Cmds[cmd]
 		cmdLogger := cmdToRun.GenerateLogger(opts)
@@ -425,3 +414,14 @@ func (opts *ConfigOpts) ExecCmdsSSH(cmdList []string, hostsList []string) {
 		}
 	}
 }
+
+// func executeUserCommands() []string {
+
+// }
+
+// // parseRemoteSources parses source and validates fields using sourceType
+// func (c *Command) parseRemoteSources(source, sourceType string) {
+// 	switch sourceType {
+
+// 	}
+// }

@@ -29,10 +29,10 @@ func init() {
 //    2. stdin (on command line) (TODO)
 
 func Host(cmd *cobra.Command, args []string) {
-	backyConfOpts := backy.NewOpts(cfgFile)
+	backyConfOpts := backy.NewOpts(cfgFile, backy.SetLogFile(logFile))
 	backyConfOpts.InitConfig()
 
-	backy.ReadConfig(backyConfOpts)
+	backyConfOpts.ReadConfig()
 
 	// check CLI input
 	if hostsList == nil {

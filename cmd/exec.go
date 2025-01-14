@@ -33,8 +33,8 @@ func execute(cmd *cobra.Command, args []string) {
 		logging.ExitWithMSG("Please provide a command to run. Pass --help to see options.", 1, nil)
 	}
 
-	opts := backy.NewOpts(cfgFile, backy.AddCommands(args))
+	opts := backy.NewOpts(cfgFile, backy.AddCommands(args), backy.SetLogFile(logFile))
 	opts.InitConfig()
-	// opts.InitMongo()
-	backy.ReadConfig(opts).ExecuteCmds(opts)
+	opts.ReadConfig()
+	opts.ExecuteCmds()
 }

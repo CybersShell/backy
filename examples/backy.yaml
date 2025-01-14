@@ -28,9 +28,10 @@ commands:
     cmd: hostname
   update-docker:
     type: package
-    packageManager: apt
     packageName: docker-ce
+    packageManager: apt
     packageVersion: "5:27.4.1-1~debian.12~bookworm"
+    packageOperation: update
 
 cmd-lists:
   cmds-to-run: # this can be any name you want
@@ -67,7 +68,7 @@ hosts:
 # optional
 logging:
   verbose: true
-  file: /path/to/logs/commands.log
+  file: ./backy.log
   console: false
   cmd-std-out: false
 

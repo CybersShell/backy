@@ -2,17 +2,19 @@ package backy
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 
+	"git.andrewnw.xyz/CyberShell/backy/pkg/configfetcher"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman"
+	"git.andrewnw.xyz/CyberShell/backy/pkg/usermanager"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/knadh/koanf/parsers/yaml"
-	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/providers/rawbytes"
 	"github.com/knadh/koanf/v2"
 	"github.com/mattn/go-isatty"
 	"github.com/rs/zerolog"
@@ -26,63 +28,71 @@ var configFiles []string
 const macroStart string = "%{"
 const macroEnd string = "}%"
 const envMacroStart string = "%{env:"
-const vaultMacroStart string = "%{env:"
+const vaultMacroStart string = "%{vault:"
 
 func (opts *ConfigOpts) InitConfig() {
-
-	homeDir, homeDirErr = os.UserHomeDir()
-
-	if homeDirErr != nil {
-		fmt.Println(homeDirErr)
-		logging.ExitWithMSG(homeDirErr.Error(), 1, nil)
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		logging.ExitWithMSG(err.Error(), 1, nil)
 	}
 
-	backyHomeConfDir = homeDir + "/.config/backy/"
-
-	configFiles = []string{"./backy.yml", "./backy.yaml", backyHomeConfDir + "backy.yml", backyHomeConfDir + "backy.yaml"}
+	backyHomeConfDir := path.Join(homeDir, ".config/backy/")
+	configFiles := []string{
+		"./backy.yml", "./backy.yaml",
+		path.Join(backyHomeConfDir, "backy.yml"),
+		path.Join(backyHomeConfDir, "backy.yaml"),
+	}
 
 	backyKoanf := koanf.New(".")
-
 	opts.ConfigFilePath = strings.TrimSpace(opts.ConfigFilePath)
 
+	// Initialize the fetcher
+	fetcher := configfetcher.NewConfigFetcher(opts.ConfigFilePath)
+
 	if opts.ConfigFilePath != "" {
-		err := testFile(opts.ConfigFilePath)
-		if err != nil {
-			logging.ExitWithMSG(fmt.Sprintf("Could not open config file %s: %v", opts.ConfigFilePath, err), 1, nil)
-		}
-
-		if err := backyKoanf.Load(file.Provider(opts.ConfigFilePath), yaml.Parser()); err != nil {
-			logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
-		}
+		loadConfigFile(fetcher, opts.ConfigFilePath, backyKoanf, opts)
 	} else {
-
-		cFileFailures := 0
-		for _, c := range configFiles {
-			if err := backyKoanf.Load(file.Provider(c), yaml.Parser()); err != nil {
-				cFileFailures++
-			} else {
-				opts.ConfigFilePath = c
-				break
-			}
-		}
-		if cFileFailures == len(configFiles) {
-			logging.ExitWithMSG(fmt.Sprintf("could not find a config file. Put one in the following paths: %v", configFiles), 1, &opts.Logger)
-		}
+		loadDefaultConfigFiles(fetcher, configFiles, backyKoanf, opts)
 	}
 
 	opts.koanf = backyKoanf
 }
 
-// ReadConfig validates and reads the config file.
-func ReadConfig(opts *ConfigOpts) *ConfigOpts {
-
-	if isatty.IsTerminal(os.Stdout.Fd()) {
-		os.Setenv("BACKY_TERM", "enabled")
-	} else if isatty.IsCygwinTerminal(os.Stdout.Fd()) {
-		os.Setenv("BACKY_TERM", "enabled")
-	} else {
-		os.Setenv("BACKY_TERM", "disabled")
+func loadConfigFile(fetcher configfetcher.ConfigFetcher, filePath string, k *koanf.Koanf, opts *ConfigOpts) {
+	data, err := fetcher.Fetch(filePath)
+	if err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("Could not fetch config file %s: %v", filePath, err), 1, nil)
 	}
+
+	if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
+	}
+}
+
+func loadDefaultConfigFiles(fetcher configfetcher.ConfigFetcher, configFiles []string, k *koanf.Koanf, opts *ConfigOpts) {
+	cFileFailures := 0
+	for _, c := range configFiles {
+		data, err := fetcher.Fetch(c)
+		if err != nil {
+			cFileFailures++
+			continue
+		}
+
+		if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
+			cFileFailures++
+			continue
+		}
+
+		break
+	}
+
+	if cFileFailures == len(configFiles) {
+		logging.ExitWithMSG("Could not find any valid config file", 1, nil)
+	}
+}
+
+func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
+	setTerminalEnv()
 
 	backyKoanf := opts.koanf
 
@@ -94,228 +104,39 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 
 	CheckConfigValues(backyKoanf, opts.ConfigFilePath)
 
-	// check for commands in file
-	for _, c := range opts.executeCmds {
-		if !backyKoanf.Exists(getCmdFromConfig(c)) {
-			logging.ExitWithMSG(Sprintf("command %s is not in config file %s", c, opts.ConfigFilePath), 1, nil)
-		}
-	}
+	validateCommands(backyKoanf, opts)
 
-	// TODO: refactor this further down the line
+	setLoggingOptions(backyKoanf, opts)
 
-	// for _, l := range opts.executeLists {
-	// 	if !backyKoanf.Exists(getCmdListFromConfig(l)) {
-	// 		logging.ExitWithMSG(Sprintf("list %s not found", l), 1, nil)
-	// 	}
-	// }
-
-	// check for verbosity, via
-	// 1. config file
-	// 2. TODO: CLI flag
-	// 3. TODO: ENV var
-
-	var (
-		isLoggingVerbose bool
-		logFile          string
-	)
-
-	isLoggingVerbose = backyKoanf.Bool(getLoggingKeyFromConfig("verbose"))
-
-	logFile = fmt.Sprintf("%s/backy.log", path.Dir(opts.ConfigFilePath)) // get full path to logfile
-
-	if backyKoanf.Exists(getLoggingKeyFromConfig("file")) {
-		logFile = backyKoanf.String(getLoggingKeyFromConfig("file"))
-	}
-
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
-	if isLoggingVerbose {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-		globalLvl := zerolog.GlobalLevel()
-		os.Setenv("BACKY_LOGLEVEL", Sprintf("%v", globalLvl))
-	}
-
-	consoleLoggingDisabled := backyKoanf.Bool(getLoggingKeyFromConfig("console-disabled"))
-
-	os.Setenv("BACKY_CONSOLE_LOGGING", "enabled")
-	// Other qualifiers can go here as well
-	if consoleLoggingDisabled {
-		os.Setenv("BACKY_CONSOLE_LOGGING", "")
-	}
-
-	writers := logging.SetLoggingWriters(logFile)
-
-	log := zerolog.New(writers).With().Timestamp().Logger()
-
+	log := setupLogger(opts)
 	opts.Logger = log
 
 	log.Info().Str("config file", opts.ConfigFilePath).Send()
 
-	unmarshalErr := backyKoanf.UnmarshalWithConf("commands", &opts.Cmds, koanf.UnmarshalConf{Tag: "yaml"})
+	unmarshalConfig(backyKoanf, "commands", &opts.Cmds, opts.Logger)
 
-	if unmarshalErr != nil {
+	validateCommandEnvironments(opts)
 
-		panic(fmt.Errorf("error unmarshaling cmds struct: %w", unmarshalErr))
+	unmarshalConfig(backyKoanf, "hosts", &opts.Hosts, opts.Logger)
 
-	}
+	resolveHostConfigs(opts)
 
-	for cmdName, cmdConf := range opts.Cmds {
-		envFileErr := testFile(cmdConf.Env)
-		if envFileErr != nil {
-			opts.Logger.Info().Str("cmd", cmdName).Err(envFileErr).Send()
-			os.Exit(1)
-		}
+	loadCommandLists(opts, backyKoanf)
 
-		expandEnvVars(opts.backyEnv, cmdConf.Environment)
-	}
+	validateCommandLists(opts)
 
-	// Get host configurations from config file
-
-	unmarshalErr = backyKoanf.UnmarshalWithConf("hosts", &opts.Hosts, koanf.UnmarshalConf{Tag: "yaml"})
-	if unmarshalErr != nil {
-		panic(fmt.Errorf("error unmarshalling hosts struct: %w", unmarshalErr))
-	}
-	for hostConfigName, host := range opts.Hosts {
-		if host.Host == "" {
-			host.Host = hostConfigName
-		}
-		if host.ProxyJump != "" {
-			proxyHosts := strings.Split(host.ProxyJump, ",")
-			for hostNum, h := range proxyHosts {
-				if hostNum > 1 {
-					proxyHost, defined := opts.Hosts[h]
-					if defined {
-						host.ProxyHost = append(host.ProxyHost, proxyHost)
-					} else {
-						newProxy := &Host{Host: h}
-						host.ProxyHost = append(host.ProxyHost, newProxy)
-					}
-				} else {
-					proxyHost, defined := opts.Hosts[h]
-					if defined {
-						host.ProxyHost = append(host.ProxyHost, proxyHost)
-					} else {
-						newHost := &Host{Host: h}
-						host.ProxyHost = append(host.ProxyHost, newHost)
-					}
-				}
-			}
-
-		}
-	}
-
-	// get command lists
-	// command lists should still be in the same file if no:
-	// 1. key 'cmd-lists.file' is found
-	// 2. hosts.yml or hosts.yaml is found in the same directory as the backy config file
-	backyConfigFileDir := path.Dir(opts.ConfigFilePath)
-
-	listsConfig := koanf.New(".")
-
-	listConfigFiles := []string{path.Join(backyConfigFileDir, "lists.yml"), path.Join(backyConfigFileDir, "lists.yaml")}
-
-	log.Info().Strs("list config files", listConfigFiles).Send()
-	for _, l := range listConfigFiles {
-		cFileFailures := 0
-		if err := listsConfig.Load(file.Provider(l), yaml.Parser()); err != nil {
-			cFileFailures++
-		} else {
-			opts.ConfigFilePath = l
-			break
-		}
-
-		if cFileFailures == len(configFiles) {
-
-			logging.ExitWithMSG(fmt.Sprintf("could not find a config file. Put one in the following paths: %v", listConfigFiles), 1, &opts.Logger)
-
-			// logging.ExitWithMSG((fmt.Sprintf("error unmarshalling cmd list struct: %v", unmarshalErr)), 1, &opts.Logger)
-		}
-
-	}
-	_ = listsConfig.UnmarshalWithConf("cmd-lists", &opts.CmdConfigLists, koanf.UnmarshalConf{Tag: "yaml"})
-
-	if backyKoanf.Exists("cmd-lists") {
-
-		unmarshalErr = backyKoanf.UnmarshalWithConf("cmd-lists", &opts.CmdConfigLists, koanf.UnmarshalConf{Tag: "yaml"})
-		// if unmarshalErr is not nil, look for a cmd-lists.file key
-		if unmarshalErr != nil {
-
-			// if file key exists, resolve file path and try to read and unmarshal file into command lists config
-			if backyKoanf.Exists("cmd-lists.file") {
-				opts.CmdListFile = strings.TrimSpace(backyKoanf.String("cmd-lists.file"))
-
-				cmdListFilePath := path.Clean(opts.CmdListFile)
-
-				// if path is not absolute, check config directory
-				if !strings.HasPrefix(cmdListFilePath, "/") {
-					opts.CmdListFile = path.Join(backyConfigFileDir, cmdListFilePath)
-				}
-
-				err := testFile(opts.CmdListFile)
-
-				if err != nil {
-					logging.ExitWithMSG(fmt.Sprintf("Could not open config file %s: %v. \n\nThe cmd-lists config should be in the main config file or should be in a lists.yml or lists.yaml file.", opts.CmdListFile, err), 1, nil)
-				}
-
-				if err := listsConfig.Load(file.Provider(opts.CmdListFile), yaml.Parser()); err != nil {
-					logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
-				}
-
-				log.Info().Str("using lists config file", opts.CmdListFile).Send()
-
-			}
-
-		}
-
-	}
-
-	var cmdNotFoundSliceErr []error
-	for cmdListName, cmdList := range opts.CmdConfigLists {
-		if opts.cronEnabled {
-			cron := strings.TrimSpace(cmdList.Cron)
-			if cron == "" {
-				delete(opts.CmdConfigLists, cmdListName)
-			}
-		}
-		for _, cmdInList := range cmdList.Order {
-			_, cmdNameFound := opts.Cmds[cmdInList]
-			if !cmdNameFound {
-				cmdNotFoundStr := fmt.Sprintf("command %s in list %s is not defined in commands section in config file", cmdInList, cmdListName)
-				cmdNotFoundErr := errors.New(cmdNotFoundStr)
-				cmdNotFoundSliceErr = append(cmdNotFoundSliceErr, cmdNotFoundErr)
-			}
-		}
-	}
-
-	// Exit program if command is not found from list
-	if len(cmdNotFoundSliceErr) > 0 {
-		var cmdNotFoundErrorLog = log.Fatal()
-		cmdNotFoundErrorLog.Errs("commands not found", cmdNotFoundSliceErr).Send()
-	}
-
-	if opts.cronEnabled && (len(opts.CmdConfigLists) == 0) {
+	if opts.cronEnabled && len(opts.CmdConfigLists) == 0 {
 		logging.ExitWithMSG("No cron fields detected in any command lists", 1, nil)
 	}
 
-	// process commands
 	if err := processCmds(opts); err != nil {
 		logging.ExitWithMSG(err.Error(), 1, &opts.Logger)
 	}
 
-	if len(opts.executeLists) > 0 {
-		for l := range opts.CmdConfigLists {
-			if !contains(opts.executeLists, l) {
-				delete(opts.CmdConfigLists, l)
-			}
-		}
-	}
+	filterExecuteLists(opts)
 
 	if backyKoanf.Exists("notifications") {
-
-		unmarshalErr = backyKoanf.UnmarshalWithConf("notifications", &opts.NotificationConf, koanf.UnmarshalConf{Tag: "yaml"})
-		if unmarshalErr != nil {
-			fmt.Printf("error unmarshalling notifications object: %v", unmarshalErr)
-		}
+		unmarshalConfig(backyKoanf, "notifications", &opts.NotificationConf, opts.Logger)
 	}
 
 	opts.SetupNotify()
@@ -327,6 +148,176 @@ func ReadConfig(opts *ConfigOpts) *ConfigOpts {
 	return opts
 }
 
+func setTerminalEnv() {
+	if isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+		os.Setenv("BACKY_TERM", "enabled")
+	} else {
+		os.Setenv("BACKY_TERM", "disabled")
+	}
+}
+
+func validateCommands(k *koanf.Koanf, opts *ConfigOpts) {
+	for _, c := range opts.executeCmds {
+		if !k.Exists(getCmdFromConfig(c)) {
+			logging.ExitWithMSG(fmt.Sprintf("command %s is not in config file %s", c, opts.ConfigFilePath), 1, nil)
+		}
+	}
+}
+
+func setLoggingOptions(k *koanf.Koanf, opts *ConfigOpts) {
+	isLoggingVerbose := k.Bool(getLoggingKeyFromConfig("verbose"))
+
+	// if log file is set in config file and not set on command line, use "./backy.log"
+	logFile := "./backy.log"
+	if opts.LogFilePath == "" && k.Exists(getLoggingKeyFromConfig("file")) {
+		logFile = k.String(getLoggingKeyFromConfig("file"))
+		opts.LogFilePath = logFile
+	}
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	if isLoggingVerbose {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		os.Setenv("BACKY_LOGLEVEL", fmt.Sprintf("%v", zerolog.GlobalLevel()))
+	}
+
+	if k.Bool(getLoggingKeyFromConfig("console-disabled")) {
+		os.Setenv("BACKY_CONSOLE_LOGGING", "")
+	} else {
+		os.Setenv("BACKY_CONSOLE_LOGGING", "enabled")
+	}
+}
+
+func setupLogger(opts *ConfigOpts) zerolog.Logger {
+	writers := logging.SetLoggingWriters(opts.LogFilePath)
+	return zerolog.New(writers).With().Timestamp().Logger()
+}
+
+func unmarshalConfig(k *koanf.Koanf, key string, target interface{}, log zerolog.Logger) {
+	if err := k.UnmarshalWithConf(key, target, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("error unmarshalling %s struct: %v", key, err), 1, &log)
+	}
+}
+
+func validateCommandEnvironments(opts *ConfigOpts) {
+	for cmdName, cmdConf := range opts.Cmds {
+		if err := testFile(cmdConf.Env); err != nil {
+			opts.Logger.Info().Str("cmd", cmdName).Err(err).Send()
+			os.Exit(1)
+		}
+		expandEnvVars(opts.backyEnv, cmdConf.Environment)
+	}
+}
+
+func resolveHostConfigs(opts *ConfigOpts) {
+	for hostConfigName, host := range opts.Hosts {
+		if host.Host == "" {
+			host.Host = hostConfigName
+		}
+		if host.ProxyJump != "" {
+			resolveProxyHosts(host, opts)
+		}
+	}
+}
+
+func resolveProxyHosts(host *Host, opts *ConfigOpts) {
+	proxyHosts := strings.Split(host.ProxyJump, ",")
+	for _, h := range proxyHosts {
+		proxyHost, defined := opts.Hosts[h]
+		if !defined {
+			proxyHost = &Host{Host: h}
+			opts.Hosts[h] = proxyHost
+		}
+		host.ProxyHost = append(host.ProxyHost, proxyHost)
+	}
+}
+
+func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
+	backyConfigFileDir := path.Dir(opts.ConfigFilePath)
+	listsConfig := koanf.New(".")
+	listConfigFiles := []string{
+		path.Join(backyConfigFileDir, "lists.yml"),
+		path.Join(backyConfigFileDir, "lists.yaml"),
+	}
+
+	for _, l := range listConfigFiles {
+		if loadListConfigFile(l, listsConfig, opts) {
+			break
+		}
+	}
+
+	if backyKoanf.Exists("cmd-lists") {
+		unmarshalConfig(backyKoanf, "cmd-lists", &opts.CmdConfigLists, opts.Logger)
+		if backyKoanf.Exists("cmd-lists.file") {
+			loadCmdListsFile(backyKoanf, listsConfig, opts)
+		}
+	}
+}
+
+func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool {
+	fetcher := configfetcher.NewConfigFetcher(filePath)
+
+	data, err := fetcher.Fetch(filePath)
+	if err != nil {
+		return false
+	}
+
+	if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
+		return false
+	}
+
+	opts.CmdListFile = filePath
+	return true
+}
+
+func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *ConfigOpts) {
+	opts.CmdListFile = strings.TrimSpace(backyKoanf.String("cmd-lists.file"))
+	if !path.IsAbs(opts.CmdListFile) {
+		opts.CmdListFile = path.Join(path.Dir(opts.ConfigFilePath), opts.CmdListFile)
+	}
+
+	fetcher := configfetcher.NewConfigFetcher(opts.CmdListFile)
+
+	data, err := fetcher.Fetch(opts.CmdListFile)
+	if err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("Could not fetch config file %s: %v", opts.CmdListFile, err), 1, nil)
+	}
+
+	if err := listsConfig.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
+	}
+
+	unmarshalConfig(listsConfig, "cmd-lists", &opts.CmdConfigLists, opts.Logger)
+	opts.Logger.Info().Str("using lists config file", opts.CmdListFile).Send()
+}
+
+func validateCommandLists(opts *ConfigOpts) {
+	var cmdNotFoundSliceErr []error
+	for cmdListName, cmdList := range opts.CmdConfigLists {
+		if opts.cronEnabled && strings.TrimSpace(cmdList.Cron) == "" {
+			delete(opts.CmdConfigLists, cmdListName)
+			continue
+		}
+		for _, cmdInList := range cmdList.Order {
+			if _, cmdNameFound := opts.Cmds[cmdInList]; !cmdNameFound {
+				cmdNotFoundSliceErr = append(cmdNotFoundSliceErr, fmt.Errorf("command %s in list %s is not defined in commands section in config file", cmdInList, cmdListName))
+			}
+		}
+	}
+
+	if len(cmdNotFoundSliceErr) > 0 {
+		opts.Logger.Fatal().Errs("commands not found", cmdNotFoundSliceErr).Send()
+	}
+}
+
+func filterExecuteLists(opts *ConfigOpts) {
+	if len(opts.executeLists) > 0 {
+		for l := range opts.CmdConfigLists {
+			if !contains(opts.executeLists, l) {
+				delete(opts.CmdConfigLists, l)
+			}
+		}
+	}
+}
 func getNestedConfig(nestedConfig, key string) string {
 	return fmt.Sprintf("%s.%s", nestedConfig, key)
 }
@@ -448,6 +439,7 @@ func GetVaultKey(str string, opts *ConfigOpts, log zerolog.Logger) string {
 }
 
 func processCmds(opts *ConfigOpts) error {
+
 	// process commands
 	for cmdName, cmd := range opts.Cmds {
 
@@ -503,13 +495,40 @@ func processCmds(opts *ConfigOpts) error {
 
 			// Validate the operation
 			switch cmd.PackageOperation {
-			case "install", "remove", "upgrade":
+			case "install", "remove", "upgrade", "checkVersion":
 				cmd.pkgMan, err = pkgman.PackageManagerFactory(cmd.PackageManager, pkgman.WithoutAuth())
 				if err != nil {
 					return err
 				}
 			default:
 				return fmt.Errorf("unsupported package operation %s for command %s", cmd.PackageOperation, cmd.Name)
+			}
+		}
+
+		// Parse user commands
+		if cmd.Type == "user" {
+			if cmd.Username == "" {
+				return fmt.Errorf("username is required for user command %s", cmd.Name)
+			}
+
+			detectOSType(cmd, opts)
+			var err error
+
+			// Validate the operation
+			switch cmd.UserOperation {
+			case "add", "remove", "modify", "checkIfExists", "delete", "password":
+				cmd.userMan, err = usermanager.NewUserManager(cmd.OS)
+				if cmd.Host != nil {
+					host, ok := opts.Hosts[*cmd.Host]
+					if ok {
+						cmd.userMan, err = usermanager.NewUserManager(host.OS)
+					}
+				}
+				if err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("unsupported user operation %s for command %s", cmd.UserOperation, cmd.Name)
 			}
 
 		}
@@ -554,6 +573,35 @@ func processHooks(cmd *Command, hooks []string, opts *ConfigOpts, hookType strin
 		// if hookCmd.hookRefs == nil {
 		// }
 		// hookRef[hookType][h] = hookCmd
+	}
+	return nil
+}
+
+func detectOSType(cmd *Command, opts *ConfigOpts) error {
+	if cmd.Host == nil {
+		if runtime.GOOS == "linux" { // also can be specified to FreeBSD
+			cmd.OS = "linux"
+			opts.Logger.Info().Msg("Unix/Linux type OS detected")
+		}
+	}
+	host, ok := opts.Hosts[*cmd.Host]
+	if ok {
+		if host.OS != "" {
+			return nil
+		}
+
+		os, err := host.DetectOS(opts)
+		os = strings.TrimSpace(os)
+		if err != nil {
+			return err
+		}
+		if os == "" {
+			return fmt.Errorf("error detecting os for command %s: empty string", cmd.Name)
+		}
+		if strings.Contains(os, "linux") {
+			os = "linux"
+		}
+		host.OS = os
 	}
 	return nil
 }

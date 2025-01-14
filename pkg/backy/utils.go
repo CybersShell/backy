@@ -5,6 +5,7 @@
 package backy
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -53,6 +54,13 @@ func SetListsToSearch(lists []string) BackyOptionFunc {
 func SetCmdsToSearch(cmds []string) BackyOptionFunc {
 	return func(bco *ConfigOpts) {
 		bco.List.Commands = append(bco.List.Commands, cmds...)
+	}
+}
+
+// SetLogFile sets the path to the log file
+func SetLogFile(logFile string) BackyOptionFunc {
+	return func(bco *ConfigOpts) {
+		bco.LogFilePath = logFile
 	}
 }
 
@@ -234,9 +242,10 @@ func expandEnvVars(backyEnv map[string]string, envVars []string) {
 	}
 }
 
-// getPackageCommand checks for command type of package and if the command has already been set
-// Returns the modified Command with the packageManager command as Cmd and the packageOperation as args, plus any additional Args
-func getPackageCommand(command *Command) *Command {
+// getCommandType checks for command type and if the command has already been set
+// Checks for types package and user
+// Returns the modified Command with the package- or userManager command as Cmd and the package- or userOperation as args, plus any additional Args
+func getCommandType(command *Command) *Command {
 
 	if command.Type == "package" && !command.packageCmdSet {
 		command.packageCmdSet = true
@@ -247,9 +256,71 @@ func getPackageCommand(command *Command) *Command {
 			command.Cmd, command.Args = command.pkgMan.Remove(command.PackageName, command.Args)
 		case "upgrade":
 			command.Cmd, command.Args = command.pkgMan.Upgrade(command.PackageName, command.PackageVersion)
+		case "checkVersion":
+			command.Cmd, command.Args = command.pkgMan.CheckVersion(command.PackageName, command.PackageVersion)
 		}
 	} else if command.Type != "package" {
 		command.packageCmdSet = false
 	}
+
+	if command.Type == "user" && !command.userCmdSet {
+		command.userCmdSet = true
+		switch command.UserOperation {
+		case "add":
+			command.Cmd, command.Args = command.userMan.AddUser(
+				command.Username,
+				command.UserHome,
+				command.UserShell,
+				command.SystemUser,
+				command.UserGroups,
+				command.Args)
+		case "modify":
+			command.Cmd, command.Args = command.userMan.ModifyUser(
+				command.Username,
+				homeDir,
+				command.UserShell,
+				command.UserGroups)
+		case "checkIfExists":
+			command.Cmd, command.Args = command.userMan.UserExists(command.Username)
+		case "delete":
+			command.Cmd, command.Args = command.userMan.RemoveUser(command.Username)
+		case "password":
+			command.Cmd, command.stdin, command.UserPassword = command.userMan.ModifyPassword(command.Username, command.UserPassword)
+		}
+	}
+
 	return command
+}
+
+func parsePackageVersion(output string, cmdCtxLogger zerolog.Logger, command *Command, cmdOutBuf bytes.Buffer) ([]string, error) {
+
+	var err error
+	pkgVersion, err := command.pkgMan.Parse(output)
+	// println(output)
+	if err != nil {
+		cmdCtxLogger.Error().Err(err).Str("package", command.PackageName).Msg("Error parsing package version output")
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.GetOutput), err
+	}
+
+	cmdCtxLogger.Info().
+		Str("Installed", pkgVersion.Installed).
+		Str("Candidate", pkgVersion.Candidate).
+		Msg("Package version comparison")
+
+	if command.PackageVersion != "" {
+		if pkgVersion.Installed == command.PackageVersion {
+			cmdCtxLogger.Info().Msgf("Installed version matches specified version: %s", command.PackageVersion)
+		} else {
+			cmdCtxLogger.Info().Msgf("Installed version does not match specified version: %s", command.PackageVersion)
+			err = fmt.Errorf("Installed version does not match specified version: %s", command.PackageVersion)
+		}
+	} else {
+		if pkgVersion.Installed == pkgVersion.Candidate {
+			cmdCtxLogger.Info().Msg("Installed and Candidate versions match")
+		} else {
+			cmdCtxLogger.Info().Msg("Installed and Candidate versions differ")
+			err = errors.New("Installed and Candidate versions differ")
+		}
+	}
+	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, false), err
 }

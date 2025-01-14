@@ -119,7 +119,7 @@ func (remoteConfig *Host) ConnectToHost(opts *ConfigOpts) error {
 		return errors.Wrap(err, "could not create hostkeycallback function")
 	}
 	remoteConfig.ClientConfig.HostKeyCallback = hostKeyCallback
-	opts.Logger.Info().Str("user", remoteConfig.ClientConfig.User).Send()
+	// opts.Logger.Info().Str("user", remoteConfig.ClientConfig.User).Send()
 
 	remoteConfig.SshClient, connectErr = remoteConfig.ConnectThroughBastion(opts.Logger)
 	if connectErr != nil {
@@ -494,7 +494,7 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 	)
 
 	command.Type = strings.TrimSpace(command.Type)
-	command = getPackageCommand(command)
+	command = getCommandType(command)
 
 	// Prepare command arguments
 	for _, v := range command.Args {
@@ -516,7 +516,7 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 	}
 
 	// Create new SSH session
-	commandSession, err := command.createSSHSession(opts)
+	commandSession, err := command.RemoteHost.createSSHSession(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SSH session: %w", err)
 	}
@@ -539,6 +539,27 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 		return command.runScript(commandSession, cmdCtxLogger, &cmdOutBuf)
 	case "scriptFile":
 		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
+	case "package":
+		if command.PackageOperation == "checkVersion" {
+			commandSession.Stderr = nil
+			// Execute the package version command remotely
+			// Parse the output of package version command
+			// Compare versions
+			// Check if a specific version is specified
+			commandSession.Stdout = nil
+			return checkPackageVersion(cmdCtxLogger, command, commandSession, cmdOutBuf)
+		} else {
+			if command.Shell != "" {
+				ArgsStr = fmt.Sprintf("%s -c '%s %s'", command.Shell, command.Cmd, ArgsStr)
+			} else {
+				ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
+			}
+			cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
+			// Run simple command
+			if err := commandSession.Run(ArgsStr); err != nil {
+				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error running command: %w", err)
+			}
+		}
 	default:
 		if command.Shell != "" {
 			ArgsStr = fmt.Sprintf("%s -c '%s %s'", command.Shell, command.Cmd, ArgsStr)
@@ -548,11 +569,35 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 		cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
 		// Run simple command
 		if err := commandSession.Run(ArgsStr); err != nil {
-			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger), fmt.Errorf("error running command: %w", err)
+			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.GetOutput), fmt.Errorf("error running command: %w", err)
 		}
 	}
 
-	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger), nil
+	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, true), nil
+}
+
+func checkPackageVersion(cmdCtxLogger zerolog.Logger, command *Command, commandSession *ssh.Session, cmdOutBuf bytes.Buffer) ([]string, error) {
+	cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Checking package versions")
+	// Prepare command arguments
+	ArgsStr := command.Cmd
+	for _, v := range command.Args {
+		ArgsStr += fmt.Sprintf(" %s", v)
+	}
+
+	var err error
+	var cmdOut []byte
+
+	if cmdOut, err = commandSession.CombinedOutput(ArgsStr); err != nil {
+		cmdOutBuf.Write(cmdOut)
+
+		_, parseErr := parsePackageVersion(string(cmdOut), cmdCtxLogger, command, cmdOutBuf)
+		if parseErr != nil {
+			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.GetOutput), fmt.Errorf("error: package %s not listed: %w", command.PackageName, err)
+		}
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.GetOutput), fmt.Errorf("error running %s: %w", ArgsStr, err)
+	}
+
+	return parsePackageVersion(string(cmdOut), cmdCtxLogger, command, cmdOutBuf)
 }
 
 // getCommandTypeLabel returns a human-readable label for the command type.
@@ -561,20 +606,6 @@ func getCommandTypeLabel(commandType string) string {
 		return "command"
 	}
 	return fmt.Sprintf("%s command", commandType)
-}
-
-// createSSHSession attempts to create a new SSH session and retries on failure.
-func (command *Command) createSSHSession(opts *ConfigOpts) (*ssh.Session, error) {
-	session, err := command.RemoteHost.SshClient.NewSession()
-	if err == nil {
-		return session, nil
-	}
-
-	// Retry connection and session creation
-	if connErr := command.RemoteHost.ConnectToHost(opts); connErr != nil {
-		return nil, fmt.Errorf("session creation failed: %v, connection retry failed: %v", err, connErr)
-	}
-	return command.RemoteHost.SshClient.NewSession()
 }
 
 // runScript handles the execution of inline scripts.
@@ -590,10 +621,10 @@ func (command *Command) runScript(session *ssh.Session, cmdCtxLogger zerolog.Log
 	}
 
 	if err := session.Wait(); err != nil {
-		return collectOutput(outputBuf, command.Name, cmdCtxLogger), fmt.Errorf("error waiting for shell: %w", err)
+		return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error waiting for shell: %w", err)
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger), nil
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.GetOutput), nil
 }
 
 // runScriptFile handles the execution of script files.
@@ -609,10 +640,10 @@ func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger zerolog
 	}
 
 	if err := session.Wait(); err != nil {
-		return collectOutput(outputBuf, command.Name, cmdCtxLogger), fmt.Errorf("error waiting for shell: %w", err)
+		return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error waiting for shell: %w", err)
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger), nil
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), nil
 }
 
 // prepareScriptBuffer prepares a buffer for inline scripts.
@@ -677,13 +708,51 @@ func readFileToBuffer(filePath string) (*bytes.Buffer, error) {
 }
 
 // collectOutput collects output from a buffer and logs it.
-func collectOutput(buf *bytes.Buffer, commandName string, logger zerolog.Logger) []string {
+func collectOutput(buf *bytes.Buffer, commandName string, logger zerolog.Logger, wantOutput bool) []string {
 	var outputArr []string
 	scanner := bufio.NewScanner(buf)
 	for scanner.Scan() {
 		line := scanner.Text()
 		outputArr = append(outputArr, line)
-		logger.Info().Str("cmd", commandName).Str("output", line).Send()
+		if wantOutput {
+			logger.Info().Str("cmd", commandName).Str("output", line).Send()
+		}
 	}
 	return outputArr
+}
+
+// createSSHSession attempts to create a new SSH session and retries on failure.
+func (h *Host) createSSHSession(opts *ConfigOpts) (*ssh.Session, error) {
+	session, err := h.SshClient.NewSession()
+	if err == nil {
+		return session, nil
+	}
+
+	// Retry connection and session creation
+	if connErr := h.ConnectToHost(opts); connErr != nil {
+		return nil, fmt.Errorf("session creation failed: %v, connection retry failed: %v", err, connErr)
+	}
+	return h.SshClient.NewSession()
+}
+
+func (h *Host) DetectOS(opts *ConfigOpts) (string, error) {
+	err := h.ConnectToHost(opts)
+
+	if err != nil {
+		return "", err
+	}
+	var session *ssh.Session
+	session, err = h.createSSHSession(opts)
+	if err != nil {
+		return "", err
+	}
+	// Execute the "uname -a" command on the remote machine
+	output, err := session.CombinedOutput("uname")
+	if err != nil {
+		return "", fmt.Errorf("failed to execute OS detection command: %v", err)
+	}
+
+	// Parse the output to determine the OS
+	osName := string(output)
+	return osName, nil
 }

@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"text/template"
 
+	"strings"
+
 	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman"
+	"git.andrewnw.xyz/CyberShell/backy/pkg/usermanager"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/kevinburke/ssh_config"
 	"github.com/knadh/koanf/v2"
@@ -18,6 +21,7 @@ type (
 	// Host defines a host to which to connect.
 	// If not provided, the values will be looked up in the default ssh config files
 	Host struct {
+		OS                 string `yaml:"OS,omitempty"`
 		ConfigFilePath     string `yaml:"config,omitempty"`
 		Host               string `yaml:"host,omitempty"`
 		HostName           string `yaml:"hostname,omitempty"`
@@ -114,20 +118,32 @@ type (
 		// Username specifies the username for user creation or related operations
 		Username string `yaml:"username,omitempty"`
 
-		// Groups specifies the groups to add the user to
-		Groups []string `yaml:"groups,omitempty"`
+		// UserGroups specifies the groups to add the user to
+		UserGroups []string `yaml:"userGroups,omitempty"`
 
-		// Home specifies the home directory for the user
-		Home string `yaml:"home,omitempty"`
+		// UserHome specifies the home directory for the user
+		UserHome string `yaml:"userHome,omitempty"`
 
-		// System specifies whether the user is a system account
-		System bool `yaml:"system,omitempty"`
+		// UserShell specifies the shell for the user
+		UserShell string `yaml:"userShell,omitempty"`
 
-		// Password specifies the password for the user (can be file: or plain text)
-		Password string `yaml:"password,omitempty"`
+		// SystemUser specifies whether the user is a system account
+		SystemUser bool `yaml:"systemUser,omitempty"`
 
-		// Operation specifies the action for user-related commands (e.g., "create" or "remove")
-		Operation string `yaml:"operation,omitempty"`
+		// UserPassword specifies the password for the user (can be file: or plain text)
+		UserPassword string `yaml:"userPassword,omitempty"`
+
+		userMan usermanager.UserManager
+
+		// OS for the command, only used when type is user
+		OS string `yaml:"OS,omitempty"`
+
+		// UserOperation specifies the action for user-related commands (e.g., "create" or "remove")
+		UserOperation string `yaml:"userOperation,omitempty"`
+
+		userCmdSet bool
+
+		stdin *strings.Reader
 	}
 
 	RemoteSource struct {
@@ -175,6 +191,9 @@ type (
 
 		// Holds config file
 		ConfigFilePath string
+
+		// Holds log file
+		LogFilePath string
 
 		// for command list file
 		CmdListFile string
@@ -252,10 +271,9 @@ type (
 		Final   []string `yaml:"final,omitempty"`
 	}
 
-	CmdListResults struct {
-		// name of the list
-		ListName string
-		// command that caused the list to fail
-		ErrCmd string
+	CmdResult struct {
+		CmdName  string // Name of the command executed
+		ListName string // Name of the command list
+		Error    error  // Error encountered, if any
 	}
 )

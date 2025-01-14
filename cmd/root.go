@@ -15,6 +15,7 @@ var (
 	// Used for flags.
 	cfgFile string
 	verbose bool
+	logFile string
 
 	rootCmd = &cobra.Command{
 		Use:   "backy",
@@ -32,6 +33,8 @@ func Execute() {
 }
 
 func init() {
+
+	rootCmd.PersistentFlags().StringVar(&logFile, "log-file", "", "log file to write to")
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "f", "", "config file to read from")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Sets verbose level")

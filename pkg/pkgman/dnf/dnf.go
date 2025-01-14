@@ -2,6 +2,8 @@ package dnf
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman/pkgcommon"
 )
@@ -72,6 +74,50 @@ func (y *DnfManager) UpgradeAll() (string, []string) {
 	baseCmd := y.prependAuthCommand("dnf")
 	baseArgs := []string{"update", "-y"}
 	return baseCmd, baseArgs
+}
+
+// CheckVersion returns the command and arguments for checking the info of a specific package.
+func (d *DnfManager) CheckVersion(pkg, version string) (string, []string) {
+	baseCmd := d.prependAuthCommand("dnf")
+	baseArgs := []string{"info", pkg}
+
+	return baseCmd, baseArgs
+}
+
+// Parse parses the dnf info output to extract Installed and Candidate versions.
+func (d DnfManager) Parse(output string) (*pkgcommon.PackageVersion, error) {
+
+	// Check for error message in the output
+	if strings.Contains(output, "No matching packages to list") {
+		return nil, fmt.Errorf("error: package not listed")
+	}
+
+	// Define regular expressions to capture installed and available versions
+	reInstalled := regexp.MustCompile(`(?m)^Installed packages\s*Name\s*:\s*\S+\s*Epoch\s*:\s*\S+\s*Version\s*:\s*([^\s]+)\s*Release\s*:\s*([^\s]+)`)
+	reAvailable := regexp.MustCompile(`(?m)^Available packages\s*Name\s*:\s*\S+\s*Epoch\s*:\s*\S+\s*Version\s*:\s*([^\s]+)\s*Release\s*:\s*([^\s]+)`)
+
+	installedMatch := reInstalled.FindStringSubmatch(output)
+	candidateMatch := reAvailable.FindStringSubmatch(output)
+
+	installedVersion := ""
+	candidateVersion := ""
+
+	if len(installedMatch) >= 3 {
+		installedVersion = fmt.Sprintf("%s-%s", installedMatch[1], installedMatch[2])
+	}
+
+	if len(candidateMatch) >= 3 {
+		candidateVersion = fmt.Sprintf("%s-%s", candidateMatch[1], candidateMatch[2])
+	}
+
+	if installedVersion == "" && candidateVersion == "" {
+		return nil, fmt.Errorf("failed to parse versions from dnf output")
+	}
+
+	return &pkgcommon.PackageVersion{
+		Installed: installedVersion,
+		Candidate: candidateVersion,
+	}, nil
 }
 
 // prependAuthCommand prepends the authentication command if UseAuth is true.

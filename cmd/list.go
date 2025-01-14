@@ -31,7 +31,7 @@ func init() {
 
 func List(cmd *cobra.Command, args []string) {
 
-	// settup based on whats passed in:
+	// setup based on whats passed in:
 	//   - cmds
 	//   - lists
 	//   - if none, list all commands
@@ -42,8 +42,7 @@ func List(cmd *cobra.Command, args []string) {
 	opts := backy.NewOpts(cfgFile)
 
 	opts.InitConfig()
-
-	opts = backy.ReadConfig(opts)
+	opts.ReadConfig()
 
 	opts.ListCommand("rm-sn-db")
 }

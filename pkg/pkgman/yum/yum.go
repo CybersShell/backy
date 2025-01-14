@@ -2,6 +2,7 @@ package yum
 
 import (
 	"fmt"
+	"regexp"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman/pkgcommon"
 )
@@ -72,6 +73,43 @@ func (y *YumManager) UpgradeAll() (string, []string) {
 	baseCmd := y.prependAuthCommand("yum")
 	baseArgs := []string{"update", "-y"}
 	return baseCmd, baseArgs
+}
+
+// CheckVersion returns the command and arguments for checking the info of a specific package.
+func (y *YumManager) CheckVersion(pkg, version string) (string, []string) {
+	baseCmd := y.prependAuthCommand("yum")
+	baseArgs := []string{"info", pkg}
+
+	return baseCmd, baseArgs
+}
+
+// Parse parses the dnf info output to extract Installed and Candidate versions.
+func (y YumManager) Parse(output string) (*pkgcommon.PackageVersion, error) {
+	reInstalled := regexp.MustCompile(`(?m)^Installed Packages\s*Name\s*:\s*\S+\s*Version\s*:\s*([^\s]+)\s*Release\s*:\s*([^\s]+)`)
+	reAvailable := regexp.MustCompile(`(?m)^Available Packages\s*Name\s*:\s*\S+\s*Version\s*:\s*([^\s]+)\s*Release\s*:\s*([^\s]+)`)
+
+	installedMatch := reInstalled.FindStringSubmatch(output)
+	candidateMatch := reAvailable.FindStringSubmatch(output)
+
+	installedVersion := ""
+	candidateVersion := ""
+
+	if len(installedMatch) >= 3 {
+		installedVersion = fmt.Sprintf("%s-%s", installedMatch[1], installedMatch[2])
+	}
+
+	if len(candidateMatch) >= 3 {
+		candidateVersion = fmt.Sprintf("%s-%s", candidateMatch[1], candidateMatch[2])
+	}
+
+	if installedVersion == "" && candidateVersion == "" {
+		return nil, fmt.Errorf("failed to parse versions from dnf output")
+	}
+
+	return &pkgcommon.PackageVersion{
+		Installed: installedVersion,
+		Candidate: candidateVersion,
+	}, nil
 }
 
 // prependAuthCommand prepends the authentication command if UseAuth is true.

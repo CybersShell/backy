@@ -15,7 +15,8 @@ type PackageManager interface {
 	Remove(pkg string, args []string) (string, []string)
 	Upgrade(pkg, version string) (string, []string) // Upgrade a specific package
 	UpgradeAll() (string, []string)
-
+	CheckVersion(pkg, version string) (string, []string)
+	Parse(output string) (*pkgcommon.PackageVersion, error)
 	// Configure applies functional options to customize the package manager.
 	Configure(options ...pkgcommon.PackageManagerOption)
 }
@@ -67,6 +68,8 @@ func WithoutAuth() pkgcommon.PackageManagerOption {
 
 // ConfigurablePackageManager defines methods for setting configuration options.
 type ConfigurablePackageManager interface {
+	pkgcommon.PackageParser
 	SetUseAuth(useAuth bool)
 	SetAuthCommand(authCommand string)
+	SetPackageParser(parser pkgcommon.PackageParser)
 }
