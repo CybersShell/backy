@@ -12,13 +12,16 @@ type ConfigFetcher interface {
 	Parse(data []byte, target interface{}) error
 }
 
-func NewConfigFetcher(source string) ConfigFetcher {
+func NewConfigFetcher(source string, options ...Option) (ConfigFetcher, error) {
 	if strings.HasPrefix(source, "http") || strings.HasPrefix(source, "https") {
-		return &HTTPFetcher{}
+		return NewHTTPFetcher(options...), nil
 	} else if strings.HasPrefix(source, "s3") {
-		return &S3Fetcher{}
+		fetcher, err := NewS3Fetcher(options...)
+		if err != nil {
+			return nil, err
+		}
+		return fetcher, nil
 	} else {
-		return &LocalFetcher{}
+		return &LocalFetcher{}, nil
 	}
-
 }

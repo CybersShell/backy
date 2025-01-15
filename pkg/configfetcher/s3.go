@@ -15,14 +15,23 @@ type S3Fetcher struct {
 	S3Client *s3.Client
 }
 
-// NewS3Fetcher creates a new instance of S3Fetcher with an initialized S3 client
-func NewS3Fetcher() (*S3Fetcher, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return nil, err
+// NewS3Fetcher creates a new instance of S3Fetcher with the provided options.
+func NewS3Fetcher(options ...Option) (*S3Fetcher, error) {
+	cfg := &FetcherConfig{}
+	for _, opt := range options {
+		opt(cfg)
 	}
-	client := s3.NewFromConfig(cfg)
-	return &S3Fetcher{S3Client: client}, nil
+
+	// Initialize S3 client if not provided
+	if cfg.S3Client == nil {
+		awsCfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			return nil, err
+		}
+		cfg.S3Client = s3.NewFromConfig(awsCfg)
+	}
+
+	return &S3Fetcher{S3Client: cfg.S3Client}, nil
 }
 
 // Fetch retrieves the configuration from an S3 bucket

@@ -28,10 +28,12 @@ commands:
     cmd: hostname
   update-docker:
     type: package
+    # shell: zsh
     packageName: docker-ce
+    Args:
+      - docker-ce-cli
     packageManager: apt
-    packageVersion: "5:27.4.1-1~debian.12~bookworm"
-    packageOperation: update
+    packageOperation: install
 
 cmd-lists:
   cmds-to-run: # this can be any name you want

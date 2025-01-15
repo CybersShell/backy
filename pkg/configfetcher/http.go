@@ -8,7 +8,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type HTTPFetcher struct{}
+type HTTPFetcher struct {
+	HTTPClient *http.Client
+}
+
+// NewHTTPFetcher creates a new instance of HTTPFetcher with the provided options.
+func NewHTTPFetcher(options ...Option) *HTTPFetcher {
+	cfg := &FetcherConfig{}
+	for _, opt := range options {
+		opt(cfg)
+	}
+
+	// Initialize HTTP client if not provided
+	if cfg.HTTPClient == nil {
+		cfg.HTTPClient = http.DefaultClient
+	}
+
+	return &HTTPFetcher{HTTPClient: cfg.HTTPClient}
+}
 
 // Fetch retrieves the configuration from the specified URL
 func (h *HTTPFetcher) Fetch(source string) ([]byte, error) {

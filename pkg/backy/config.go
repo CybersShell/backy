@@ -47,7 +47,11 @@ func (opts *ConfigOpts) InitConfig() {
 	opts.ConfigFilePath = strings.TrimSpace(opts.ConfigFilePath)
 
 	// Initialize the fetcher
-	fetcher := configfetcher.NewConfigFetcher(opts.ConfigFilePath)
+	fetcher, err := configfetcher.NewConfigFetcher(opts.ConfigFilePath)
+
+	if err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
+	}
 
 	if opts.ConfigFilePath != "" {
 		loadConfigFile(fetcher, opts.ConfigFilePath, backyKoanf, opts)
@@ -254,7 +258,10 @@ func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
 }
 
 func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool {
-	fetcher := configfetcher.NewConfigFetcher(filePath)
+	fetcher, err := configfetcher.NewConfigFetcher(filePath)
+	if err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
+	}
 
 	data, err := fetcher.Fetch(filePath)
 	if err != nil {
@@ -275,7 +282,10 @@ func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *C
 		opts.CmdListFile = path.Join(path.Dir(opts.ConfigFilePath), opts.CmdListFile)
 	}
 
-	fetcher := configfetcher.NewConfigFetcher(opts.CmdListFile)
+	fetcher, err := configfetcher.NewConfigFetcher(opts.CmdListFile)
+	if err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
+	}
 
 	data, err := fetcher.Fetch(opts.CmdListFile)
 	if err != nil {
