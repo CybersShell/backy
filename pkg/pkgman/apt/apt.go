@@ -40,6 +40,7 @@ func (a *AptManager) Install(pkg, version string, args []string) (string, []stri
 	if args != nil {
 		baseArgs = append(baseArgs, args...)
 	}
+	fmt.Printf("baseArgs: %v\n", baseArgs)
 	return baseCmd, baseArgs
 }
 
@@ -56,7 +57,7 @@ func (a *AptManager) Remove(pkg string, args []string) (string, []string) {
 // Upgrade returns the command and arguments for upgrading a specific package.
 func (a *AptManager) Upgrade(pkg, version string) (string, []string) {
 	baseCmd := a.prependAuthCommand(DefaultPackageCommand)
-	baseArgs := []string{"update", "&&", baseCmd, "install", "--only-upgrade", "-y "}
+	baseArgs := []string{"update", "&&", baseCmd, "install", "--only-upgrade", "-y"}
 	if version != "" {
 		baseArgs = append(baseArgs, fmt.Sprintf("%s=%s", pkg, version))
 	} else {
@@ -103,11 +104,6 @@ func (a *AptManager) SetUseAuth(useAuth bool) {
 // SetAuthCommand sets the authentication command.
 func (a *AptManager) SetAuthCommand(authCommand string) {
 	a.authCommand = authCommand
-}
-
-// SetPackageParser assigns a PackageParser.
-func (a *AptManager) SetPackageParser(parser pkgcommon.PackageParser) {
-	a.Parser = parser
 }
 
 // Parse parses the apt-cache policy output to extract Installed and Candidate versions.

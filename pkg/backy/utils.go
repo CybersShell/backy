@@ -259,8 +259,6 @@ func getCommandType(command *Command) *Command {
 		case "checkVersion":
 			command.Cmd, command.Args = command.pkgMan.CheckVersion(command.PackageName, command.PackageVersion)
 		}
-	} else if command.Type != "package" {
-		command.packageCmdSet = false
 	}
 
 	if command.Type == "user" && !command.userCmdSet {

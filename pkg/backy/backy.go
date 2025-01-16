@@ -45,11 +45,13 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		}
 	)
 
+	// Get the command type
+	// This must be done before concatenating the arguments
+	command = getCommandType(command)
+
 	for _, v := range command.Args {
 		ArgsStr += fmt.Sprintf(" %s", v)
 	}
-
-	command = getCommandType(command)
 
 	if command.Type == "user" {
 		if command.UserOperation == "password" {
@@ -60,7 +62,6 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 	var errSSH error
 	// is host defined
 	if command.Host != nil {
-		print("host is defined")
 		outputArr, errSSH = command.RunCmdSSH(cmdCtxLogger, opts)
 		if errSSH != nil {
 			return outputArr, errSSH
@@ -78,7 +79,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			cmd.Stderr = cmdOutWriters
 
 			if err := cmd.Run(); err != nil {
-				return nil, fmt.Errorf("error running command %s policy: %w", ArgsStr, err)
+				return nil, fmt.Errorf("error running command %s: %w", ArgsStr, err)
 			}
 
 			return parsePackageVersion(cmdOutBuf.String(), cmdCtxLogger, command, cmdOutBuf)
@@ -98,6 +99,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine", command.Name)).Send()
 
 			localCMD = exec.Command(command.Cmd, command.Args...)
+
 		}
 
 		if command.Dir != nil {

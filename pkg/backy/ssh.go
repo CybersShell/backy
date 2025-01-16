@@ -492,7 +492,8 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 			env:  command.Environment,
 		}
 	)
-
+	// Get the command type
+	// This must be done before concatenating the arguments
 	command.Type = strings.TrimSpace(command.Type)
 	command = getCommandType(command)
 
@@ -506,7 +507,7 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 		Str("Host", *command.Host).
 		Msgf("Running %s on host %s", getCommandTypeLabel(command.Type), *command.Host)
 
-	cmdCtxLogger.Debug().Str("cmd", command.Cmd).Strs("args", command.Args).Send()
+	// cmdCtxLogger.Debug().Str("cmd", command.Cmd).Strs("args", command.Args).Send()
 
 	// Ensure SSH client is connected
 	if command.RemoteHost.SshClient == nil {

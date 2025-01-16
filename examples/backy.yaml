@@ -33,7 +33,7 @@ commands:
     Args:
       - docker-ce-cli
     packageManager: apt
-    packageOperation: install
+    packageOperation: upgrade
 
 cmd-lists:
   cmds-to-run: # this can be any name you want
