@@ -34,15 +34,17 @@ var Sprintf = fmt.Sprintf
 func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([]string, error) {
 
 	var (
-		outputArr     []string
-		ArgsStr       string
+		ArgsStr       string // concatenating the arguments
 		cmdOutBuf     bytes.Buffer
 		cmdOutWriters io.Writer
+		errSSH        error
 
 		envVars = environmentVars{
 			file: command.Env,
 			env:  command.Environment,
 		}
+
+		outputArr []string // holds the output strings returned by processes
 	)
 
 	// Get the command type
@@ -53,13 +55,13 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		ArgsStr += fmt.Sprintf(" %s", v)
 	}
 
+	// print the user's password if it is updated
 	if command.Type == "user" {
 		if command.UserOperation == "password" {
 			cmdCtxLogger.Info().Str("password", command.UserPassword).Msg("user password to be updated")
 		}
 	}
 
-	var errSSH error
 	// is host defined
 	if command.Host != nil {
 		outputArr, errSSH = command.RunCmdSSH(cmdCtxLogger, opts)
