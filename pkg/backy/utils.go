@@ -275,7 +275,7 @@ func getCommandType(command *Command) *Command {
 		case "modify":
 			command.Cmd, command.Args = command.userMan.ModifyUser(
 				command.Username,
-				homeDir,
+				command.UserHome,
 				command.UserShell,
 				command.UserGroups)
 		case "checkIfExists":

@@ -1,5 +1,6 @@
 ---
 title: "Commands"
+description: Commands are just that, commands
 weight: 1
 ---
 

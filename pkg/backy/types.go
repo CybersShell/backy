@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman"
+	"git.andrewnw.xyz/CyberShell/backy/pkg/remotefetcher"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/usermanager"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/kevinburke/ssh_config"
@@ -217,6 +218,9 @@ type (
 		koanf *koanf.Koanf
 
 		NotificationConf *Notifications `yaml:"notifications"`
+
+		Cache      *remotefetcher.Cache
+		CachedData []*remotefetcher.CacheData
 	}
 
 	outStruct struct {

@@ -1,4 +1,4 @@
-package configfetcher
+package remotefetcher
 
 import (
 	"net/http"
@@ -11,8 +11,9 @@ type Option func(*FetcherConfig)
 
 // FetcherConfig holds the configuration for a fetcher.
 type FetcherConfig struct {
-	S3Client   *s3.Client
-	HTTPClient *http.Client
+	S3Client           *s3.Client
+	HTTPClient         *http.Client
+	IgnoreFileNotFound bool
 }
 
 // WithS3Client sets the S3 client for the fetcher.
@@ -26,5 +27,11 @@ func WithS3Client(client *s3.Client) Option {
 func WithHTTPClient(client *http.Client) Option {
 	return func(cfg *FetcherConfig) {
 		cfg.HTTPClient = client
+	}
+}
+
+func IgnoreFileNotFound() Option {
+	return func(cfg *FetcherConfig) {
+		cfg.IgnoreFileNotFound = true
 	}
 }

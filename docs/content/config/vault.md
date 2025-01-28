@@ -1,6 +1,7 @@
 ---
 title: "Vault"
 weight: 4
+description: Set up and configure vault.
 ---
 
 [Vault](https://www.vaultproject.io/) is a tool for storing secrets and other data securely.

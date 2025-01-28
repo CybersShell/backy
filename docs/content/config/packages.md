@@ -1,6 +1,7 @@
 ---
 title: "Packages"
 weight: 2
+description: This is dedicated to package commands.
 ---
 
 This is dedicated to `package` commands. The command `type` field must be `package`. Package is a type that allows one to perform package operations. There are several additional options available when `type` is `package`:

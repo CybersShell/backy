@@ -2,15 +2,17 @@ package backy
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"runtime"
 	"strings"
 
-	"git.andrewnw.xyz/CyberShell/backy/pkg/configfetcher"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman"
+	"git.andrewnw.xyz/CyberShell/backy/pkg/remotefetcher"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/usermanager"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/knadh/koanf/parsers/yaml"
@@ -20,23 +22,23 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var homeDir string
-var homeDirErr error
-var backyHomeConfDir string
-var configFiles []string
-
 const macroStart string = "%{"
 const macroEnd string = "}%"
 const envMacroStart string = "%{env:"
 const vaultMacroStart string = "%{vault:"
 
 func (opts *ConfigOpts) InitConfig() {
-	homeDir, err := os.UserHomeDir()
+	var err error
+	homeConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		logging.ExitWithMSG(err.Error(), 1, nil)
+	}
+	homeCacheDir, err := os.UserCacheDir()
 	if err != nil {
 		logging.ExitWithMSG(err.Error(), 1, nil)
 	}
 
-	backyHomeConfDir := path.Join(homeDir, ".config/backy/")
+	backyHomeConfDir := path.Join(homeConfigDir, "backy")
 	configFiles := []string{
 		"./backy.yml", "./backy.yaml",
 		path.Join(backyHomeConfDir, "backy.yml"),
@@ -46,8 +48,36 @@ func (opts *ConfigOpts) InitConfig() {
 	backyKoanf := koanf.New(".")
 	opts.ConfigFilePath = strings.TrimSpace(opts.ConfigFilePath)
 
+	metadataFile := "hashMetadataSample.yml"
+	cacheDir := homeCacheDir
+
+	// Load metadata from file
+	opts.CachedData, err = remotefetcher.LoadMetadataFromFile(metadataFile)
+	if err != nil {
+		fmt.Println("Error loading metadata:", err)
+		panic(err)
+	}
+
+	// Initialize cache with loaded metadata
+	cache, err := remotefetcher.NewCache(metadataFile, cacheDir)
+	if err != nil {
+		fmt.Println("Error initializing cache:", err)
+		panic(err)
+	}
+
+	// Populate cache with loaded metadata
+	for _, data := range opts.CachedData {
+		cache.AddDataToStore(data.Hash, *data)
+	}
+
+	opts.Cache, err = remotefetcher.NewCache(path.Join(backyHomeConfDir, "cache.yml"), backyHomeConfDir)
+	if err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("error initializing cache: %v", err), 1, nil)
+	}
 	// Initialize the fetcher
-	fetcher, err := configfetcher.NewConfigFetcher(opts.ConfigFilePath)
+	println("Creating new fetcher for source", opts.ConfigFilePath)
+	fetcher, err := remotefetcher.NewConfigFetcher(opts.ConfigFilePath, opts.Cache)
+	println("Created new fetcher for source", opts.ConfigFilePath)
 
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
@@ -62,7 +92,7 @@ func (opts *ConfigOpts) InitConfig() {
 	opts.koanf = backyKoanf
 }
 
-func loadConfigFile(fetcher configfetcher.ConfigFetcher, filePath string, k *koanf.Koanf, opts *ConfigOpts) {
+func loadConfigFile(fetcher remotefetcher.ConfigFetcher, filePath string, k *koanf.Koanf, opts *ConfigOpts) {
 	data, err := fetcher.Fetch(filePath)
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("Could not fetch config file %s: %v", filePath, err), 1, nil)
@@ -73,7 +103,7 @@ func loadConfigFile(fetcher configfetcher.ConfigFetcher, filePath string, k *koa
 	}
 }
 
-func loadDefaultConfigFiles(fetcher configfetcher.ConfigFetcher, configFiles []string, k *koanf.Koanf, opts *ConfigOpts) {
+func loadDefaultConfigFiles(fetcher remotefetcher.ConfigFetcher, configFiles []string, k *koanf.Koanf, opts *ConfigOpts) {
 	cFileFailures := 0
 	for _, c := range configFiles {
 		data, err := fetcher.Fetch(c)
@@ -236,12 +266,22 @@ func resolveProxyHosts(host *Host, opts *ConfigOpts) {
 }
 
 func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
-	backyConfigFileDir := path.Dir(opts.ConfigFilePath)
-	listsConfig := koanf.New(".")
-	listConfigFiles := []string{
-		path.Join(backyConfigFileDir, "lists.yml"),
-		path.Join(backyConfigFileDir, "lists.yaml"),
+	var backyConfigFileDir string
+	var listConfigFiles []string
+	var u *url.URL
+	// if config file is remote, use the directory of the remote file
+	if isRemoteURL(opts.ConfigFilePath) {
+		_, u = getRemoteDir(opts.ConfigFilePath)
+		listConfigFiles = []string{u.JoinPath("lists.yml").String(), u.JoinPath("lists.yaml").String()}
+	} else {
+		backyConfigFileDir = path.Dir(opts.ConfigFilePath)
+		listConfigFiles = []string{
+			path.Join(backyConfigFileDir, "lists.yml"),
+			path.Join(backyConfigFileDir, "lists.yaml"),
+		}
 	}
+
+	listsConfig := koanf.New(".")
 
 	for _, l := range listConfigFiles {
 		if loadListConfigFile(l, listsConfig, opts) {
@@ -257,9 +297,29 @@ func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
 	}
 }
 
-func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool {
-	fetcher, err := configfetcher.NewConfigFetcher(filePath)
+func isRemoteURL(filePath string) bool {
+	return strings.HasPrefix(filePath, "http://") || strings.HasPrefix(filePath, "https://") || strings.HasPrefix(filePath, "s3://")
+}
+
+func getRemoteDir(filePath string) (string, *url.URL) {
+	u, err := url.Parse(filePath)
 	if err != nil {
+		return "", nil
+	}
+	// u.Path is the path to the file, stripped of scheme and hostname
+	u.Path = path.Dir(u.Path)
+
+	return u.String(), u
+}
+
+func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool {
+	fetcher, err := remotefetcher.NewConfigFetcher(filePath, opts.Cache, remotefetcher.IgnoreFileNotFound())
+	if err != nil {
+		// if file not found, ignore
+		if errors.Is(err, remotefetcher.ErrFileNotFound) {
+			return true
+		}
+
 		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
 	}
 
@@ -282,7 +342,8 @@ func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *C
 		opts.CmdListFile = path.Join(path.Dir(opts.ConfigFilePath), opts.CmdListFile)
 	}
 
-	fetcher, err := configfetcher.NewConfigFetcher(opts.CmdListFile)
+	fetcher, err := remotefetcher.NewConfigFetcher(opts.CmdListFile, opts.Cache)
+
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
 	}

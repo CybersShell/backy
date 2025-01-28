@@ -1,0 +1,3 @@
+kind: Fixed
+body: Parsing of remote URLs when determining list config file path
+time: 2025-01-28T15:38:06.957506929-06:00

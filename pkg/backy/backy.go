@@ -98,8 +98,14 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 
 			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine", command.Name)).Send()
 
-			localCMD = exec.Command(command.Cmd, command.Args...)
-
+			// execute package commands in a shell
+			if command.Type == "package" {
+				cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Executing package command")
+				ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
+				localCMD = exec.Command("/bin/sh", "-c", ArgsStr)
+			} else {
+				localCMD = exec.Command(command.Cmd, command.Args...)
+			}
 		}
 
 		if command.Dir != nil {
