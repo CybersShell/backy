@@ -51,12 +51,9 @@ func (s *S3Fetcher) Fetch(source string) ([]byte, error) {
 		Key:    &key,
 	})
 	if err != nil {
-		if err != nil {
-			var notFound *types.NoSuchKey
-			if errors.As(err, &notFound) && s.config.IgnoreFileNotFound {
-				return nil, ErrFileNotFound
-			}
-			return nil, err
+		var notFound *types.NoSuchKey
+		if errors.As(err, &notFound) && s.config.IgnoreFileNotFound {
+			return nil, ErrFileNotFound
 		}
 		return nil, err
 	}
