@@ -38,6 +38,7 @@ func List(cmd *cobra.Command, args []string) {
 	if cmdLists != nil {
 
 	}
+	parseS3Config()
 
 	opts := backy.NewOpts(cfgFile)
 

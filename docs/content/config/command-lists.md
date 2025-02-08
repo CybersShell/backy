@@ -2,7 +2,7 @@
 title: "Command Lists"
 weight: 2
 description: >
-  This page tells you how to get started with Backy.
+  This page tells you how to get use command lists.
 ---
 
 Command lists are for executing commands in sequence and getting notifications from them.
@@ -11,10 +11,18 @@ The top-level object key can be anything you want but not the same as another.
 
 Lists can go in a separate file. Command lists should be in a separate file if:
 
-1. key 'cmd-lists.file' is found
-2. hosts.yml or hosts.yaml is found in the same directory as the backy config file
+1. key 'cmd-lists.file' is specified
+2. lists.yml or lists.yaml is found in the same directory as the backy config file
 
-```yaml
+{{% notice info %}}
+The lists file is also checked in remote resources. 
+
+The lists file is ignored under the following condition:
+
+If a remote config file is specified (on the command-line using `-f`) and the lists file is not found in the same directory, the lists file is assumed to not exist.
+{{% /notice %}}
+
+```yaml {lineNos="true" wrap="true" title="yaml"}
   test2:
     name: test2
     order:
@@ -65,10 +73,10 @@ Backy also has a cron mode, so one can run `backy cron` and start a process that
 Adding `cron: 0 0 1 * * *` to a `cmd-lists` object will schedule the list at 1 in the morning. See [https://crontab.guru/](https://crontab.guru/) for reference.
 
 {{% notice tip %}}
-Note: Backy uses the second field of cron, so add anything except * to the beginning of a regular cron expression.
+Note: Backy uses the second field of cron, so add anything except `*` to the beginning of a regular cron expression.
 {{% /notice %}}
 
-```yaml
+```yaml {lineNos="true" wrap="true" title="yaml"}
 cmd-lists:
   docker-container-backup: # this can be any name you want
     # all commands have to be defined

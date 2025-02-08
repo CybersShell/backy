@@ -23,12 +23,11 @@ var (
 func init() {
 	execCmd.AddCommand(hostExecCommand)
 
-	hostExecCommand.Flags().StringSliceVarP(&hostsList, "hosts", "m", nil, "Accepts comma-separated names of hosts.")
-	hostExecCommand.Flags().StringSliceVarP(&cmdList, "commands", "c", nil, "Accepts comma-separated names of commands.")
-
 }
 
 func execute(cmd *cobra.Command, args []string) {
+	parseS3Config()
+
 	if len(args) < 1 {
 		logging.ExitWithMSG("Please provide a command to run. Pass --help to see options.", 1, nil)
 	}

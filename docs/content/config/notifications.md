@@ -5,6 +5,7 @@ description: >
   This page tells you how to get set up Backy notifications.
 ---
 
+Notifications are only configurable for command lists, as of right now.
 
 Notifications can be sent on command list completion and failure.
 

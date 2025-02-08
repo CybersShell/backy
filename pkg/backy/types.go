@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman"
+	"git.andrewnw.xyz/CyberShell/backy/pkg/remotefetcher"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/usermanager"
 	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/kevinburke/ssh_config"
@@ -66,10 +67,7 @@ type (
 		// hook refs are internal references of commands for each hook type
 		hookRefs map[string]map[string]*Command
 
-		/*
-			Shell specifies which shell to run the command in, if any.
-			Not applicable when host is defined.
-		*/
+		// Shell specifies which shell to run the command in, if any.
 		Shell string `yaml:"shell,omitempty"`
 
 		RemoteHost *Host `yaml:"-"`
@@ -90,10 +88,13 @@ type (
 		Environment []string `yaml:"environment,omitempty"`
 
 		// Output determines if output is requested.
-		// Only works if command is in a list.
+		//
+		// Only for when command is in a list.
 		GetOutput bool `yaml:"getOutput,omitempty"`
 
 		ScriptEnvFile string `yaml:"scriptEnvFile"`
+
+		// BEGIN PACKAGE COMMAND FIELDS
 
 		PackageManager string `yaml:"packageManager,omitempty"`
 
@@ -108,6 +109,7 @@ type (
 		pkgMan pkgman.PackageManager
 
 		packageCmdSet bool
+		// END PACKAGE COMMAND FIELDS
 
 		// RemoteSource specifies a URL to fetch the command or configuration remotely
 		RemoteSource string `yaml:"remoteSource,omitempty"`
@@ -115,8 +117,12 @@ type (
 		// FetchBeforeExecution determines if the remoteSource should be fetched before running
 		FetchBeforeExecution bool `yaml:"fetchBeforeExecution,omitempty"`
 
+		// BEGIN USER COMMAND FIELDS
+
 		// Username specifies the username for user creation or related operations
-		Username string `yaml:"username,omitempty"`
+		Username string `yaml:"userName,omitempty"`
+
+		UserID string `yaml:"userID,omitempty"`
 
 		// UserGroups specifies the groups to add the user to
 		UserGroups []string `yaml:"userGroups,omitempty"`
@@ -143,12 +149,15 @@ type (
 
 		userCmdSet bool
 
+		// stdin only for userOperation = password (for now)
 		stdin *strings.Reader
+
+		// END USER STRUCT FIELDS
 	}
 
 	RemoteSource struct {
 		URL  string `yaml:"url"`
-		Type string `yaml:"type"` // e.g., yaml
+		Type string `yaml:"type"` // e.g., s3, http
 		Auth struct {
 			AccessKey string `yaml:"accessKey"`
 			SecretKey string `yaml:"secretKey"`
@@ -217,6 +226,9 @@ type (
 		koanf *koanf.Koanf
 
 		NotificationConf *Notifications `yaml:"notifications"`
+
+		Cache      *remotefetcher.Cache
+		CachedData []*remotefetcher.CacheData
 	}
 
 	outStruct struct {

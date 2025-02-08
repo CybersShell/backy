@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"name": "backy",
+			"path": "."
+		}
+	],
+	"settings": {
+		"cSpell.words": [
+			"Cmds",
+			"remotefetcher",
+			"knadh",
+			"koanf",
+			"mattn",
+			"maunium",
+			"mautrix",
+			"nikoksr",
+			"Strs"
+		]
+	}
+}

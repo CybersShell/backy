@@ -28,12 +28,23 @@ commands:
     cmd: hostname
   update-docker:
     type: package
-    # shell: zsh
+    shell: zsh # best to run package commands in a shell
     packageName: docker-ce
     Args:
       - docker-ce-cli
     packageManager: apt
-    packageOperation: upgrade
+    packageOperation: install
+  update-dockerApt:
+    # type: package
+    shell: zsh
+    cmd: apt
+    Args:
+      - update
+      - "&&"
+      - apt install -y docker-ce
+      - docker-ce-cli
+    packageManager: apt
+    packageOperation: install
 
 cmd-lists:
   cmds-to-run: # this can be any name you want
