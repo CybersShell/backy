@@ -10,6 +10,13 @@ This is the section on the config file.
 To use a specific file:
 ```backy [command] -f /path/to/file```
 
+You can also use a remote file:
+```
+backy [command] -f `s3/http source`
+```
+
+See remote resources docs for specific info.
+
 If you leave the config path blank, the following paths will be searched in order:
 
 1. `./backy.yml`

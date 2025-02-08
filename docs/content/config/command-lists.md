@@ -11,8 +11,16 @@ The top-level object key can be anything you want but not the same as another.
 
 Lists can go in a separate file. Command lists should be in a separate file if:
 
-1. key 'cmd-lists.file' is found
-2. hosts.yml or hosts.yaml is found in the same directory as the backy config file
+1. key 'cmd-lists.file' is specified
+2. lists.yml or lists.yaml is found in the same directory as the backy config file
+
+{{% notice info %}}
+The lists file is also checked in remote resources. 
+
+The lists file is ignored under the following condition:
+
+If a remote config file is specified (on the command-line using `-f`) and the lists file is not found in the same directory, the lists file is assumed to not exist.
+{{% /notice %}}
 
 ```yaml {lineNos="true" wrap="true" title="yaml"}
   test2:

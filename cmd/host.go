@@ -8,7 +8,7 @@ import (
 
 var (
 	hostExecCommand = &cobra.Command{
-		Use:   "host [--commands=command1,command2, ... | -c command1,command2, ...] [--hosts=host1,hosts2, ... | -m host1,host2, ...] ",
+		Use:   "host [--command=command1 --command=command2 ... | -c command1 -c command2 ...] [--hosts=host1 --hosts=hosts2 ... | -m host1 -m host2 ...] ",
 		Short: "Runs command defined in config file on the hosts in order specified.",
 		Long:  "Host executes specified commands on the hosts defined in config file.\nUse the --commands or -c flag to choose the commands.",
 		Run:   Host,
@@ -20,6 +20,10 @@ var hostsList []string
 var cmdList []string
 
 func init() {
+
+	hostExecCommand.Flags().StringArrayVarP(&hostsList, "hosts", "m", nil, "Accepts space-separated names of hosts.")
+	hostExecCommand.Flags().StringArrayVarP(&cmdList, "command", "c", nil, "Accepts space-separated names of commands.")
+	parseS3Config()
 
 }
 
@@ -40,6 +44,7 @@ func Host(cmd *cobra.Command, args []string) {
 	}
 	// host is only checked when we read the SSH File
 	// so a check may not be needed here
+	// but we can check if the host is in the config file
 	for _, h := range hostsList {
 		_, hostFound := backyConfOpts.Hosts[h]
 		if !hostFound {

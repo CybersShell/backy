@@ -13,9 +13,10 @@ import (
 
 var (
 	// Used for flags.
-	cfgFile string
-	verbose bool
-	logFile string
+	cfgFile    string
+	verbose    bool
+	logFile    string
+	s3Endpoint string
 
 	rootCmd = &cobra.Command{
 		Use:   "backy",
@@ -33,11 +34,16 @@ func Execute() {
 }
 
 func init() {
-
 	rootCmd.PersistentFlags().StringVar(&logFile, "log-file", "", "log file to write to")
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "f", "", "config file to read from")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Sets verbose level")
-
+	rootCmd.PersistentFlags().StringVar(&s3Endpoint, "s3-endpoint", "", "Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.")
 	rootCmd.AddCommand(backupCmd, execCmd, cronCmd, versionCmd, listCmd)
+}
+
+func parseS3Config() {
+	if s3Endpoint != "" {
+		os.Setenv("S3_ENDPOINT", s3Endpoint)
+	}
 }

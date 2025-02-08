@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type ConfigFetcher interface {
+type RemoteFetcher interface {
 	// Fetch retrieves the configuration from the specified URL or source
 	// Returns the raw data as bytes or an error
 	Fetch(source string) ([]byte, error)
@@ -18,30 +18,31 @@ type ConfigFetcher interface {
 	Hash(data []byte) string
 }
 
-// ErrFileNotFound is returned when the file is not found and should be ignored
-var ErrFileNotFound = errors.New("remotefetcher: file not found")
+// ErrIgnoreFileNotFound is returned when the file is not found and should be ignored
+var ErrIgnoreFileNotFound = errors.New("remotefetcher: file not found")
 
-func NewConfigFetcher(source string, cache *Cache, options ...Option) (ConfigFetcher, error) {
-	var fetcher ConfigFetcher
-	var dataType string
+func NewRemoteFetcher(source string, cache *Cache, options ...FetcherOption) (RemoteFetcher, error) {
+	var fetcher RemoteFetcher
 
 	config := FetcherConfig{}
 	for _, option := range options {
 		option(&config)
 	}
+
+	// If FileType is empty (i.e. WithFileType was not called), yaml is the default file type
+	if strings.TrimSpace(config.FileType) == "" {
+		config.FileType = "yaml"
+	}
 	if strings.HasPrefix(source, "http") || strings.HasPrefix(source, "https") {
 		fetcher = NewHTTPFetcher(options...)
-		dataType = "yaml"
 	} else if strings.HasPrefix(source, "s3") {
 		var err error
-		fetcher, err = NewS3Fetcher(options...)
+		fetcher, err = NewS3Fetcher(source, options...)
 		if err != nil {
 			return nil, err
 		}
-		dataType = "yaml"
 	} else {
 		fetcher = &LocalFetcher{}
-		dataType = "yaml"
 
 		return fetcher, nil
 	}
@@ -51,7 +52,7 @@ func NewConfigFetcher(source string, cache *Cache, options ...Option) (ConfigFet
 	data, err := fetcher.Fetch(source)
 	if err != nil {
 		if config.IgnoreFileNotFound && isFileNotFoundError(err) {
-			return nil, ErrFileNotFound
+			return nil, ErrIgnoreFileNotFound
 		}
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func NewConfigFetcher(source string, cache *Cache, options ...Option) (ConfigFet
 		return &CachedFetcher{data: cachedData, path: cacheMeta.Path, dataType: cacheMeta.Type}, nil
 	}
 
-	cacheData, err := cache.Set(source, hash, data, dataType)
+	cacheData, err := cache.Set(source, hash, data, config.FileType)
 	if err != nil {
 		return nil, err
 	}

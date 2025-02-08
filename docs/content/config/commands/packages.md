@@ -10,8 +10,8 @@ This is dedicated to `package` commands. The command `type` field must be `packa
 | --- | --- | --- | --- |
 | `packageName` | The name of a package to be modified. | `string` | yes |
 | `packageManager` | The name of the package manger to be used. | `string` | yes |
-| `packageOperation` | The type of operation to be perform. | `string` | yes |
-| `packageVersion` | The version of a package to be modified. | `string` | no |
+| `packageOperation` | The type of operation to perform. | `string` | yes |
+| `packageVersion` | The version of a package. | `string` | no |
 
 
 #### example
@@ -35,6 +35,7 @@ The following package operations are supported:
 - `install`
 - `remove`
 - `upgrade`
+- `checkVersion`
 
 #### packageManager
 
@@ -46,11 +47,11 @@ The following package managers are recognized:
 
 #### package command args
 
-You can add additional arguments using the standard `Args` key. This is useful for adding more packages.
+You can add additional arguments using the standard `Args` key. This is useful for adding more packages, yet it does not work with `checkVersion`.
 
 ### Development
 
-The PackageManager interface provides an easy to enforce functions and options. There are two interfaces, `PackageManager` and `ConfigurablePackageManager` in the directory `pkg/pkgman`. Go's import-cycle "feature" caused me to implement functional options using a third interface. `PackageManagerOption`is a function that takes an interface.
+The PackageManager interface provides an easy way to enforce functions and options. There are two interfaces, `PackageManager` and `ConfigurablePackageManager` in the directory `pkg/pkgman`. Go's import-cycle "feature" caused me to implement functional options using a third interface. `PackageManagerOption`is a function that takes an interface.
 
 #### PackageManager
 

@@ -1,12 +1,12 @@
 Command list {{.listName }} failed.
 
-The command run was {{.Cmd}}.
+The command run was {{.CmdName}}.
 
 The command executed was {{.Command}} {{ if .Args }} {{- range .Args}} {{.}} {{end}} {{end}}
 
 {{ if .Err }} The error was {{ .Err }}{{ end }}
 
-{{ if .Output }} The output was {{- range .Output}} {{.}} {{end}} {{end}}
+{{ if .Output }} The output was: {{- range .Output}} {{.}} {{end}} {{end}}
 
 {{ if .CmdsRan }}
 The following commands ran:

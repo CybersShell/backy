@@ -1,0 +1,3 @@
+kind: Added
+body: Flag `--s3-endpoint` for config file fetching from S3
+time: 2025-02-07T21:24:29.596055611-06:00

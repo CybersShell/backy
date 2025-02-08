@@ -16,7 +16,7 @@ type HTTPFetcher struct {
 }
 
 // NewHTTPFetcher creates a new instance of HTTPFetcher with the provided options.
-func NewHTTPFetcher(options ...Option) *HTTPFetcher {
+func NewHTTPFetcher(options ...FetcherOption) *HTTPFetcher {
 	cfg := &FetcherConfig{}
 	for _, opt := range options {
 		opt(cfg)
@@ -39,7 +39,7 @@ func (h *HTTPFetcher) Fetch(source string) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound && h.config.IgnoreFileNotFound {
-		return nil, ErrFileNotFound
+		return nil, ErrIgnoreFileNotFound
 	}
 
 	if resp.StatusCode != http.StatusOK {

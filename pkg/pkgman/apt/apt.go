@@ -40,7 +40,6 @@ func (a *AptManager) Install(pkg, version string, args []string) (string, []stri
 	if args != nil {
 		baseArgs = append(baseArgs, args...)
 	}
-	fmt.Printf("baseArgs: %v\n", baseArgs)
 	return baseCmd, baseArgs
 }
 

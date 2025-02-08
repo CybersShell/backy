@@ -20,6 +20,7 @@ type UserManager interface {
 	UserExists(username string) (string, []string)
 }
 
+// NewUserManager returns a UserManager-compatible struct
 func NewUserManager(system string) (UserManager, error) {
 	var manager UserManager
 

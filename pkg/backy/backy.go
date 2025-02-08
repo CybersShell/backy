@@ -236,7 +236,8 @@ func notifyError(logger zerolog.Logger, templates *msgTemplates, list *CmdList, 
 		"CmdsRan":   cmdsRan,
 		"CmdOutput": outStructArr,
 		"Err":       err,
-		"Command":   cmd.Name,
+		"CmdName":   cmd.Name,
+		"Command":   cmd.Cmd,
 		"Args":      cmd.Args,
 	}
 	var errMsg bytes.Buffer

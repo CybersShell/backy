@@ -43,7 +43,7 @@ func AddCommandLists(lists []string) BackyOptionFunc {
 	}
 }
 
-// AddPrintLists adds lists to print out
+// SetListsToSearch adds lists to search
 func SetListsToSearch(lists []string) BackyOptionFunc {
 	return func(bco *ConfigOpts) {
 		bco.List.Lists = append(bco.List.Lists, lists...)
@@ -64,8 +64,8 @@ func SetLogFile(logFile string) BackyOptionFunc {
 	}
 }
 
-// cronEnabled enables the execution of command lists at specified times
-func CronEnabled() BackyOptionFunc {
+// EnableCron enables the execution of command lists at specified times
+func EnableCron() BackyOptionFunc {
 	return func(bco *ConfigOpts) {
 		bco.cronEnabled = true
 	}

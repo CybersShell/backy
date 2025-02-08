@@ -64,7 +64,6 @@ func (c *Cache) loadFromFile() error {
 }
 
 func (c *Cache) saveToFile() error {
-	// println("Saving cache to file:", c.file)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -84,10 +83,8 @@ func (c *Cache) saveToFile() error {
 func (c *Cache) Get(hash string) ([]byte, CacheData, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	println("Getting cache data for hash:", hash)
 	cacheData, exists := c.store[hash]
 	if !exists {
-		println("Cache data does not exist for hash:", hash)
 		return nil, CacheData{}, false
 	}
 
@@ -99,10 +96,9 @@ func (c *Cache) Get(hash string) ([]byte, CacheData, bool) {
 	return data, cacheData, true
 }
 
-func (c *Cache) AddDataToStore(hash string, cacheData CacheData) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *Cache) AddDataToStore(hash string, cacheData CacheData) error {
 	c.store[hash] = cacheData
+	return c.saveToFile()
 }
 
 func (c *Cache) Set(source, hash string, data []byte, dataType string) (CacheData, error) {
@@ -164,9 +160,8 @@ func (cf *CachedFetcher) Hash(data []byte) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// Function to read and parse the hashMetadataSample.yml file
+// Function to read and parse the metadata file
 func LoadMetadataFromFile(filePath string) ([]*CacheData, error) {
-	// fmt.Println("Loading metadata from file:", filePath)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// Create the file if it does not exist
 		emptyData := []byte("[]")

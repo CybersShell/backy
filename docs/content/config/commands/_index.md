@@ -4,9 +4,7 @@ description: Commands are just that, commands
 weight: 1
 ---
 
-The yaml top-level map can be any string.
 
-The top-level name must be unique.
 
 ### Example Config
 
@@ -43,8 +41,8 @@ Values available for this section **(case-sensitive)**:
 | --- | --- | --- | --- |
 | `cmd` | Defines the command to execute | `string` | yes |
 | `Args` | Defines the arguments to the command | `[]string` | no |
-| `environment` | Defines evironment variables for the command | `[]string` | no |
-| `type` | May be `scriptFile`, `script`, or `package`. Runs script from local machine on remote. `Package` is the only one that can be run on local and remote hosts. | `string` | no |
+| `environment` | Defines environment variables for the command | `[]string` | no |
+| `type` | See documentation further down the page. Additional fields may be required. | `string` | no |
 | `getOutput` | Command(s) output is in the notification(s) | `bool` | no |
 | `host` | If not specified, the command will execute locally. | `string` | no |
 | `scriptEnvFile` | When type is `scriptFile` or `script`, this file is prepended to the input. | `string` | no |
@@ -108,13 +106,14 @@ This is useful for specifying environment variables or other things so they don'
 
 ### type
 
-May be `scriptFile` or `script`. Runs script from local machine on remote host passed to the SSH session as standard input.
+The following options are available:
 
-If `type` is `script`, `cmd` is used as the script.
-
-If `type` is `scriptFile`, cmd must be a script file.
-
-If `type` is `package`, there are additional fields that must be specified.
+| name | description |
+| --- | --- |
+| script | `cmd` is used as the script |
+| scriptFile | Can only be run on a host. `cmd` is read and used as the script, and `scriptEnvFile` can be used to add env variables |
+| package | Run package operations. See [dedicated page](/config/packages) for configuring package commands |
+| user | Run user operations. See [dedicated page](/config/user-commands) for configuring package commands |
 
 ### environment
 
@@ -122,7 +121,7 @@ The environment variables support expansion:
 
 - using escaped values `$VAR` or `${VAR}`
 
-For now, the variables have to be defined in an `.env` file in the same directory as the config file.
+For now, the variables have to be defined in an `.env` file in the same directory that the program is run from.
 
 If using it with host specified, the SSH server has to be configured to accept those env variables.
 

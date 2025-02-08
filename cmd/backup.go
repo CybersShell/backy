@@ -12,8 +12,8 @@ import (
 
 var (
 	backupCmd = &cobra.Command{
-		Use:   "backup [--lists=list1,list2,... | -l list1, list2,...]",
-		Short: "Runs commands defined in config file.",
+		Use:   "backup [--lists=list1 --lists list2 ... | -l list1 -l list2 ...]",
+		Short: "Runs commands defined in config file. Use -l flag multiple times to run multiple lists.",
 		Long:  "Backup executes commands defined in config file.\nUse the --lists or -l flag to execute the specified lists. If not flag is not given, all lists will be executed.",
 		Run:   Backup,
 	}
@@ -23,8 +23,9 @@ var (
 var cmdLists []string
 
 func init() {
+	parseS3Config()
 
-	backupCmd.Flags().StringSliceVarP(&cmdLists, "lists", "l", nil, "Accepts comma-separated names of command lists to execute.")
+	backupCmd.Flags().StringArrayVarP(&cmdLists, "lists", "l", nil, "Accepts comma-separated names of command lists to execute.")
 
 }
 

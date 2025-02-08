@@ -16,8 +16,9 @@ var (
 )
 
 func cron(cmd *cobra.Command, args []string) {
+	parseS3Config()
 
-	opts := backy.NewOpts(cfgFile, backy.CronEnabled())
+	opts := backy.NewOpts(cfgFile, backy.EnableCron())
 	opts.InitConfig()
 	opts.ReadConfig()
 

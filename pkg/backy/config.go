@@ -48,26 +48,29 @@ func (opts *ConfigOpts) InitConfig() {
 	backyKoanf := koanf.New(".")
 	opts.ConfigFilePath = strings.TrimSpace(opts.ConfigFilePath)
 
-	metadataFile := "hashMetadataSample.yml"
+	// metadataFile := "hashMetadataSample.yml"
+
 	cacheDir := homeCacheDir
 
 	// Load metadata from file
-	opts.CachedData, err = remotefetcher.LoadMetadataFromFile(metadataFile)
+	opts.CachedData, err = remotefetcher.LoadMetadataFromFile(path.Join(backyHomeConfDir, "cache.yml"))
 	if err != nil {
 		fmt.Println("Error loading metadata:", err)
-		panic(err)
+		logging.ExitWithMSG(err.Error(), 1, &opts.Logger)
 	}
 
 	// Initialize cache with loaded metadata
-	cache, err := remotefetcher.NewCache(metadataFile, cacheDir)
+	cache, err := remotefetcher.NewCache(path.Join(backyHomeConfDir, "cache.yml"), cacheDir)
 	if err != nil {
 		fmt.Println("Error initializing cache:", err)
-		panic(err)
+		logging.ExitWithMSG(err.Error(), 1, &opts.Logger)
 	}
 
 	// Populate cache with loaded metadata
 	for _, data := range opts.CachedData {
-		cache.AddDataToStore(data.Hash, *data)
+		if err := cache.AddDataToStore(data.Hash, *data); err != nil {
+			logging.ExitWithMSG(err.Error(), 1, &opts.Logger)
+		}
 	}
 
 	opts.Cache, err = remotefetcher.NewCache(path.Join(backyHomeConfDir, "cache.yml"), backyHomeConfDir)
@@ -75,9 +78,9 @@ func (opts *ConfigOpts) InitConfig() {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing cache: %v", err), 1, nil)
 	}
 	// Initialize the fetcher
-	println("Creating new fetcher for source", opts.ConfigFilePath)
-	fetcher, err := remotefetcher.NewConfigFetcher(opts.ConfigFilePath, opts.Cache)
-	println("Created new fetcher for source", opts.ConfigFilePath)
+	// println("Creating new fetcher for source", opts.ConfigFilePath)
+	fetcher, err := remotefetcher.NewRemoteFetcher(opts.ConfigFilePath, opts.Cache)
+	// println("Created new fetcher for source", opts.ConfigFilePath)
 
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
@@ -92,7 +95,7 @@ func (opts *ConfigOpts) InitConfig() {
 	opts.koanf = backyKoanf
 }
 
-func loadConfigFile(fetcher remotefetcher.ConfigFetcher, filePath string, k *koanf.Koanf, opts *ConfigOpts) {
+func loadConfigFile(fetcher remotefetcher.RemoteFetcher, filePath string, k *koanf.Koanf, opts *ConfigOpts) {
 	data, err := fetcher.Fetch(filePath)
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("Could not fetch config file %s: %v", filePath, err), 1, nil)
@@ -103,7 +106,7 @@ func loadConfigFile(fetcher remotefetcher.ConfigFetcher, filePath string, k *koa
 	}
 }
 
-func loadDefaultConfigFiles(fetcher remotefetcher.ConfigFetcher, configFiles []string, k *koanf.Koanf, opts *ConfigOpts) {
+func loadDefaultConfigFiles(fetcher remotefetcher.RemoteFetcher, configFiles []string, k *koanf.Koanf, opts *ConfigOpts) {
 	cFileFailures := 0
 	for _, c := range configFiles {
 		data, err := fetcher.Fetch(c)
@@ -313,10 +316,10 @@ func getRemoteDir(filePath string) (string, *url.URL) {
 }
 
 func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool {
-	fetcher, err := remotefetcher.NewConfigFetcher(filePath, opts.Cache, remotefetcher.IgnoreFileNotFound())
+	fetcher, err := remotefetcher.NewRemoteFetcher(filePath, opts.Cache, remotefetcher.IgnoreFileNotFound())
 	if err != nil {
 		// if file not found, ignore
-		if errors.Is(err, remotefetcher.ErrFileNotFound) {
+		if errors.Is(err, remotefetcher.ErrIgnoreFileNotFound) {
 			return true
 		}
 
@@ -342,7 +345,7 @@ func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *C
 		opts.CmdListFile = path.Join(path.Dir(opts.ConfigFilePath), opts.CmdListFile)
 	}
 
-	fetcher, err := remotefetcher.NewConfigFetcher(opts.CmdListFile, opts.Cache)
+	fetcher, err := remotefetcher.NewRemoteFetcher(opts.CmdListFile, opts.Cache)
 
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
@@ -603,23 +606,22 @@ func processCmds(opts *ConfigOpts) error {
 			}
 
 		}
+
+		if cmd.Type == "remoteScript" {
+			if !isRemoteURL(cmd.Cmd) {
+				return fmt.Errorf("remoteScript command %s must be a remote resource", cmdName)
+			}
+
+		}
 	}
 	return nil
 }
 
 // processHooks evaluates if hooks are valid Commands
 //
-// Takes the following arguments:
+// The cmd.hookRefs[hookType] is created with any hooks found.
 //
-//  1. a []string of hooks
-//  2. a map of Commands as arguments
-//  3. a string hookType, must be the hook type
-//
-// The cmds.hookRef is modified in this function.
-//
-// Returns the following:
-//
-//	An error, if any, if the command is not found
+// Returns an error, if any, if the hook command is not found
 func processHooks(cmd *Command, hooks []string, opts *ConfigOpts, hookType string) error {
 
 	// initialize hook type

@@ -18,7 +18,7 @@ func (l *LocalFetcher) Fetch(source string) ([]byte, error) {
 	// Check if the file exists
 	if _, err := os.Stat(source); os.IsNotExist(err) {
 		if l.config.IgnoreFileNotFound {
-			return nil, ErrFileNotFound
+			return nil, ErrIgnoreFileNotFound
 		}
 		return nil, nil
 	}
