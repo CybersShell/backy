@@ -15,8 +15,10 @@ var (
 	}
 )
 
-// Holds command list to run
+// Holds list of hosts to run commands on
 var hostsList []string
+
+// Holds command list to run
 var cmdList []string
 
 func init() {
@@ -48,7 +50,13 @@ func Host(cmd *cobra.Command, args []string) {
 	for _, h := range hostsList {
 		_, hostFound := backyConfOpts.Hosts[h]
 		if !hostFound {
-			logging.ExitWithMSG("host "+h+" not found", 1, &backyConfOpts.Logger)
+			// check if h exists in the config file
+			hostFoundInConfig, s := backy.CheckIfHostHasHostName(h)
+			if !hostFoundInConfig {
+				logging.ExitWithMSG("host "+h+" not found", 1, &backyConfOpts.Logger)
+			}
+			// create host with hostname and host
+			backyConfOpts.Hosts[h] = &backy.Host{Host: h, HostName: s}
 		}
 	}
 	if cmdList == nil {

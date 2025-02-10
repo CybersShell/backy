@@ -757,3 +757,12 @@ func (h *Host) DetectOS(opts *ConfigOpts) (string, error) {
 	osName := string(output)
 	return osName, nil
 }
+
+func CheckIfHostHasHostName(host string) (bool, string) {
+	HostName, err := ssh_config.DefaultUserSettings.GetStrict(host, "HostName")
+	if err != nil {
+		return false, ""
+	}
+	println(HostName)
+	return HostName != "", HostName
+}
