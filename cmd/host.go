@@ -23,8 +23,8 @@ var cmdList []string
 
 func init() {
 
-	hostExecCommand.Flags().StringArrayVarP(&hostsList, "hosts", "m", nil, "Accepts space-separated names of hosts.")
-	hostExecCommand.Flags().StringArrayVarP(&cmdList, "command", "c", nil, "Accepts space-separated names of commands.")
+	hostExecCommand.Flags().StringArrayVarP(&hostsList, "hosts", "m", nil, "Accepts space-separated names of hosts. Specify multiple times for multiple hosts.")
+	hostExecCommand.Flags().StringArrayVarP(&cmdList, "command", "c", nil, "Accepts space-separated names of commands. Specify multiple times for multiple commands.")
 	parseS3Config()
 
 }
