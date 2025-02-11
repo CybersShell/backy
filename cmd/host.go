@@ -44,13 +44,12 @@ func Host(cmd *cobra.Command, args []string) {
 	if hostsList == nil {
 		logging.ExitWithMSG("error: hosts must be specified", 1, &backyConfOpts.Logger)
 	}
-	// host is only checked when we read the SSH File
-	// so a check may not be needed here
-	// but we can check if the host is in the config file
+
 	for _, h := range hostsList {
+		// check if h exists in the config file
 		_, hostFound := backyConfOpts.Hosts[h]
 		if !hostFound {
-			// check if h exists in the config file
+			// check if h exists in the SSH config file
 			hostFoundInConfig, s := backy.CheckIfHostHasHostName(h)
 			if !hostFoundInConfig {
 				logging.ExitWithMSG("host "+h+" not found", 1, &backyConfOpts.Logger)
