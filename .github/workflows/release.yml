@@ -25,16 +25,15 @@ jobs:
           cache: true
       # More assembly might be required: Docker logins, GPG, etc. It all depends
       # on your needs.
-      - name: Get tag
-        id: tag
-        uses: dawidd6/action-get-tag@v1
+      - uses: olegtarasov/get-tag@v2.1.4
+        id: tagName
         with:
-          # Optionally strip `v` prefix
-          strip_v: false
+          # tagRegex: "foobar-(.*)"  # Optional. Returns specified group text as tag name. Full tag string is returned if regex is not defined.
+          tagRegexGroup: 1 # Optional. Default is 1.
       - uses: goreleaser/goreleaser-action@v4
         with:
           distribution: goreleaser
           version: latest
-          args: release --release-notes=".changes/${{steps.tag.outputs.tag}}.md" -f .goreleaser/github.yml --clean
+          args: release --release-notes=".changes/${GIT_TAG_NAME}.md" -f .goreleaser/github.yml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
