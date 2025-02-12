@@ -14,7 +14,7 @@ Usage:
   backy [command]
 
 Available Commands:
-  backup      Runs commands defined in config file.
+  backup      Runs commands defined in config file. Use -l flag multiple times to run multiple lists.
   completion  Generate the autocompletion script for the specified shell
   cron        Starts a scheduler that runs lists defined in config file.
   exec        Runs commands defined in config file in order given.
@@ -23,9 +23,11 @@ Available Commands:
   version     Prints the version and exits
 
 Flags:
-  -f, --config string   config file to read from
-  -h, --help            help for backy
-  -v, --verbose         Sets verbose level
+  -f, --config string        config file to read from
+  -h, --help                 help for backy
+      --log-file string      log file to write to
+      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+  -v, --verbose              Sets verbose level
 
 Use "backy [command] --help" for more information about a command.
 ```
@@ -39,15 +41,17 @@ Backup executes commands defined in config file.
 Use the --lists or -l flag to execute the specified lists. If not flag is not given, all lists will be executed.
 
 Usage:
-  backy backup [--lists=list1,list2,... | -l list1, list2,...] [flags]
+  backy backup [--lists=list1 --lists list2 ... | -l list1 -l list2 ...] [flags]
 
 Flags:
-  -h, --help            help for backup
-  -l, --lists strings   Accepts comma-separated names of command lists to execute.
+  -h, --help                help for backup
+  -l, --lists stringArray   Accepts comma-separated names of command lists to execute.
 
 Global Flags:
-  -f, --config string   config file to read from
-  -v, --verbose         Sets verbose level
+  -f, --config string        config file to read from
+      --log-file string      log file to write to
+      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+  -v, --verbose              Sets verbose level
 ```
 
 ## cron
@@ -62,8 +66,10 @@ Flags:
   -h, --help   help for cron
 
 Global Flags:
-  -f, --config string   config file to read from
-  -v, --verbose         Sets verbose level
+  -f, --config string        config file to read from
+      --log-file string      log file to write to
+      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+  -v, --verbose              Sets verbose level
 ```
 
 ## exec
@@ -82,8 +88,10 @@ Flags:
   -h, --help   help for exec
 
 Global Flags:
-  -f, --config string   config file to read from
-  -v, --verbose         Sets verbose level
+  -f, --config string        config file to read from
+      --log-file string      log file to write to
+      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+  -v, --verbose              Sets verbose level
 
 Use "backy exec [command] --help" for more information about a command.
 ```
@@ -95,16 +103,18 @@ Host executes specified commands on the hosts defined in config file.
 Use the --commands or -c flag to choose the commands.
 
 Usage:
-  backy exec host [--commands=command1,command2, ... | -c command1,command2, ...] [--hosts=host1,hosts2, ... | -m host1,host2, ...]  [flags]
+  backy exec host [--command=command1 --command=command2 ... | -c command1 -c command2 ...] [--hosts=host1 --hosts=hosts2 ... | -m host1 -m host2 ...]  [flags]
 
 Flags:
-  -c, --commands strings   Accepts comma-separated names of commands.
-  -h, --help               help for host
-  -m, --hosts strings      Accepts comma-separated names of hosts.
+  -c, --command stringArray   Accepts space-separated names of commands. Specify multiple times for multiple commands.
+  -h, --help                  help for host
+  -m, --hosts stringArray     Accepts space-separated names of hosts. Specify multiple times for multiple hosts.
 
 Global Flags:
-  -f, --config string   config file to read from
-  -v, --verbose         Sets verbose level
+  -f, --config string        config file to read from
+      --log-file string      log file to write to
+      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+  -v, --verbose              Sets verbose level
 ```
 
 ## version
@@ -121,8 +131,10 @@ Flags:
   -V, --vpre   Output the version with v prefixed.
 
 Global Flags:
-  -f, --config string   config file to read from
-  -v, --verbose         Sets verbose level
+  -f, --config string        config file to read from
+      --log-file string      log file to write to
+      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+  -v, --verbose              Sets verbose level
 ```
 
 ## list
@@ -140,6 +152,8 @@ Flags:
   -l, --lists strings   Accepts comma-separated names of command lists to list.
 
 Global Flags:
-  -f, --config string   config file to read from
-  -v, --verbose         Sets verbose level
+  -f, --config string        config file to read from
+      --log-file string      log file to write to
+      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+  -v, --verbose              Sets verbose level
 ```
