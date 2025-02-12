@@ -6,7 +6,7 @@ goreleaser -f .goreleaser/gitea.yml check
 changie batch $CURRENT_TAG
 changie merge
 git add .changes/
-git commit =am "$CURRENT_TAG"
+git commit -am "$CURRENT_TAG"
 git tag "$CURRENT_TAG"
 git push all
 git push all --tags
