@@ -4,7 +4,7 @@ steps:
     image: golang:1.23
     commands:
       - go mod tidy
-      - go install github.com/goreleaser/goreleaser@latest
+      - go install github.com/goreleaser/goreleaser/v2@v2.7.0
       - goreleaser release -f .goreleaser/gitea.yml --release-notes=".changes/$(go run backy.go version -V).md"
     secrets: [ gitea_token ]
     when:
