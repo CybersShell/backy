@@ -1,3 +1,4 @@
+name: goreleaser release
 steps:
   release:
     image: goreleaser/goreleaser
