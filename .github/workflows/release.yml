@@ -33,7 +33,8 @@ jobs:
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
-          version: latest
+          version: 2.7.0
           args: release --release-notes=".changes/${GIT_TAG_NAME}.md" -f .goreleaser/github.yml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
+          GIT_TAG_NAME: ${{ env.GIT_TAG_NAME }}
