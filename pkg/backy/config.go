@@ -85,7 +85,6 @@ func (opts *ConfigOpts) InitConfig() {
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
 	}
-
 	if opts.ConfigFilePath != "" {
 		loadConfigFile(fetcher, opts.ConfigFilePath, backyKoanf, opts)
 	} else {
@@ -109,22 +108,22 @@ func loadConfigFile(fetcher remotefetcher.RemoteFetcher, filePath string, k *koa
 func loadDefaultConfigFiles(fetcher remotefetcher.RemoteFetcher, configFiles []string, k *koanf.Koanf, opts *ConfigOpts) {
 	cFileFailures := 0
 	for _, c := range configFiles {
+		opts.ConfigFilePath = c
 		data, err := fetcher.Fetch(c)
 		if err != nil {
 			cFileFailures++
 			continue
 		}
 
-		if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
-			cFileFailures++
-			continue
+		if data != nil {
+			if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err == nil {
+				continue
+			}
 		}
-
-		break
 	}
 
 	if cFileFailures == len(configFiles) {
-		logging.ExitWithMSG("Could not find any valid config file", 1, nil)
+		logging.ExitWithMSG("Could not find any valid local config file", 1, nil)
 	}
 }
 
