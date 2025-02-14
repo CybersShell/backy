@@ -30,7 +30,7 @@ jobs:
         with:
           # tagRegex: "foobar-(.*)"  # Optional. Returns specified group text as tag name. Full tag string is returned if regex is not defined.
           tagRegexGroup: 1 # Optional. Default is 1.
-      - uses: goreleaser/goreleaser-action@v4
+      - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: latest
