@@ -15,11 +15,11 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
           cache: true
@@ -34,7 +34,7 @@ jobs:
         with:
           distribution: goreleaser
           version: 2.7.0
-        run: goreleaser release --release-notes=".changes/$(go run backy.go version -V).md" -f .goreleaser/github.yml --clean
+          args: release --release-notes=".changes/${{ env.GIT_TAG_NAME }}.md" -f .goreleaser/github.yml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
-          # GIT_TAG_NAME: ${{ steps.tagName.outputs.tag }}
+          GIT_TAG_NAME: ${{ steps.tagName.outputs.tag }}
