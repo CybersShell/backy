@@ -1,12 +1,17 @@
 name: goreleaser release
 steps:
-  release:
-    image: goreleaser/goreleaser
+  golang:
+    image: golang:1.23
     commands:
+      - go mod tidy
+      - go install github.com/goreleaser/goreleaser@latest
       - goreleaser release -f .goreleaser/gitea.yml --release-notes=".changes/$(go run backy.go version -V).md"
     secrets: [ gitea_token ]
     when:
       event: tag
+  # release:
+  #   image: goreleaser/goreleaser
+  #   commands:
 
 when:
   - event: tag

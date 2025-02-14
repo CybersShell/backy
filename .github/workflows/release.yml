@@ -37,4 +37,4 @@ jobs:
           args: release --release-notes=".changes/${GIT_TAG_NAME}.md" -f .goreleaser/github.yml --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}
-          GIT_TAG_NAME: ${{ env.GIT_TAG_NAME }}
+          GIT_TAG_NAME: ${{ steps.tagName.outputs.tag }}
