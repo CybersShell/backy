@@ -28,7 +28,7 @@ steps:
         from_secret: ssh_host_key
       SSH_DEPLOY_KEY:
         from_secret: ssh_deploy_key
-      SSH_HOST_PASSPHRASE:
+      SSH_PASSPHRASE:
         from_secret: ssh_passphrase
 
 when:
