@@ -23,7 +23,13 @@ steps:
       - echo "$SSH_DEPLOY_KEY" | tr -d '\r' | DISPLAY=":0.0" SSH_ASKPASS=~/.ssh/.print_ssh_password setsid ssh-add -
       - rsync -atv --delete --progress public/ backy@backy.cybershell.xyz:docs
       - rsync -atv --delete --progress vangen/ backy@backy.cybershell.xyz:vangen-go
-    secrets: [ ssh_host_key, ssh_deploy_key, ssh_passphrase ]
+    environment:
+      SSH_HOST_KEY:
+        from_secret: ssh_host_key
+      SSH_DEPLOY_KEY:
+        from_secret: ssh_deploy_key
+      SSH_HOST_PASSPHRASE:
+        from_secret: ssh_passphrase
 
 when:
   - branch: master
