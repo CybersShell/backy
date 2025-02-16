@@ -4,3 +4,9 @@ dist/
 
 *.log
 *.sh
+*.yaml
+*.yml
+
+
++.changie.yaml
++.changes/

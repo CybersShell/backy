@@ -187,7 +187,7 @@ type (
 
 		// CmdConfigLists holds the lists of commands to be run in order.
 		// Key is the command list name.
-		CmdConfigLists map[string]*CmdList `yaml:"cmd-lists"`
+		CmdConfigLists map[string]*CmdList `yaml:"cmdLists"`
 
 		// Hosts holds the Host config.
 		// key is the host.

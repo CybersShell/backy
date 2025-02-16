@@ -90,7 +90,6 @@ func (opts *ConfigOpts) InitConfig() {
 	} else {
 		loadDefaultConfigFiles(fetcher, configFiles, backyKoanf, opts)
 	}
-
 	opts.koanf = backyKoanf
 }
 
@@ -117,7 +116,9 @@ func loadDefaultConfigFiles(fetcher remotefetcher.RemoteFetcher, configFiles []s
 
 		if data != nil {
 			if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err == nil {
-				continue
+				break
+			} else {
+				logging.ExitWithMSG(fmt.Sprintf("error loading config from file %s: %v", c, err), 1, &opts.Logger)
 			}
 		}
 	}
@@ -230,7 +231,7 @@ func setupLogger(opts *ConfigOpts) zerolog.Logger {
 
 func unmarshalConfig(k *koanf.Koanf, key string, target interface{}, log zerolog.Logger) {
 	if err := k.UnmarshalWithConf(key, target, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
-		logging.ExitWithMSG(fmt.Sprintf("error unmarshalling %s struct: %v", key, err), 1, &log)
+		logging.ExitWithMSG(fmt.Sprintf("error unmarshalling key %s into struct: %v", key, err), 1, &log)
 	}
 }
 
@@ -274,10 +275,13 @@ func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
 	// if config file is remote, use the directory of the remote file
 	if isRemoteURL(opts.ConfigFilePath) {
 		_, u = getRemoteDir(opts.ConfigFilePath)
+		// // Still use local list files if a remote config file is used, but use them last
 		listConfigFiles = []string{u.JoinPath("lists.yml").String(), u.JoinPath("lists.yaml").String()}
 	} else {
 		backyConfigFileDir = path.Dir(opts.ConfigFilePath)
+		// println("backyConfigFileDir", backyConfigFileDir)
 		listConfigFiles = []string{
+			// "./lists.yml", "./lists.yaml",
 			path.Join(backyConfigFileDir, "lists.yml"),
 			path.Join(backyConfigFileDir, "lists.yaml"),
 		}
@@ -291,9 +295,9 @@ func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
 		}
 	}
 
-	if backyKoanf.Exists("cmd-lists") {
-		unmarshalConfig(backyKoanf, "cmd-lists", &opts.CmdConfigLists, opts.Logger)
-		if backyKoanf.Exists("cmd-lists.file") {
+	if backyKoanf.Exists("cmdLists") {
+		unmarshalConfig(backyKoanf, "cmdLists", &opts.CmdConfigLists, opts.Logger)
+		if backyKoanf.Exists("cmdLists.file") {
 			loadCmdListsFile(backyKoanf, listsConfig, opts)
 		}
 	}
@@ -319,6 +323,7 @@ func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool 
 	if err != nil {
 		// if file not found, ignore
 		if errors.Is(err, remotefetcher.ErrIgnoreFileNotFound) {
+			println("File not found", filePath)
 			return true
 		}
 
@@ -334,12 +339,13 @@ func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool 
 		return false
 	}
 
+	unmarshalConfig(k, "cmdLists", &opts.CmdConfigLists, opts.Logger)
 	opts.CmdListFile = filePath
 	return true
 }
 
 func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *ConfigOpts) {
-	opts.CmdListFile = strings.TrimSpace(backyKoanf.String("cmd-lists.file"))
+	opts.CmdListFile = strings.TrimSpace(backyKoanf.String("cmdLists.file"))
 	if !path.IsAbs(opts.CmdListFile) {
 		opts.CmdListFile = path.Join(path.Dir(opts.ConfigFilePath), opts.CmdListFile)
 	}
@@ -359,14 +365,16 @@ func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *C
 		logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
 	}
 
-	unmarshalConfig(listsConfig, "cmd-lists", &opts.CmdConfigLists, opts.Logger)
+	unmarshalConfig(listsConfig, "cmdLists", &opts.CmdConfigLists, opts.Logger)
 	opts.Logger.Info().Str("using lists config file", opts.CmdListFile).Send()
 }
 
 func validateCommandLists(opts *ConfigOpts) {
 	var cmdNotFoundSliceErr []error
 	for cmdListName, cmdList := range opts.CmdConfigLists {
+		// if cron is enabled and cron is not set, delete the list
 		if opts.cronEnabled && strings.TrimSpace(cmdList.Cron) == "" {
+			opts.Logger.Debug().Str("cron", "enabled").Str("list", cmdListName).Msg("cron not set, deleting list")
 			delete(opts.CmdConfigLists, cmdListName)
 			continue
 		}
@@ -406,9 +414,9 @@ func getLoggingKeyFromConfig(key string) string {
 	return fmt.Sprintf("logging.%s", key)
 }
 
-func getCmdListFromConfig(list string) string {
-	return fmt.Sprintf("cmd-lists.%s", list)
-}
+// func getCmdListFromConfig(list string) string {
+// 	return fmt.Sprintf("cmdLists.%s", list)
+// }
 
 func (opts *ConfigOpts) setupVault() error {
 	if !opts.koanf.Bool("vault.enabled") {

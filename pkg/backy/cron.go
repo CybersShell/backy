@@ -17,10 +17,7 @@ func (opts *ConfigOpts) Cron() {
 	s := gocron.NewScheduler(time.Local)
 	s.TagsUnique()
 	cmdLists := opts.CmdConfigLists
-	for listName, config := range cmdLists {
-		if config.Name == "" {
-			config.Name = listName
-		}
+	for _, config := range cmdLists {
 
 		cron := strings.TrimSpace(config.Cron)
 		if cron != "" {
