@@ -15,6 +15,7 @@ var (
 	// Used for flags.
 	cfgFile    string
 	verbose    bool
+	cmdStdOut  bool
 	logFile    string
 	s3Endpoint string
 
@@ -35,6 +36,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&logFile, "log-file", "", "log file to write to")
+	rootCmd.PersistentFlags().BoolVar(&cmdStdOut, "cmdStdOut", false, "Pass to print command output to stdout")
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "f", "", "config file to read from")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Sets verbose level")

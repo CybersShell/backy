@@ -136,7 +136,12 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 	opts.loadEnv()
 
 	if backyKoanf.Bool(getNestedConfig("logging", "cmd-std-out")) {
-		os.Setenv("BACKY_STDOUT", "enabled")
+		os.Setenv("BACKY_CMDSTDOUT", "enabled")
+	}
+
+	// override the default value of cmd-std-out if flag is set
+	if opts.CmdStdOut {
+		os.Setenv("BACKY_CMDSTDOUT", "enabled")
 	}
 
 	CheckConfigValues(backyKoanf, opts.ConfigFilePath)
@@ -279,7 +284,6 @@ func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
 		listConfigFiles = []string{u.JoinPath("lists.yml").String(), u.JoinPath("lists.yaml").String()}
 	} else {
 		backyConfigFileDir = path.Dir(opts.ConfigFilePath)
-		// println("backyConfigFileDir", backyConfigFileDir)
 		listConfigFiles = []string{
 			// "./lists.yml", "./lists.yaml",
 			path.Join(backyConfigFileDir, "lists.yml"),
@@ -340,6 +344,7 @@ func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool 
 	}
 
 	unmarshalConfig(k, "cmdLists", &opts.CmdConfigLists, opts.Logger)
+	keyNotSupported("cmd-lists", "cmdLists", k, opts, true)
 	opts.CmdListFile = filePath
 	return true
 }
@@ -365,6 +370,7 @@ func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *C
 		logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
 	}
 
+	keyNotSupported("cmd-lists", "cmdLists", listsConfig, opts, true)
 	unmarshalConfig(listsConfig, "cmdLists", &opts.CmdConfigLists, opts.Logger)
 	opts.Logger.Info().Str("using lists config file", opts.CmdListFile).Send()
 }
@@ -559,6 +565,16 @@ func processCmds(opts *ConfigOpts) error {
 				opts.Hosts[*cmd.Host] = &Host{Host: *cmd.Host}
 				cmd.RemoteHost = &Host{Host: *cmd.Host}
 			}
+		} else {
+
+			if cmd.Dir != nil {
+
+				cmdDir, err := resolveDir(*cmd.Dir)
+				if err != nil {
+					return err
+				}
+				cmd.Dir = &cmdDir
+			}
 		}
 
 		// Parse package commands
@@ -684,4 +700,15 @@ func detectOSType(cmd *Command, opts *ConfigOpts) error {
 		host.OS = os
 	}
 	return nil
+}
+
+func keyNotSupported(oldKey, newKey string, koanf *koanf.Koanf, opts *ConfigOpts, deprecated bool) {
+
+	if koanf.Exists(oldKey) {
+		if deprecated {
+			opts.Logger.Warn().Str("key", oldKey).Msg("key is deprecated. Use " + newKey + " instead.")
+		} else {
+			opts.Logger.Fatal().Err(fmt.Errorf("key %s found; it has changed to %s", oldKey, newKey)).Send()
+		}
+	}
 }

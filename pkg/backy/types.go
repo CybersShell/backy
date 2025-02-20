@@ -77,7 +77,6 @@ type (
 
 		/*
 			Dir specifies a directory in which to run the command.
-			Ignored if Host is set.
 		*/
 		Dir *string `yaml:"dir,omitempty"`
 
@@ -197,6 +196,8 @@ type (
 
 		// Global log level
 		BackyLogLvl *string
+
+		CmdStdOut bool
 
 		// Holds config file
 		ConfigFilePath string

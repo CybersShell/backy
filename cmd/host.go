@@ -35,7 +35,7 @@ func init() {
 //    2. stdin (on command line) (TODO)
 
 func Host(cmd *cobra.Command, args []string) {
-	backyConfOpts := backy.NewOpts(cfgFile, backy.SetLogFile(logFile))
+	backyConfOpts := backy.NewOpts(cfgFile, backy.SetLogFile(logFile), backy.SetCmdStdOut(cmdStdOut))
 	backyConfOpts.InitConfig()
 
 	backyConfOpts.ReadConfig()

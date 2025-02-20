@@ -64,6 +64,13 @@ func SetLogFile(logFile string) BackyOptionFunc {
 	}
 }
 
+// SetCmdStdOut forces the command output to stdout
+func SetCmdStdOut(setStdOut bool) BackyOptionFunc {
+	return func(bco *ConfigOpts) {
+		bco.CmdStdOut = setStdOut
+	}
+}
+
 // EnableCron enables the execution of command lists at specified times
 func EnableCron() BackyOptionFunc {
 	return func(bco *ConfigOpts) {
@@ -182,10 +189,12 @@ func IsTerminalActive() bool {
 }
 
 func IsCmdStdOutEnabled() bool {
-	return os.Getenv("BACKY_STDOUT") == "enabled"
+	return os.Getenv("BACKY_CMDSTDOUT") == "enabled"
 }
 
 func resolveDir(path string) (string, error) {
+	path = strings.TrimSpace(path)
+
 	if path == "~" {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {

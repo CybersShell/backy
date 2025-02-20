@@ -30,7 +30,7 @@ func init() {
 }
 
 func Backup(cmd *cobra.Command, args []string) {
-	backyConfOpts := backy.NewOpts(cfgFile, backy.AddCommandLists(cmdLists))
+	backyConfOpts := backy.NewOpts(cfgFile, backy.AddCommandLists(cmdLists), backy.SetLogFile(logFile), backy.SetCmdStdOut(cmdStdOut))
 	backyConfOpts.InitConfig()
 	backyConfOpts.ReadConfig()
 

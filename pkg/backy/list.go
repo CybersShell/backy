@@ -23,8 +23,7 @@ func (opts *ConfigOpts) ListCommand(cmd string) {
 	var cmdFound bool = false
 	var cmdInfo *Command
 	// check commands in file against cmd
-	for _, cmdInFile := range opts.executeCmds {
-		print(cmdInFile)
+	for cmdInFile := range opts.Cmds {
 		cmdFound = false
 
 		if cmd == cmdInFile {
@@ -37,26 +36,32 @@ func (opts *ConfigOpts) ListCommand(cmd string) {
 	// print the command's information
 	if cmdFound {
 
-		print("Command: ")
+		println("Command: ")
 
 		print(cmdInfo.Cmd)
-		if len(cmdInfo.Args) >= 0 {
 
-			for _, v := range cmdInfo.Args {
-				print(" ") // print space between command and args
-				print(v)   // print command arg
-			}
+		for _, v := range cmdInfo.Args {
+			print(" ") // print space between command and args
+			print(v)   // print command arg
 		}
 
-		// is is remote or local
+		// is it remote or local
 		if cmdInfo.Host != nil {
-
-			print("Host: ", cmdInfo.Host)
+			println()
+			print("Host: ", *cmdInfo.Host)
+			println()
 
 		} else {
 
+			println()
 			print("Host: Runs on Local Machine\n\n")
 
+		}
+
+		if cmdInfo.Dir != nil {
+			println()
+			print("Directory: ", *cmdInfo.Dir)
+			println()
 		}
 
 	} else {
@@ -65,4 +70,39 @@ func (opts *ConfigOpts) ListCommand(cmd string) {
 
 	}
 
+}
+
+func (opts *ConfigOpts) ListCommandList(list string) {
+	// bool for commands not found
+	// gets set to false if a command is not found
+	// set to true if the command is found
+	var listFound bool = false
+	var listInfo *CmdList
+	// check commands in file against cmd
+	for listInFile, l := range opts.CmdConfigLists {
+		listFound = false
+
+		if list == listInFile {
+			listFound = true
+			listInfo = l
+			break
+		}
+	}
+
+	// print the command's information
+	if listFound {
+
+		println("List: ", list)
+		println()
+
+		for _, v := range listInfo.Order {
+			println()
+			opts.ListCommand(v)
+		}
+
+	} else {
+
+		fmt.Printf("List %s not found. Check spelling.\n", list)
+
+	}
 }

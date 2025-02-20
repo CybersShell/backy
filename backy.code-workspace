@@ -8,13 +8,14 @@
 	"settings": {
 		"cSpell.words": [
 			"Cmds",
-			"remotefetcher",
+			"CMDSTDOUT",
 			"knadh",
 			"koanf",
 			"mattn",
 			"maunium",
 			"mautrix",
 			"nikoksr",
+			"remotefetcher",
 			"Strs"
 		]
 	}
