@@ -1,3 +1,5 @@
++.changie.yaml
++.changes/*/*.yaml
 
 dist/
 .codegpt
@@ -6,7 +8,3 @@ dist/
 *.sh
 *.yaml
 *.yml
-
-
-+.changie.yaml
-+.changes/*
