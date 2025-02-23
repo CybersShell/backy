@@ -64,6 +64,11 @@ func (opts *ConfigOpts) ListCommand(cmd string) {
 			println()
 		}
 
+		if cmdInfo.Type.String() != "" {
+			print("Type: ", cmdInfo.Type.String())
+			println()
+		}
+
 	} else {
 
 		fmt.Printf("Command %s not found. Check spelling.\n", cmd)

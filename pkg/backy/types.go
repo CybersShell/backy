@@ -54,9 +54,8 @@ type (
 		// command to run
 		Cmd string `yaml:"cmd"`
 
-		// Possible values: script, scriptFile
-		// If blank, it is regular command.
-		Type string `yaml:"type,omitempty"`
+		// See CommandType enum further down the page for acceptable values
+		Type CommandType `yaml:"type,omitempty"`
 
 		// host on which to run cmd
 		Host *string `yaml:"host,omitempty"`
@@ -93,6 +92,10 @@ type (
 
 		ScriptEnvFile string `yaml:"scriptEnvFile"`
 
+		OutputToLog bool `yaml:"outputToLog,omitempty"`
+
+		OutputFile string `yaml:"outputFile,omitempty"`
+
 		// BEGIN PACKAGE COMMAND FIELDS
 
 		PackageManager string `yaml:"packageManager,omitempty"`
@@ -115,6 +118,8 @@ type (
 
 		// FetchBeforeExecution determines if the remoteSource should be fetched before running
 		FetchBeforeExecution bool `yaml:"fetchBeforeExecution,omitempty"`
+
+		Fetcher remotefetcher.RemoteFetcher
 
 		// BEGIN USER COMMAND FIELDS
 
@@ -289,4 +294,15 @@ type (
 		ListName string // Name of the command list
 		Error    error  // Error encountered, if any
 	}
+	CommandType int
+)
+
+//go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=CommandType
+const (
+	Default      CommandType = iota //
+	Script                          // script
+	ScriptFile                      // scriptFile
+	RemoteScript                    // remoteScript
+	Package                         // package
+	User                            // user
 )

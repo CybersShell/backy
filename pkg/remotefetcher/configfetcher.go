@@ -57,11 +57,12 @@ func NewRemoteFetcher(source string, cache *Cache, options ...FetcherOption) (Re
 		return nil, err
 	}
 
-	hash := fetcher.Hash(data)
-	if cachedData, cacheMeta, exists := cache.Get(hash); exists {
+	URLHash := HashURL(source)
+	if cachedData, cacheMeta, exists := cache.Get(URLHash); exists {
 		return &CachedFetcher{data: cachedData, path: cacheMeta.Path, dataType: cacheMeta.Type}, nil
 	}
 
+	hash := fetcher.Hash(data)
 	cacheData, err := cache.Set(source, hash, data, config.FileType)
 	if err != nil {
 		return nil, err

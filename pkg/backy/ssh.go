@@ -252,7 +252,6 @@ func (remoteHost *Host) GetPort() {
 	// port specifed?
 	// port will be 0 if missing from backy config
 	if port == "0" {
-		// get port from specified SSH config file
 		port, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "Port")
 
 		if port == "" {
@@ -315,7 +314,6 @@ func (remoteHost *Host) ConnectThroughBastion(log zerolog.Logger) (*ssh.Client, 
 		return nil, err
 	}
 
-	// sClient is an ssh client connected to the service host, through the bastion host.
 	sClient := ssh.NewClient(ncc, chans, reqs)
 
 	return sClient, nil
@@ -480,7 +478,6 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *Confi
 	return nil
 }
 
-// RunCmdSSH runs commands over SSH.
 func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([]string, error) {
 	var (
 		ArgsStr       string
@@ -492,10 +489,8 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 			env:  command.Environment,
 		}
 	)
-	// Get the command type
-	// This must be done before concatenating the arguments
-	command.Type = strings.TrimSpace(command.Type)
-	command = getCommandType(command)
+	// Getting the command type must be done before concatenating the arguments
+	command = getCommandTypeAndSetCommandInfo(command)
 
 	// Prepare command arguments
 	for _, v := range command.Args {
@@ -505,7 +500,7 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 	cmdCtxLogger.Info().
 		Str("Command", command.Name).
 		Str("Host", *command.Host).
-		Msgf("Running %s on host %s", getCommandTypeLabel(command.Type), *command.Host)
+		Msgf("Running %s on host %s", getCommandTypeAndSetCommandInfoLabel(command.Type), *command.Host)
 
 	// cmdCtxLogger.Debug().Str("cmd", command.Cmd).Strs("args", command.Args).Send()
 
@@ -536,11 +531,13 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 
 	// Handle command execution based on type
 	switch command.Type {
-	case "script":
+	case Script:
 		return command.runScript(commandSession, cmdCtxLogger, &cmdOutBuf)
-	case "scriptFile":
+	case RemoteScript:
+		return command.runRemoteScript(commandSession, cmdCtxLogger, &cmdOutBuf)
+	case ScriptFile:
 		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
-	case "package":
+	case Package:
 		if command.PackageOperation == "checkVersion" {
 			commandSession.Stderr = nil
 			// Execute the package version command remotely
@@ -558,7 +555,7 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 			cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
 			// Run simple command
 			if err := commandSession.Run(ArgsStr); err != nil {
-				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error running command: %w", err)
+				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running command: %w", err)
 			}
 		}
 	default:
@@ -570,11 +567,11 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 		cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
 		// Run simple command
 		if err := commandSession.Run(ArgsStr); err != nil {
-			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.GetOutput), fmt.Errorf("error running command: %w", err)
+			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running command: %w", err)
 		}
 	}
 
-	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, true), nil
+	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), nil
 }
 
 func checkPackageVersion(cmdCtxLogger zerolog.Logger, command *Command, commandSession *ssh.Session, cmdOutBuf bytes.Buffer) ([]string, error) {
@@ -593,17 +590,17 @@ func checkPackageVersion(cmdCtxLogger zerolog.Logger, command *Command, commandS
 
 		_, parseErr := parsePackageVersion(string(cmdOut), cmdCtxLogger, command, cmdOutBuf)
 		if parseErr != nil {
-			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.GetOutput), fmt.Errorf("error: package %s not listed: %w", command.PackageName, err)
+			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error: package %s not listed: %w", command.PackageName, err)
 		}
-		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.GetOutput), fmt.Errorf("error running %s: %w", ArgsStr, err)
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running %s: %w", ArgsStr, err)
 	}
 
 	return parsePackageVersion(string(cmdOut), cmdCtxLogger, command, cmdOutBuf)
 }
 
-// getCommandTypeLabel returns a human-readable label for the command type.
-func getCommandTypeLabel(commandType string) string {
-	if commandType == "" {
+// getCommandTypeAndSetCommandInfoLabel returns a human-readable label for the command type.
+func getCommandTypeAndSetCommandInfoLabel(commandType CommandType) string {
+	if !commandType.IsACommandType() {
 		return "command"
 	}
 	return fmt.Sprintf("%s command", commandType)
@@ -644,7 +641,7 @@ func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger zerolog
 		return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error waiting for shell: %w", err)
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), nil
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.OutputToLog), nil
 }
 
 // prepareScriptBuffer prepares a buffer for inline scripts.
@@ -686,6 +683,25 @@ func (command *Command) prepareScriptFileBuffer() (*bytes.Buffer, error) {
 	buffer.Write(scriptBuffer.Bytes())
 
 	return &buffer, nil
+}
+
+// runRemoteScript handles the execution of remote scripts
+func (command *Command) runRemoteScript(session *ssh.Session, cmdCtxLogger zerolog.Logger, outputBuf *bytes.Buffer) ([]string, error) {
+	script, err := command.Fetcher.Fetch(command.Cmd)
+	if err != nil {
+		return nil, err
+	}
+	if command.Shell == "" {
+		command.Shell = "sh"
+	}
+	session.Stdin = bytes.NewReader(script)
+	err = session.Run(command.Shell)
+
+	if err != nil {
+		return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running remote script: %w", err)
+	}
+
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.OutputToLog), nil
 }
 
 // readFileToBuffer reads a file into a buffer.

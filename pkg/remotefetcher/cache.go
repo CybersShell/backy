@@ -16,6 +16,7 @@ type CacheData struct {
 	Hash string `yaml:"hash"`
 	Path string `yaml:"path"`
 	Type string `yaml:"type"`
+	URL  string `yaml:"url"`
 }
 
 type Cache struct {
@@ -101,13 +102,17 @@ func (c *Cache) AddDataToStore(hash string, cacheData CacheData) error {
 	return c.saveToFile()
 }
 
+// Set stores data on disk and in the cache file and returns the cache data
+// The filepath of the data is the file name + a SHA256 hash of the URL
 func (c *Cache) Set(source, hash string, data []byte, dataType string) (CacheData, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	sourceHash := HashURL(source)
+
 	fileName := filepath.Base(source)
 
-	path := filepath.Join(c.dir, fmt.Sprintf("%s-%s", fileName, hash))
+	path := filepath.Join(c.dir, fmt.Sprintf("%s-%s", fileName, sourceHash))
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		os.MkdirAll(c.dir, 0700)
@@ -122,9 +127,10 @@ func (c *Cache) Set(source, hash string, data []byte, dataType string) (CacheDat
 		Hash: hash,
 		Path: path,
 		Type: dataType,
+		URL:  sourceHash,
 	}
 
-	c.store[hash] = cacheData
+	c.store[sourceHash] = cacheData
 
 	// Unlock before calling saveToFile to avoid double-locking
 	c.mu.Unlock()
@@ -183,4 +189,9 @@ func LoadMetadataFromFile(filePath string) ([]*CacheData, error) {
 	}
 
 	return cacheData, nil
+}
+
+func HashURL(url string) string {
+	hash := sha256.Sum256([]byte(url))
+	return hex.EncodeToString(hash[:])
 }

@@ -14,20 +14,20 @@ import (
 var (
 	listCmd = &cobra.Command{
 		Use:   "list [command]",
-		Short: "Lists commands, lists, or hosts defined in config file.",
-		Long:  "Backup lists commands or groups defined in config file.\nUse the --lists or -l flag to list the specified lists. If not flag is not given, all lists will be executed.",
+		Short: "List commands, lists, or hosts defined in config file.",
+		Long:  "List commands, lists, or hosts defined in config file",
 	}
 
 	listCmds = &cobra.Command{
 		Use:   "cmds [cmd1 cmd2 cmd3...]",
-		Short: "Lists commands, lists, or hosts defined in config file.",
-		Long:  "Backup lists commands or groups defined in config file.\nUse the --lists or -l flag to list the specified lists. If not flag is not given, all lists will be executed.",
+		Short: "List commands defined in config file.",
+		Long:  "List commands defined in config file",
 		Run:   ListCmds,
 	}
 	listCmdLists = &cobra.Command{
 		Use:   "lists [list1 list2 ...]",
-		Short: "Lists commands, lists, or hosts defined in config file.",
-		Long:  "Backup lists commands or groups defined in config file.\nUse the --lists or -l flag to list the specified lists. If not flag is not given, all lists will be executed.",
+		Short: "List lists defined in config file.",
+		Long:  "List lists defined in config file",
 		Run:   ListCmdLists,
 	}
 )

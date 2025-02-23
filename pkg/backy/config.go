@@ -578,7 +578,7 @@ func processCmds(opts *ConfigOpts) error {
 		}
 
 		// Parse package commands
-		if cmd.Type == "package" {
+		if cmd.Type == Package {
 			if cmd.PackageManager == "" {
 				return fmt.Errorf("package manager is required for package command %s", cmd.PackageName)
 			}
@@ -603,7 +603,7 @@ func processCmds(opts *ConfigOpts) error {
 		}
 
 		// Parse user commands
-		if cmd.Type == "user" {
+		if cmd.Type == User {
 			if cmd.Username == "" {
 				return fmt.Errorf("username is required for user command %s", cmd.Name)
 			}
@@ -630,11 +630,23 @@ func processCmds(opts *ConfigOpts) error {
 
 		}
 
-		if cmd.Type == "remoteScript" {
+		if cmd.Type == RemoteScript {
+			var fetchErr error
 			if !isRemoteURL(cmd.Cmd) {
 				return fmt.Errorf("remoteScript command %s must be a remote resource", cmdName)
 			}
+			cmd.Fetcher, fetchErr = remotefetcher.NewRemoteFetcher(cmd.Cmd, opts.Cache, remotefetcher.WithFileType("script"))
+			if fetchErr != nil {
+				return fmt.Errorf("error initializing remote fetcher for remoteScript: %v", fetchErr)
+			}
 
+		}
+		if cmd.OutputFile != "" {
+			var err error
+			cmd.OutputFile, err = resolveDir(cmd.OutputFile)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

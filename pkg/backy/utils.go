@@ -251,12 +251,12 @@ func expandEnvVars(backyEnv map[string]string, envVars []string) {
 	}
 }
 
-// getCommandType checks for command type and if the command has already been set
+// getCommandTypeAndSetCommandInfo checks for command type and if the command has already been set
 // Checks for types package and user
 // Returns the modified Command with the package- or userManager command as Cmd and the package- or userOperation as args, plus any additional Args
-func getCommandType(command *Command) *Command {
+func getCommandTypeAndSetCommandInfo(command *Command) *Command {
 
-	if command.Type == "package" && !command.packageCmdSet {
+	if command.Type == Package && !command.packageCmdSet {
 		command.packageCmdSet = true
 		switch command.PackageOperation {
 		case "install":
@@ -270,7 +270,7 @@ func getCommandType(command *Command) *Command {
 		}
 	}
 
-	if command.Type == "user" && !command.userCmdSet {
+	if command.Type == User && !command.userCmdSet {
 		command.userCmdSet = true
 		switch command.UserOperation {
 		case "add":

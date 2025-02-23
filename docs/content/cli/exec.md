@@ -7,13 +7,13 @@ The `exec` subcommand can do some things that the configuration file can't do ye
 `exec host` takes the following arguments:
 
 ```sh
-  -c, --commands strings   Accepts comma-separated names of commands.
+  -c, --commands strings   Accepts space-separated names of commands.
   -h, --help               help for host
-  -m, --hosts strings      Accepts comma-separated names of hosts.
+  -m, --hosts strings      Accepts space-separated names of hosts.
 ```
 
 The commands have to be defined in the config file. The hosts need to at least be in the ssh_config(5) file.
 
 ```sh
-backy exec host [--commands=command1,command2, ... | -c command1,command2, ...] [--hosts=host1,hosts2, ... | -m host1,host2, ...]  [flags]
+backy exec host [--commands command1 -commands command2 ... | -c command1 -c command2 ...] [--hosts host1 --hosts hosts2 ... | -m host1 -c host2 ...]  [flags]
 ```

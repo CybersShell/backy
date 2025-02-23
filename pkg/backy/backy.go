@@ -47,22 +47,19 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		outputArr []string // holds the output strings returned by processes
 	)
 
-	// Get the command type
-	// This must be done before concatenating the arguments
-	command = getCommandType(command)
+	// Getting the command type must be done before concatenating the arguments
+	command = getCommandTypeAndSetCommandInfo(command)
 
 	for _, v := range command.Args {
 		ArgsStr += fmt.Sprintf(" %s", v)
 	}
 
-	// print the user's password if it is updated
-	if command.Type == "user" {
+	if command.Type == User {
 		if command.UserOperation == "password" {
 			cmdCtxLogger.Info().Str("password", command.UserPassword).Msg("user password to be updated")
 		}
 	}
 
-	// is host defined
 	if command.Host != nil {
 		outputArr, errSSH = command.RunCmdSSH(cmdCtxLogger, opts)
 		if errSSH != nil {
@@ -71,7 +68,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 	} else {
 
 		// Handle package operations
-		if command.Type == "package" && command.PackageOperation == "checkVersion" {
+		if command.Type == Package && command.PackageOperation == "checkVersion" {
 			cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Checking package versions")
 
 			// Execute the package version command
@@ -88,6 +85,64 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		}
 
 		var localCMD *exec.Cmd
+		if command.Type == RemoteScript {
+			script, err := command.Fetcher.Fetch(command.Cmd)
+			if err != nil {
+				return nil, err
+			}
+
+			if command.Shell == "" {
+				command.Shell = "sh"
+			}
+			localCMD = exec.Command(command.Shell, command.Args...)
+			injectEnvIntoLocalCMD(envVars, localCMD, cmdCtxLogger)
+
+			cmdOutWriters = io.MultiWriter(&cmdOutBuf)
+
+			if IsCmdStdOutEnabled() {
+				cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
+			}
+			if command.OutputFile != "" {
+				file, err := os.Create(command.OutputFile)
+				if err != nil {
+					return nil, fmt.Errorf("error creating output file: %w", err)
+				}
+				defer file.Close()
+				cmdOutWriters = io.MultiWriter(file, &cmdOutBuf)
+
+				if IsCmdStdOutEnabled() {
+					cmdOutWriters = io.MultiWriter(os.Stdout, file, &cmdOutBuf)
+				}
+
+			}
+
+			localCMD.Stdin = bytes.NewReader(script)
+			localCMD.Stdout = cmdOutWriters
+			localCMD.Stderr = cmdOutWriters
+
+			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running remoteScript %s on local machine in %s", command.Cmd, command.Shell)).Send()
+			err = localCMD.Run()
+			if err != nil {
+				return nil, fmt.Errorf("error running remote script: %w", err)
+			}
+
+			outScanner := bufio.NewScanner(&cmdOutBuf)
+
+			for outScanner.Scan() {
+				outMap := make(map[string]interface{})
+				outMap["cmd"] = command.Cmd
+				outMap["output"] = outScanner.Text()
+
+				if str, ok := outMap["output"].(string); ok {
+					outputArr = append(outputArr, str)
+				}
+				if command.OutputToLog {
+					cmdCtxLogger.Info().Fields(outMap).Send()
+				}
+			}
+			return outputArr, nil
+		}
+
 		var err error
 		if command.Shell != "" {
 			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine in %s", command.Name, command.Shell)).Send()
@@ -101,7 +156,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine", command.Name)).Send()
 
 			// execute package commands in a shell
-			if command.Type == "package" {
+			if command.Type == Package {
 				cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Executing package command")
 				ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
 				localCMD = exec.Command("/bin/sh", "-c", ArgsStr)
