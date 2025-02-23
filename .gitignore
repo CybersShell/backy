@@ -1,5 +1,5 @@
 +.changie.yaml
-+.changes/*/*.yaml
++.changes/*
 
 dist/
 .codegpt
