@@ -1,0 +1,3 @@
+kind: Fixed
+body: Local command's `dir` config key resolved to full path
+time: 2025-02-20T14:48:43.475300515-06:00

@@ -1,0 +1,3 @@
+kind: Added
+body: CLI flag `--cmdStdOut` to output command's stdout/stderr to stdout
+time: 2025-02-20T14:52:45.030582408-06:00
