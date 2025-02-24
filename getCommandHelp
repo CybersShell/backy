@@ -63,5 +63,17 @@ echo "\`\`\`" >> _index.md
 eval "${BACKYCOMMAND} list -h >>  _index.md"
 echo "\`\`\`" >> _index.md
 
+echo "## list cmds" >> _index.md
+echo "" >> _index.md
+echo "\`\`\`" >> _index.md
+eval "${BACKYCOMMAND} list cmds -h >>  _index.md"
+echo "\`\`\`" >> _index.md
+
+echo "## list lists" >> _index.md
+echo "" >> _index.md
+echo "\`\`\`" >> _index.md
+eval "${BACKYCOMMAND} list lists -h >>  _index.md"
+echo "\`\`\`" >> _index.md
+
 
 mv _index.md "$CLI_PAGE"

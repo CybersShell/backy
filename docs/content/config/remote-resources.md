@@ -14,4 +14,4 @@ If using S3, you should use the s3 protocol URI: `s3://bucketName/key/path`. You
 
 ## Scripts
 
-Scripts will be coming later.
+Remote script support is currently limited to http/https endpoints.

@@ -49,6 +49,7 @@ func NewS3Fetcher(endpoint string, options ...FetcherOption) (*S3Fetcher, error)
 		println(err.Error())
 		return nil, err
 	}
+
 	// Initialize S3 client if not provided
 	if cfg.S3Client == nil {
 		s3Client, err = minio.New(s3Endpoint, &minio.Options{
@@ -128,7 +129,6 @@ func (s *S3Fetcher) Hash(data []byte) string {
 }
 
 func getS3Credentials(profile, host string, httpClient *http.Client) (*credentials.Credentials, error) {
-	// println(s3utils.GetRegionFromURL(*u))
 	homeDir, hdirErr := homedir.Dir()
 	if hdirErr != nil {
 		return nil, hdirErr

@@ -167,3 +167,39 @@ Global Flags:
 
 Use "backy list [command] --help" for more information about a command.
 ```
+## list cmds
+
+```
+List commands defined in config file
+
+Usage:
+  backy list cmds [cmd1 cmd2 cmd3...] [flags]
+
+Flags:
+  -h, --help   help for cmds
+
+Global Flags:
+      --cmdStdOut            Pass to print command output to stdout
+  -f, --config string        config file to read from
+      --log-file string      log file to write to
+      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+  -v, --verbose              Sets verbose level
+```
+## list lists
+
+```
+List lists defined in config file
+
+Usage:
+  backy list lists [list1 list2 ...] [flags]
+
+Flags:
+  -h, --help   help for lists
+
+Global Flags:
+      --cmdStdOut            Pass to print command output to stdout
+  -f, --config string        config file to read from
+      --log-file string      log file to write to
+      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+  -v, --verbose              Sets verbose level
+```
