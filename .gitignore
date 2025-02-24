@@ -6,5 +6,5 @@ dist/
 
 *.log
 *.sh
-*.yaml
-*.yml
+/*.yaml
+/*.yml
