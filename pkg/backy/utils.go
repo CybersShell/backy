@@ -251,9 +251,6 @@ func expandEnvVars(backyEnv map[string]string, envVars []string) {
 	}
 }
 
-// getCommandTypeAndSetCommandInfo checks for command type and if the command has already been set
-// Checks for types package and user
-// Returns the modified Command with the package- or userManager command as Cmd and the package- or userOperation as args, plus any additional Args
 func getCommandTypeAndSetCommandInfo(command *Command) *Command {
 
 	if command.Type == PackageCT && !command.packageCmdSet {
