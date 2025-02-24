@@ -25,29 +25,29 @@ func (i CommandType) String() string {
 // Re-run the stringer command to generate them again.
 func _CommandTypeNoOp() {
 	var x [1]struct{}
-	_ = x[Default-(0)]
-	_ = x[Script-(1)]
-	_ = x[ScriptFile-(2)]
-	_ = x[RemoteScript-(3)]
-	_ = x[Package-(4)]
-	_ = x[User-(5)]
+	_ = x[DefaultCT-(0)]
+	_ = x[ScriptCT-(1)]
+	_ = x[ScriptFileCT-(2)]
+	_ = x[RemoteScriptCT-(3)]
+	_ = x[PackageCT-(4)]
+	_ = x[UserCT-(5)]
 }
 
-var _CommandTypeValues = []CommandType{Default, Script, ScriptFile, RemoteScript, Package, User}
+var _CommandTypeValues = []CommandType{DefaultCT, ScriptCT, ScriptFileCT, RemoteScriptCT, PackageCT, UserCT}
 
 var _CommandTypeNameToValueMap = map[string]CommandType{
-	_CommandTypeName[0:0]:        Default,
-	_CommandTypeLowerName[0:0]:   Default,
-	_CommandTypeName[0:6]:        Script,
-	_CommandTypeLowerName[0:6]:   Script,
-	_CommandTypeName[6:16]:       ScriptFile,
-	_CommandTypeLowerName[6:16]:  ScriptFile,
-	_CommandTypeName[16:28]:      RemoteScript,
-	_CommandTypeLowerName[16:28]: RemoteScript,
-	_CommandTypeName[28:35]:      Package,
-	_CommandTypeLowerName[28:35]: Package,
-	_CommandTypeName[35:39]:      User,
-	_CommandTypeLowerName[35:39]: User,
+	_CommandTypeName[0:0]:        DefaultCT,
+	_CommandTypeLowerName[0:0]:   DefaultCT,
+	_CommandTypeName[0:6]:        ScriptCT,
+	_CommandTypeLowerName[0:6]:   ScriptCT,
+	_CommandTypeName[6:16]:       ScriptFileCT,
+	_CommandTypeLowerName[6:16]:  ScriptFileCT,
+	_CommandTypeName[16:28]:      RemoteScriptCT,
+	_CommandTypeLowerName[16:28]: RemoteScriptCT,
+	_CommandTypeName[28:35]:      PackageCT,
+	_CommandTypeLowerName[28:35]: PackageCT,
+	_CommandTypeName[35:39]:      UserCT,
+	_CommandTypeLowerName[35:39]: UserCT,
 }
 
 var _CommandTypeNames = []string{

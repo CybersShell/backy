@@ -299,10 +299,10 @@ type (
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=CommandType
 const (
-	Default      CommandType = iota //
-	Script                          // script
-	ScriptFile                      // scriptFile
-	RemoteScript                    // remoteScript
-	Package                         // package
-	User                            // user
+	DefaultCT      CommandType = iota //
+	ScriptCT                          // script
+	ScriptFileCT                      // scriptFile
+	RemoteScriptCT                    // remoteScript
+	PackageCT                         // package
+	UserCT                            // user
 )

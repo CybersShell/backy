@@ -531,13 +531,13 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 
 	// Handle command execution based on type
 	switch command.Type {
-	case Script:
+	case ScriptCT:
 		return command.runScript(commandSession, cmdCtxLogger, &cmdOutBuf)
-	case RemoteScript:
+	case RemoteScriptCT:
 		return command.runRemoteScript(commandSession, cmdCtxLogger, &cmdOutBuf)
-	case ScriptFile:
+	case ScriptFileCT:
 		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
-	case Package:
+	case PackageCT:
 		if command.PackageOperation == "checkVersion" {
 			commandSession.Stderr = nil
 			// Execute the package version command remotely

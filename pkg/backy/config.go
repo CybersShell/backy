@@ -578,7 +578,7 @@ func processCmds(opts *ConfigOpts) error {
 		}
 
 		// Parse package commands
-		if cmd.Type == Package {
+		if cmd.Type == PackageCT {
 			if cmd.PackageManager == "" {
 				return fmt.Errorf("package manager is required for package command %s", cmd.PackageName)
 			}
@@ -603,7 +603,7 @@ func processCmds(opts *ConfigOpts) error {
 		}
 
 		// Parse user commands
-		if cmd.Type == User {
+		if cmd.Type == UserCT {
 			if cmd.Username == "" {
 				return fmt.Errorf("username is required for user command %s", cmd.Name)
 			}
@@ -630,7 +630,7 @@ func processCmds(opts *ConfigOpts) error {
 
 		}
 
-		if cmd.Type == RemoteScript {
+		if cmd.Type == RemoteScriptCT {
 			var fetchErr error
 			if !isRemoteURL(cmd.Cmd) {
 				return fmt.Errorf("remoteScript command %s must be a remote resource", cmdName)

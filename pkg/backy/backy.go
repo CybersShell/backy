@@ -54,7 +54,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		ArgsStr += fmt.Sprintf(" %s", v)
 	}
 
-	if command.Type == User {
+	if command.Type == UserCT {
 		if command.UserOperation == "password" {
 			cmdCtxLogger.Info().Str("password", command.UserPassword).Msg("user password to be updated")
 		}
@@ -68,7 +68,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 	} else {
 
 		// Handle package operations
-		if command.Type == Package && command.PackageOperation == "checkVersion" {
+		if command.Type == PackageCT && command.PackageOperation == "checkVersion" {
 			cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Checking package versions")
 
 			// Execute the package version command
@@ -85,7 +85,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		}
 
 		var localCMD *exec.Cmd
-		if command.Type == RemoteScript {
+		if command.Type == RemoteScriptCT {
 			script, err := command.Fetcher.Fetch(command.Cmd)
 			if err != nil {
 				return nil, err
@@ -156,7 +156,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine", command.Name)).Send()
 
 			// execute package commands in a shell
-			if command.Type == Package {
+			if command.Type == PackageCT {
 				cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Executing package command")
 				ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
 				localCMD = exec.Command("/bin/sh", "-c", ArgsStr)
