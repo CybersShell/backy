@@ -54,7 +54,7 @@ func (remoteConfig *Host) ConnectToHost(opts *ConfigOpts) error {
 
 	if !remoteConfig.useDefaultConfig {
 		var err error
-		remoteConfig.ConfigFilePath, err = resolveDir(remoteConfig.ConfigFilePath)
+		remoteConfig.ConfigFilePath, err = getFullPathWithHomeDir(remoteConfig.ConfigFilePath)
 		if err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ func (remoteConfig *Host) ConnectToHost(opts *ConfigOpts) error {
 			return sshConfigFileOpenErr
 		}
 	} else {
-		defaultConfig, _ := resolveDir("~/.ssh/config")
+		defaultConfig, _ := getFullPathWithHomeDir("~/.ssh/config")
 		configFile, sshConfigFileOpenErr = os.Open(defaultConfig)
 		if sshConfigFileOpenErr != nil {
 			return sshConfigFileOpenErr
@@ -242,7 +242,7 @@ func (remoteHost *Host) GetPrivateKeyFileFromConfig() {
 		identityFile = remoteHost.PrivateKeyPath
 	}
 
-	remoteHost.PrivateKeyPath, _ = resolveDir(identityFile)
+	remoteHost.PrivateKeyPath, _ = getFullPathWithHomeDir(identityFile)
 }
 
 // GetPort checks if the port from the config file is 0
@@ -324,10 +324,10 @@ func (remoteHost *Host) ConnectThroughBastion(log zerolog.Logger) (*ssh.Client, 
 func (remotehHost *Host) GetKnownHosts() error {
 	var knownHostsFileErr error
 	if TS(remotehHost.KnownHostsFile) != "" {
-		remotehHost.KnownHostsFile, knownHostsFileErr = resolveDir(remotehHost.KnownHostsFile)
+		remotehHost.KnownHostsFile, knownHostsFileErr = getFullPathWithHomeDir(remotehHost.KnownHostsFile)
 		return knownHostsFileErr
 	}
-	remotehHost.KnownHostsFile, knownHostsFileErr = resolveDir("~/.ssh/known_hosts")
+	remotehHost.KnownHostsFile, knownHostsFileErr = getFullPathWithHomeDir("~/.ssh/known_hosts")
 	return knownHostsFileErr
 }
 
@@ -336,7 +336,7 @@ func GetPrivateKeyPassword(key string, opts *ConfigOpts, log zerolog.Logger) (st
 	var prKeyPassword string
 	if strings.HasPrefix(key, "file:") {
 		privKeyPassFilePath := strings.TrimPrefix(key, "file:")
-		privKeyPassFilePath, _ = resolveDir(privKeyPassFilePath)
+		privKeyPassFilePath, _ = getFullPathWithHomeDir(privKeyPassFilePath)
 		keyFile, keyFileErr := os.Open(privKeyPassFilePath)
 		if keyFileErr != nil {
 			return "", errors.Errorf("Private key password file %s failed to open. \n Make sure it is accessible and correct.", privKeyPassFilePath)
@@ -368,7 +368,7 @@ func GetPassword(pass string, opts *ConfigOpts, log zerolog.Logger) (string, err
 	var password string
 	if strings.HasPrefix(pass, "file:") {
 		passFilePath := strings.TrimPrefix(pass, "file:")
-		passFilePath, _ = resolveDir(passFilePath)
+		passFilePath, _ = getFullPathWithHomeDir(passFilePath)
 		keyFile, keyFileErr := os.Open(passFilePath)
 		if keyFileErr != nil {
 			return "", errors.New("Password file failed to open")
@@ -440,7 +440,7 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *Confi
 			return sshConfigFileOpenErr
 		}
 	} else {
-		defaultConfig, _ := resolveDir("~/.ssh/config")
+		defaultConfig, _ := getFullPathWithHomeDir("~/.ssh/config")
 		configFile, sshConfigFileOpenErr = os.Open(defaultConfig)
 		if sshConfigFileOpenErr != nil {
 			return sshConfigFileOpenErr
@@ -706,7 +706,7 @@ func (command *Command) runRemoteScript(session *ssh.Session, cmdCtxLogger zerol
 
 // readFileToBuffer reads a file into a buffer.
 func readFileToBuffer(filePath string) (*bytes.Buffer, error) {
-	resolvedPath, err := resolveDir(filePath)
+	resolvedPath, err := getFullPathWithHomeDir(filePath)
 	if err != nil {
 		return nil, err
 	}

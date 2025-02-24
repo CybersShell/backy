@@ -91,7 +91,7 @@ func NewOpts(configFilePath string, opts ...BackyOptionFunc) *ConfigOpts {
 
 func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, opts *ConfigOpts, log zerolog.Logger) {
 	if envVarsToInject.file != "" {
-		envPath, envPathErr := resolveDir(envVarsToInject.file)
+		envPath, envPathErr := getFullPathWithHomeDir(envVarsToInject.file)
 		if envPathErr != nil {
 			log.Fatal().Str("envFile", envPath).Err(envPathErr).Send()
 		}
@@ -125,7 +125,7 @@ errEnvFile:
 
 func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, log zerolog.Logger) {
 	if envVarsToInject.file != "" {
-		envPath, _ := resolveDir(envVarsToInject.file)
+		envPath, _ := getFullPathWithHomeDir(envVarsToInject.file)
 
 		file, fileErr := os.Open(envPath)
 		if fileErr != nil {
@@ -192,7 +192,7 @@ func IsCmdStdOutEnabled() bool {
 	return os.Getenv("BACKY_CMDSTDOUT") == "enabled"
 }
 
-func resolveDir(path string) (string, error) {
+func getFullPathWithHomeDir(path string) (string, error) {
 	path = strings.TrimSpace(path)
 
 	if path == "~" {

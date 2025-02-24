@@ -569,7 +569,7 @@ func processCmds(opts *ConfigOpts) error {
 
 			if cmd.Dir != nil {
 
-				cmdDir, err := resolveDir(*cmd.Dir)
+				cmdDir, err := getFullPathWithHomeDir(*cmd.Dir)
 				if err != nil {
 					return err
 				}
@@ -643,7 +643,7 @@ func processCmds(opts *ConfigOpts) error {
 		}
 		if cmd.OutputFile != "" {
 			var err error
-			cmd.OutputFile, err = resolveDir(cmd.OutputFile)
+			cmd.OutputFile, err = getFullPathWithHomeDir(cmd.OutputFile)
 			if err != nil {
 				return err
 			}
