@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 
@@ -72,7 +73,7 @@ func (c *Cache) saveToFile() error {
 	for _, data := range c.store {
 		cacheData = append(cacheData, data)
 	}
-
+	cacheData = unique(cacheData)
 	data, err := yaml.Marshal(cacheData)
 	if err != nil {
 		return err
@@ -170,6 +171,7 @@ func (cf *CachedFetcher) Hash(data []byte) string {
 func LoadMetadataFromFile(filePath string) ([]*CacheData, error) {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// Create the file if it does not exist
+		os.MkdirAll(path.Dir(filePath), 0700)
 		emptyData := []byte("[]")
 		err := os.WriteFile(filePath, emptyData, 0644)
 		if err != nil {
@@ -184,6 +186,7 @@ func LoadMetadataFromFile(filePath string) ([]*CacheData, error) {
 
 	var cacheData []*CacheData
 	err = yaml.Unmarshal(data, &cacheData)
+
 	if err != nil {
 		return nil, err
 	}
@@ -194,4 +197,24 @@ func LoadMetadataFromFile(filePath string) ([]*CacheData, error) {
 func HashURL(url string) string {
 	hash := sha256.Sum256([]byte(url))
 	return hex.EncodeToString(hash[:])
+}
+
+func unique(cache []CacheData) []CacheData {
+	var unique []CacheData
+	type key struct{ value1, value2, value3, value4 string }
+	m := make(map[key]int)
+	for _, v := range cache {
+		k := key{v.URL, v.Hash, v.Path, v.Type}
+		if i, ok := m[k]; ok {
+			// Overwrite previous value per requirement in
+			// question to keep last matching value.
+			unique[i] = v
+		} else {
+			// Unique key found. Record position and collect
+			// in result.
+			m[k] = len(unique)
+			unique = append(unique, v)
+		}
+	}
+	return unique
 }

@@ -204,13 +204,12 @@ type (
 
 		CmdStdOut bool
 
-		// Holds config file
 		ConfigFilePath string
 
-		// Holds log file
+		ConfigDir string
+
 		LogFilePath string
 
-		// for command list file
 		CmdListFile string
 
 		// use command lists using cron

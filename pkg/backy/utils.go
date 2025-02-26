@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
+	"git.andrewnw.xyz/CyberShell/backy/pkg/remotefetcher"
 	"github.com/joho/godotenv"
 	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
@@ -216,11 +217,31 @@ func getFullPathWithHomeDir(path string) (string, error) {
 
 // loadEnv loads a .env file from the config file directory
 func (opts *ConfigOpts) loadEnv() {
-	envFileInConfigDir := fmt.Sprintf("%s/.env", path.Dir(opts.ConfigFilePath))
 	var backyEnv map[string]string
-	backyEnv, envFileErr := godotenv.Read(envFileInConfigDir)
-	if envFileErr != nil {
-		return
+	var envFileInConfigDir string
+	var envFileErr error
+	if isRemoteURL(opts.ConfigFilePath) {
+		_, u := getRemoteDir(opts.ConfigFilePath)
+		envFileInConfigDir = u.JoinPath(".env").String()
+		envFetcher, err := remotefetcher.NewRemoteFetcher(envFileInConfigDir, opts.Cache)
+		if err != nil {
+			return
+		}
+		data, err := envFetcher.Fetch(envFileInConfigDir)
+		if err != nil {
+			return
+		}
+		backyEnv, envFileErr = godotenv.UnmarshalBytes(data)
+		if envFileErr != nil {
+			return
+		}
+
+	} else {
+		envFileInConfigDir = fmt.Sprintf("%s/.env", path.Dir(opts.ConfigFilePath))
+		backyEnv, envFileErr = godotenv.Read(envFileInConfigDir)
+		if envFileErr != nil {
+			return
+		}
 	}
 
 	opts.backyEnv = backyEnv

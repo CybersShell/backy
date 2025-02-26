@@ -59,6 +59,7 @@ func NewRemoteFetcher(source string, cache *Cache, options ...FetcherOption) (Re
 
 	URLHash := HashURL(source)
 	if cachedData, cacheMeta, exists := cache.Get(URLHash); exists {
+		println(cachedData)
 		return &CachedFetcher{data: cachedData, path: cacheMeta.Path, dataType: cacheMeta.Type}, nil
 	}
 

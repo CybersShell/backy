@@ -53,7 +53,7 @@ func (opts *ConfigOpts) InitConfig() {
 	cacheDir := homeCacheDir
 
 	// Load metadata from file
-	opts.CachedData, err = remotefetcher.LoadMetadataFromFile(path.Join(backyHomeConfDir, "cache.yml"))
+	opts.CachedData, err = remotefetcher.LoadMetadataFromFile(path.Join(backyHomeConfDir, "cache", "cache.yml"))
 	if err != nil {
 		fmt.Println("Error loading metadata:", err)
 		logging.ExitWithMSG(err.Error(), 1, &opts.Logger)
@@ -77,11 +77,13 @@ func (opts *ConfigOpts) InitConfig() {
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing cache: %v", err), 1, nil)
 	}
-	// Initialize the fetcher
-	// println("Creating new fetcher for source", opts.ConfigFilePath)
-	fetcher, err := remotefetcher.NewRemoteFetcher(opts.ConfigFilePath, opts.Cache)
-	// println("Created new fetcher for source", opts.ConfigFilePath)
 
+	fetcher, err := remotefetcher.NewRemoteFetcher(opts.ConfigFilePath, opts.Cache)
+
+	if isRemoteURL(opts.ConfigFilePath) {
+		p, _ := getRemoteDir(opts.ConfigFilePath)
+		opts.ConfigDir = p
+	}
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
 	}
@@ -274,20 +276,22 @@ func resolveProxyHosts(host *Host, opts *ConfigOpts) {
 }
 
 func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
-	var backyConfigFileDir string
 	var listConfigFiles []string
 	var u *url.URL
+	var p string
 	// if config file is remote, use the directory of the remote file
 	if isRemoteURL(opts.ConfigFilePath) {
-		_, u = getRemoteDir(opts.ConfigFilePath)
+		p, u = getRemoteDir(opts.ConfigFilePath)
+		opts.ConfigDir = p
+		println(p)
 		// // Still use local list files if a remote config file is used, but use them last
 		listConfigFiles = []string{u.JoinPath("lists.yml").String(), u.JoinPath("lists.yaml").String()}
 	} else {
-		backyConfigFileDir = path.Dir(opts.ConfigFilePath)
+		opts.ConfigDir = path.Dir(opts.ConfigFilePath)
 		listConfigFiles = []string{
 			// "./lists.yml", "./lists.yaml",
-			path.Join(backyConfigFileDir, "lists.yml"),
-			path.Join(backyConfigFileDir, "lists.yaml"),
+			path.Join(opts.ConfigDir, "lists.yml"),
+			path.Join(opts.ConfigDir, "lists.yaml"),
 		}
 	}
 
@@ -327,7 +331,6 @@ func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool 
 	if err != nil {
 		// if file not found, ignore
 		if errors.Is(err, remotefetcher.ErrIgnoreFileNotFound) {
-			println("File not found", filePath)
 			return true
 		}
 
