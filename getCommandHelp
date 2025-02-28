@@ -1,79 +1,83 @@
 #!/bin/bash
 CLI_PAGE="docs/content/cli/_index.md"
+
+BACKYCOMMAND="go run backy.go"
+
+{
 echo "---
-title: "CLI"
+title: CLI
 weight: 4
 ---
 
 This page lists documentation for the CLI.
-" > _index.md
+" 
 
-BACKYCOMMAND="go run backy.go"
-
-echo "## Backy " >> _index.md
-echo " " >> _index.md
-echo "\`\`\`" >> _index.md
-eval "${BACKYCOMMAND} -h >>  _index.md"
-echo "\`\`\`" >> _index.md
-echo " " >> _index.md
+echo "## Backy "
+echo " "
+echo "\`\`\`"
+eval "${BACKYCOMMAND} -h"
+echo "\`\`\`"
+echo " "
 
 
-echo "# Subcommands" >> _index.md
-echo "" >> _index.md
 
-echo "## backup" >> _index.md
-echo "" >> _index.md
-echo "\`\`\`" >> _index.md
-eval "${BACKYCOMMAND} backup -h >>  _index.md"
-echo "\`\`\`" >> _index.md
-echo "" >> _index.md
+echo "# Subcommands" 
+echo "" 
 
-echo "## cron" >> _index.md
-echo "" >> _index.md
-echo "\`\`\`" >> _index.md
-eval "${BACKYCOMMAND} cron -h >>  _index.md"
-echo "\`\`\`" >> _index.md
-echo "" >> _index.md
+echo "## backup" 
+echo "" 
+echo "\`\`\`" 
+eval "${BACKYCOMMAND} backup -h"
+echo "\`\`\`" 
+echo "" 
 
-echo "## exec" >> _index.md
-echo "" >> _index.md
-echo "\`\`\`" >> _index.md
-eval "${BACKYCOMMAND} exec -h >>  _index.md"
-echo "\`\`\`" >> _index.md
-echo "" >> _index.md
+echo "## cron" 
+echo "" 
+echo "\`\`\`" 
+eval "${BACKYCOMMAND} cron -h"
+echo "\`\`\`" 
+echo "" 
 
-echo "### exec host" >> _index.md
-echo "" >> _index.md
-echo "\`\`\`" >> _index.md
-eval "${BACKYCOMMAND} exec host -h >>  _index.md"
-echo "\`\`\`" >> _index.md
-echo "" >> _index.md
+echo "## exec" 
+echo "" 
+echo "\`\`\`" 
+eval "${BACKYCOMMAND} exec -h"
+echo "\`\`\`" 
+echo "" 
+
+echo "### exec host" 
+echo "" 
+echo "\`\`\`" 
+eval "${BACKYCOMMAND} exec host -h"
+echo "\`\`\`" 
+echo "" 
 
 
-echo "## version" >> _index.md
-echo "" >> _index.md
-echo "\`\`\`" >> _index.md
-eval "${BACKYCOMMAND} version -h >>  _index.md"
-echo "\`\`\`" >> _index.md
-echo "" >> _index.md
+echo "## version" 
+echo "" 
+echo "\`\`\`" 
+eval "${BACKYCOMMAND} version -h"
+echo "\`\`\`" 
+echo "" 
 
-echo "## list" >> _index.md
-echo "" >> _index.md
-echo "\`\`\`" >> _index.md
-eval "${BACKYCOMMAND} list -h >>  _index.md"
-echo "\`\`\`" >> _index.md
+echo "## list" 
+echo "" 
+echo "\`\`\`" 
+eval "${BACKYCOMMAND} list -h"
+echo "\`\`\`" 
 
-echo "## list cmds" >> _index.md
-echo "" >> _index.md
-echo "\`\`\`" >> _index.md
-eval "${BACKYCOMMAND} list cmds -h >>  _index.md"
-echo "\`\`\`" >> _index.md
+echo "## list cmds" 
+echo "" 
+echo "\`\`\`" 
+eval "${BACKYCOMMAND} list cmds -h"
+echo "\`\`\`" 
 
-echo "## list lists" >> _index.md
-echo "" >> _index.md
-echo "\`\`\`" >> _index.md
-eval "${BACKYCOMMAND} list lists -h >>  _index.md"
-echo "\`\`\`" >> _index.md
+echo "## list lists" 
+echo "" 
+echo "\`\`\`" 
+eval "${BACKYCOMMAND} list lists -h"
+echo "\`\`\`" 
+} >> _index.md
 
 
 mv _index.md "$CLI_PAGE"

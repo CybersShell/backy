@@ -106,7 +106,7 @@ type (
 		PackageVersion string `yaml:"packageVersion,omitempty"`
 
 		// PackageOperation specifies the action for package-related commands (e.g., "install" or "remove")
-		PackageOperation string `yaml:"packageOperation,omitempty"`
+		PackageOperation PackageOperation `yaml:"packageOperation,omitempty"`
 
 		pkgMan pkgman.PackageManager
 
@@ -293,7 +293,10 @@ type (
 		ListName string // Name of the command list
 		Error    error  // Error encountered, if any
 	}
-	CommandType int
+
+	// use ints so we can use enums
+	CommandType      int
+	PackageOperation int
 )
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=CommandType
@@ -304,4 +307,15 @@ const (
 	RemoteScriptCT                    // remoteScript
 	PackageCT                         // package
 	UserCT                            // user
+)
+
+//go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=PackageOperation
+const (
+	DefaultPO           PackageOperation = iota //
+	PackOppInstall                              // install
+	PackOppUpgrade                              // upgrade
+	PackOppPurge                                // purge
+	PackOppRemove                               // remove
+	PackOppCheckVersion                         // checkVersion
+	PackOppIsInstalled                          // isInstalled
 )

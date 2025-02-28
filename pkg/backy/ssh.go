@@ -538,7 +538,7 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 	case ScriptFileCT:
 		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
 	case PackageCT:
-		if command.PackageOperation == "checkVersion" {
+		if command.PackageOperation == PackOppCheckVersion {
 			commandSession.Stderr = nil
 			// Execute the package version command remotely
 			// Parse the output of package version command

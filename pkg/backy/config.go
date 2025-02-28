@@ -585,7 +585,7 @@ func processCmds(opts *ConfigOpts) error {
 			if cmd.PackageManager == "" {
 				return fmt.Errorf("package manager is required for package command %s", cmd.PackageName)
 			}
-			if cmd.PackageOperation == "" {
+			if cmd.PackageOperation.String() == "" {
 				return fmt.Errorf("package operation is required for package command %s", cmd.PackageName)
 			}
 			if cmd.PackageName == "" {
@@ -594,15 +594,16 @@ func processCmds(opts *ConfigOpts) error {
 			var err error
 
 			// Validate the operation
-			switch cmd.PackageOperation {
-			case "install", "remove", "upgrade", "checkVersion":
+			if cmd.PackageOperation.IsAPackageOperation() {
+
 				cmd.pkgMan, err = pkgman.PackageManagerFactory(cmd.PackageManager, pkgman.WithoutAuth())
 				if err != nil {
 					return err
 				}
-			default:
+			} else {
 				return fmt.Errorf("unsupported package operation %s for command %s", cmd.PackageOperation, cmd.Name)
 			}
+
 		}
 
 		// Parse user commands
