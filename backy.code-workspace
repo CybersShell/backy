@@ -8,8 +8,10 @@
 	"settings": {
 		"cSpell.words": [
 			"Autorestic",
+			"changie",
 			"Cmds",
 			"CMDSTDOUT",
+			"goreleaser",
 			"knadh",
 			"koanf",
 			"mattn",

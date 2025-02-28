@@ -1,3 +1,0 @@
-kind: Changed
-body: Cache now stores resources by URL hash for ease-of-lookup
-time: 2025-02-23T15:33:05.33444642-06:00
