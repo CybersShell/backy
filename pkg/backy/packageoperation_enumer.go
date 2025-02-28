@@ -26,31 +26,31 @@ func (i PackageOperation) String() string {
 func _PackageOperationNoOp() {
 	var x [1]struct{}
 	_ = x[DefaultPO-(0)]
-	_ = x[PackOppInstall-(1)]
-	_ = x[PackOppUpgrade-(2)]
-	_ = x[PackOppPurge-(3)]
-	_ = x[PackOppRemove-(4)]
-	_ = x[PackOppCheckVersion-(5)]
-	_ = x[PackOppIsInstalled-(6)]
+	_ = x[PackOpInstall-(1)]
+	_ = x[PackOpUpgrade-(2)]
+	_ = x[PackOpPurge-(3)]
+	_ = x[PackOpRemove-(4)]
+	_ = x[PackOpCheckVersion-(5)]
+	_ = x[PackOpIsInstalled-(6)]
 }
 
-var _PackageOperationValues = []PackageOperation{DefaultPO, PackOppInstall, PackOppUpgrade, PackOppPurge, PackOppRemove, PackOppCheckVersion, PackOppIsInstalled}
+var _PackageOperationValues = []PackageOperation{DefaultPO, PackOpInstall, PackOpUpgrade, PackOpPurge, PackOpRemove, PackOpCheckVersion, PackOpIsInstalled}
 
 var _PackageOperationNameToValueMap = map[string]PackageOperation{
 	_PackageOperationName[0:0]:        DefaultPO,
 	_PackageOperationLowerName[0:0]:   DefaultPO,
-	_PackageOperationName[0:7]:        PackOppInstall,
-	_PackageOperationLowerName[0:7]:   PackOppInstall,
-	_PackageOperationName[7:14]:       PackOppUpgrade,
-	_PackageOperationLowerName[7:14]:  PackOppUpgrade,
-	_PackageOperationName[14:19]:      PackOppPurge,
-	_PackageOperationLowerName[14:19]: PackOppPurge,
-	_PackageOperationName[19:25]:      PackOppRemove,
-	_PackageOperationLowerName[19:25]: PackOppRemove,
-	_PackageOperationName[25:37]:      PackOppCheckVersion,
-	_PackageOperationLowerName[25:37]: PackOppCheckVersion,
-	_PackageOperationName[37:48]:      PackOppIsInstalled,
-	_PackageOperationLowerName[37:48]: PackOppIsInstalled,
+	_PackageOperationName[0:7]:        PackOpInstall,
+	_PackageOperationLowerName[0:7]:   PackOpInstall,
+	_PackageOperationName[7:14]:       PackOpUpgrade,
+	_PackageOperationLowerName[7:14]:  PackOpUpgrade,
+	_PackageOperationName[14:19]:      PackOpPurge,
+	_PackageOperationLowerName[14:19]: PackOpPurge,
+	_PackageOperationName[19:25]:      PackOpRemove,
+	_PackageOperationLowerName[19:25]: PackOpRemove,
+	_PackageOperationName[25:37]:      PackOpCheckVersion,
+	_PackageOperationLowerName[25:37]: PackOpCheckVersion,
+	_PackageOperationName[37:48]:      PackOpIsInstalled,
+	_PackageOperationLowerName[37:48]: PackOpIsInstalled,
 }
 
 var _PackageOperationNames = []string{

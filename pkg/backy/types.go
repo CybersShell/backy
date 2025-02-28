@@ -311,11 +311,11 @@ const (
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=PackageOperation
 const (
-	DefaultPO           PackageOperation = iota //
-	PackOppInstall                              // install
-	PackOppUpgrade                              // upgrade
-	PackOppPurge                                // purge
-	PackOppRemove                               // remove
-	PackOppCheckVersion                         // checkVersion
-	PackOppIsInstalled                          // isInstalled
+	DefaultPO          PackageOperation = iota //
+	PackOpInstall                              // install
+	PackOpUpgrade                              // upgrade
+	PackOpPurge                                // purge
+	PackOpRemove                               // remove
+	PackOpCheckVersion                         // checkVersion
+	PackOpIsInstalled                          // isInstalled
 )

@@ -68,7 +68,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 	} else {
 
 		// Handle package operations
-		if command.Type == PackageCT && command.PackageOperation == PackOppCheckVersion {
+		if command.Type == PackageCT && command.PackageOperation == PackOpCheckVersion {
 			cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Checking package versions")
 
 			// Execute the package version command

@@ -277,13 +277,13 @@ func getCommandTypeAndSetCommandInfo(command *Command) *Command {
 	if command.Type == PackageCT && !command.packageCmdSet {
 		command.packageCmdSet = true
 		switch command.PackageOperation {
-		case PackOppInstall:
+		case PackOpInstall:
 			command.Cmd, command.Args = command.pkgMan.Install(command.PackageName, command.PackageVersion, command.Args)
-		case PackOppRemove:
+		case PackOpRemove:
 			command.Cmd, command.Args = command.pkgMan.Remove(command.PackageName, command.Args)
-		case PackOppUpgrade:
+		case PackOpUpgrade:
 			command.Cmd, command.Args = command.pkgMan.Upgrade(command.PackageName, command.PackageVersion)
-		case PackOppCheckVersion:
+		case PackOpCheckVersion:
 			command.Cmd, command.Args = command.pkgMan.CheckVersion(command.PackageName, command.PackageVersion)
 		}
 	}
