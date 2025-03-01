@@ -44,9 +44,8 @@ func NewS3Fetcher(endpoint string, options ...FetcherOption) (*S3Fetcher, error)
 	*/
 
 	s3Endpoint := os.Getenv("S3_ENDPOINT")
-	creds, err := getS3Credentials("default", s3Endpoint, cfg.HTTPClient)
+	creds, err := getS3Credentials(os.Getenv("AWS_PROFILE"), s3Endpoint, cfg.HTTPClient)
 	if err != nil {
-		println(err.Error())
 		return nil, err
 	}
 
@@ -133,7 +132,7 @@ func getS3Credentials(profile, host string, httpClient *http.Client) (*credentia
 	if hdirErr != nil {
 		return nil, hdirErr
 	}
-	s3Creds := credentials.NewFileAWSCredentials(path.Join(homeDir, ".aws", "credentials"), "default")
+	s3Creds := credentials.NewFileAWSCredentials(path.Join(homeDir, ".aws", "credentials"), profile)
 	credVals, credErr := s3Creds.GetWithContext(&credentials.CredContext{Endpoint: host, Client: httpClient})
 	if credErr != nil {
 		return nil, credErr

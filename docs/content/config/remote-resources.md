@@ -12,6 +12,10 @@ For the main config file to be fetched remotely, pass the URL using `-f [url]`.
 
 If using S3, you should use the s3 protocol URI: `s3://bucketName/key/path`. You will also need to set the env variable `S3_ENDPOINT` to the appropriate value. The flag `--s3-endpoint` can be used to override this value or to set this value, if not already set.
 
+## Authentication
+
+Currently, only the AWS authentication credentials file `~/.aws/credentials` is supported. For now, the environment variable `AWS_PROFILE` is used to lookup the profile.
+
 ## Scripts
 
 Remote script support is currently limited to http/https endpoints.
