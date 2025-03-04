@@ -1,0 +1,3 @@
+kind: Changed
+body: 'Commands: if dir is not specified, run in config dir'
+time: 2025-03-01T19:43:21.323077376-06:00

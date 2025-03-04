@@ -1,0 +1,24 @@
+commands:
+  stop-docker-container:
+    cmd: docker
+    Args:
+      - compose
+      - -f /some/path/to/docker-compose.yaml
+      - down
+    # if host is not defined, command will be run locally
+    # The host has to be defined in either the config file or the SSH Config files
+    host: some-host
+    hooks:
+      error:
+        - some-other-command-when-failing
+      success:
+        - success-command
+      final:
+        - final-command
+  backup-docker-container-script:
+    cmd: /path/to/local/script
+    # script file is input as stdin to SSH
+    type: scriptFile # also can be script
+    environment:
+      - FOO=BAR
+      - APP=$VAR

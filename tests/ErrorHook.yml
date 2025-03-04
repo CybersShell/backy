@@ -1,0 +1,17 @@
+commands:
+  echoTestFail:
+    cmd: ech
+    shell: bash
+    Args: hello world
+    hooks:
+      error:
+        - errorCmd
+
+  errorCmd:
+    name: get docker version
+    cmd: docker
+    getOutput: true
+    outputToLog: true
+    Args:
+      - "-v"
+    host: email-svr

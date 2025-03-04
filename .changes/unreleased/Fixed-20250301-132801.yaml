@@ -1,0 +1,3 @@
+kind: Fixed
+body: 'Lists: load file key before attempting to load from current file'
+time: 2025-03-01T13:28:01.739467944-06:00

@@ -1,0 +1,14 @@
+commands:
+  echoTestFail:
+    cmd: ech
+    shell: bash
+    Args: hello world
+    hooks:
+      error:
+        - errorCm # 
+
+  errorCmd:
+    name: get docker version
+    cmd: docker
+    Args:
+      - "-v"

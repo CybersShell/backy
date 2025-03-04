@@ -1,0 +1,16 @@
+commands:
+  echoTestSuccess:
+    cmd: echo
+    shell: bash
+    Args: hello world
+    hooks:
+      success:
+        - successCmd
+
+  errorCmd:
+    name: get docker version
+    cmd: docker
+    getOutput: true
+    outputToLog: true
+    Args:
+      - "-v"
