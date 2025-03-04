@@ -17,6 +17,7 @@ import (
 
 	"github.com/kevinburke/ssh_config"
 	"github.com/pkg/errors"
+	"github.com/pkg/sftp"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -569,6 +570,57 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 		if err := commandSession.Run(ArgsStr); err != nil {
 			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running command: %w", err)
 		}
+
+		if command.Type == UserCT && command.UserOperation == "add" {
+			if command.UserSshPubKeys != nil {
+				var (
+					f        *sftp.File
+					err      error
+					userHome []byte
+					client   *sftp.Client
+				)
+
+				cmdCtxLogger.Info().Msg("adding SSH Keys")
+
+				commandSession, _ = command.RemoteHost.createSSHSession(opts)
+				userHome, err = commandSession.CombinedOutput(fmt.Sprintf("grep \"%s\" /etc/passwd | cut -d: -f6", command.Username))
+				if err != nil {
+					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
+				}
+
+				command.UserHome = strings.TrimSpace(string(userHome))
+				userSshDir := fmt.Sprintf("%s/.ssh", command.UserHome)
+				client, err = sftp.NewClient(command.RemoteHost.SshClient)
+				if err != nil {
+					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating sftp client: %v", err)
+				}
+
+				client.MkdirAll(userSshDir)
+				_, err = client.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
+				if err != nil {
+					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+				}
+				f, err = client.OpenFile(fmt.Sprintf("%s/authorized_keys", userSshDir), os.O_APPEND|os.O_CREATE|os.O_WRONLY)
+				if err != nil {
+					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+				}
+				defer f.Close()
+				for _, k := range command.UserSshPubKeys {
+					buf := bytes.NewBufferString(k)
+					cmdCtxLogger.Info().Str("key", k).Msg("adding SSH key")
+					if _, err := f.ReadFrom(buf); err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error adding to authorized keys: %v", err)
+					}
+				}
+
+				commandSession, _ = command.RemoteHost.createSSHSession(opts)
+				_, err = commandSession.CombinedOutput(fmt.Sprintf("chown -R %s:%s %s", command.Username, command.Username, userHome))
+				if err != nil {
+					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), err
+				}
+
+			}
+		}
 	}
 
 	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), nil
@@ -622,7 +674,7 @@ func (command *Command) runScript(session *ssh.Session, cmdCtxLogger zerolog.Log
 		return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error waiting for shell: %w", err)
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.GetOutput), nil
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.OutputToLog), nil
 }
 
 // runScriptFile handles the execution of script files.

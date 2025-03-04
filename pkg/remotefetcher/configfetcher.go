@@ -29,7 +29,7 @@ func NewRemoteFetcher(source string, cache *Cache, options ...FetcherOption) (Re
 		option(&config)
 	}
 
-	// If FileType is empty (i.e. WithFileType was not called), yaml is the default file type
+	// WithFileType was not called. yaml is the default file type
 	if strings.TrimSpace(config.FileType) == "" {
 		config.FileType = "yaml"
 	}

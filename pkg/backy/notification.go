@@ -71,9 +71,8 @@ func (opts *ConfigOpts) SetupNotify() {
 					opts.Logger.Info().Str("list", confName).Err(fmt.Errorf("error: configuring matrix id %s failed during setup: %w", id, mtrxErr))
 					continue
 				}
-				// append the services
 				services = append(services, mtrxConf)
-			// service is not recognized
+
 			default:
 				opts.Logger.Info().Err(fmt.Errorf("id %s not found", id)).Str("list", confName).Send()
 			}

@@ -247,7 +247,6 @@ func (opts *ConfigOpts) loadEnv() {
 	opts.backyEnv = backyEnv
 }
 
-// expandEnvVars expands environment variables with the env used in the config
 func expandEnvVars(backyEnv map[string]string, envVars []string) {
 
 	env := func(name string) string {
@@ -261,10 +260,10 @@ func expandEnvVars(backyEnv map[string]string, envVars []string) {
 
 	// parse env variables using new macros
 	for indx, v := range envVars {
-		if strings.HasPrefix(v, macroStart) && strings.HasSuffix(v, macroEnd) {
-			if strings.HasPrefix(v, envMacroStart) {
-				v = strings.TrimPrefix(v, envMacroStart)
-				v = strings.TrimRight(v, macroEnd)
+		if strings.HasPrefix(v, externDirectiveStart) && strings.HasSuffix(v, externDirectiveEnd) {
+			if strings.HasPrefix(v, envExternDirectiveStart) {
+				v = strings.TrimPrefix(v, envExternDirectiveStart)
+				v = strings.TrimRight(v, externDirectiveEnd)
 				out, _ := shell.Expand(v, env)
 				envVars[indx] = out
 			}
@@ -324,7 +323,7 @@ func parsePackageVersion(output string, cmdCtxLogger zerolog.Logger, command *Co
 	// println(output)
 	if err != nil {
 		cmdCtxLogger.Error().Err(err).Str("package", command.PackageName).Msg("Error parsing package version output")
-		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.GetOutput), err
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), err
 	}
 
 	cmdCtxLogger.Info().
@@ -348,4 +347,40 @@ func parsePackageVersion(output string, cmdCtxLogger zerolog.Logger, command *Co
 		}
 	}
 	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, false), err
+}
+
+func expandExternalConfigDirectives(key string, opts *ConfigOpts) string {
+	if !(strings.HasPrefix(key, externDirectiveStart) && strings.HasSuffix(key, externDirectiveEnd)) {
+		return key
+	}
+	opts.Logger.Info().Str("expanding external key", key).Send()
+	if strings.HasPrefix(key, envExternDirectiveStart) {
+		key = strings.TrimPrefix(key, envExternDirectiveStart)
+		key = strings.TrimSuffix(key, externDirectiveEnd)
+		return os.Getenv(key)
+	}
+	if strings.HasPrefix(key, externFileDirectiveStart) {
+		var err error
+		var keyValue []byte
+		key = strings.TrimPrefix(key, externFileDirectiveStart)
+		key = strings.TrimSuffix(key, externDirectiveEnd)
+		key, err = getFullPathWithHomeDir(key)
+		if err != nil {
+			opts.Logger.Err(err).Send()
+			return ""
+		}
+		keyValue, err = os.ReadFile(key)
+		if err != nil {
+			opts.Logger.Err(err).Send()
+			return ""
+		}
+		key = string(keyValue)
+	}
+	if strings.HasPrefix(key, vaultExternDirectiveStart) {
+		key = strings.TrimPrefix(key, vaultExternDirectiveStart)
+		key = strings.TrimSuffix(key, externDirectiveEnd)
+		key = GetVaultKey(key, opts, opts.Logger)
+	}
+
+	return key
 }

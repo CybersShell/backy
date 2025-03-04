@@ -22,10 +22,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const macroStart string = "%{"
-const macroEnd string = "}%"
-const envMacroStart string = "%{env:"
-const vaultMacroStart string = "%{vault:"
+const (
+	externDirectiveStart      string = "%{"
+	externDirectiveEnd        string = "}%"
+	externFileDirectiveStart  string = "%{file:"
+	envExternDirectiveStart   string = "%{env:"
+	vaultExternDirectiveStart string = "%{vault:"
+)
 
 func (opts *ConfigOpts) InitConfig() {
 	var err error
@@ -95,41 +98,6 @@ func (opts *ConfigOpts) InitConfig() {
 	opts.koanf = backyKoanf
 }
 
-func loadConfigFile(fetcher remotefetcher.RemoteFetcher, filePath string, k *koanf.Koanf, opts *ConfigOpts) {
-	data, err := fetcher.Fetch(filePath)
-	if err != nil {
-		logging.ExitWithMSG(fmt.Sprintf("Could not fetch config file %s: %v", filePath, err), 1, nil)
-	}
-
-	if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
-		logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
-	}
-}
-
-func loadDefaultConfigFiles(fetcher remotefetcher.RemoteFetcher, configFiles []string, k *koanf.Koanf, opts *ConfigOpts) {
-	cFileFailures := 0
-	for _, c := range configFiles {
-		opts.ConfigFilePath = c
-		data, err := fetcher.Fetch(c)
-		if err != nil {
-			cFileFailures++
-			continue
-		}
-
-		if data != nil {
-			if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err == nil {
-				break
-			} else {
-				logging.ExitWithMSG(fmt.Sprintf("error loading config from file %s: %v", c, err), 1, &opts.Logger)
-			}
-		}
-	}
-
-	if cFileFailures == len(configFiles) {
-		logging.ExitWithMSG("Could not find any valid local config file", 1, nil)
-	}
-}
-
 func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 	setTerminalEnv()
 
@@ -148,7 +116,7 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 
 	CheckConfigValues(backyKoanf, opts.ConfigFilePath)
 
-	validateCommands(backyKoanf, opts)
+	validateExecCommandsFromCLI(backyKoanf, opts)
 
 	setLoggingOptions(backyKoanf, opts)
 
@@ -192,6 +160,41 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 	return opts
 }
 
+func loadConfigFile(fetcher remotefetcher.RemoteFetcher, filePath string, k *koanf.Koanf, opts *ConfigOpts) {
+	data, err := fetcher.Fetch(filePath)
+	if err != nil {
+		logging.ExitWithMSG(generateFileFetchErrorString(filePath, "config", err), 1, nil)
+	}
+
+	if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
+	}
+}
+
+func loadDefaultConfigFiles(fetcher remotefetcher.RemoteFetcher, configFiles []string, k *koanf.Koanf, opts *ConfigOpts) {
+	cFileFailures := 0
+	for _, c := range configFiles {
+		opts.ConfigFilePath = c
+		data, err := fetcher.Fetch(c)
+		if err != nil {
+			cFileFailures++
+			continue
+		}
+
+		if data != nil {
+			if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err == nil {
+				break
+			} else {
+				logging.ExitWithMSG(fmt.Sprintf("error loading config from file %s: %v", c, err), 1, &opts.Logger)
+			}
+		}
+	}
+
+	if cFileFailures == len(configFiles) {
+		logging.ExitWithMSG("Could not find any valid local config file", 1, nil)
+	}
+}
+
 func setTerminalEnv() {
 	if isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
 		os.Setenv("BACKY_TERM", "enabled")
@@ -200,7 +203,7 @@ func setTerminalEnv() {
 	}
 }
 
-func validateCommands(k *koanf.Koanf, opts *ConfigOpts) {
+func validateExecCommandsFromCLI(k *koanf.Koanf, opts *ConfigOpts) {
 	for _, c := range opts.executeCmds {
 		if !k.Exists(getCmdFromConfig(c)) {
 			logging.ExitWithMSG(fmt.Sprintf("command %s is not in config file %s", c, opts.ConfigFilePath), 1, nil)
@@ -238,7 +241,7 @@ func setupLogger(opts *ConfigOpts) zerolog.Logger {
 
 func unmarshalConfig(k *koanf.Koanf, key string, target interface{}, log zerolog.Logger) {
 	if err := k.UnmarshalWithConf(key, target, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
-		logging.ExitWithMSG(fmt.Sprintf("error unmarshalling key %s into struct: %v", key, err), 1, &log)
+		logging.ExitWithMSG(fmt.Sprintf("error unmarshaling key %s into struct: %v", key, err), 1, &log)
 	}
 }
 
@@ -304,9 +307,10 @@ func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
 	}
 
 	if backyKoanf.Exists("cmdLists") {
-		unmarshalConfig(backyKoanf, "cmdLists", &opts.CmdConfigLists, opts.Logger)
 		if backyKoanf.Exists("cmdLists.file") {
 			loadCmdListsFile(backyKoanf, listsConfig, opts)
+		} else {
+			unmarshalConfig(backyKoanf, "cmdLists", &opts.CmdConfigLists, opts.Logger)
 		}
 	}
 }
@@ -366,7 +370,7 @@ func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *C
 
 	data, err := fetcher.Fetch(opts.CmdListFile)
 	if err != nil {
-		logging.ExitWithMSG(fmt.Sprintf("Could not fetch config file %s: %v", opts.CmdListFile, err), 1, nil)
+		logging.ExitWithMSG(generateFileFetchErrorString(opts.CmdListFile, "list config", err), 1, nil)
 	}
 
 	if err := listsConfig.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
@@ -376,6 +380,10 @@ func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *C
 	keyNotSupported("cmd-lists", "cmdLists", listsConfig, opts, true)
 	unmarshalConfig(listsConfig, "cmdLists", &opts.CmdConfigLists, opts.Logger)
 	opts.Logger.Info().Str("using lists config file", opts.CmdListFile).Send()
+}
+
+func generateFileFetchErrorString(file, fileType string, err error) string {
+	return fmt.Sprintf("Could not fetch %s file %s: %v", file, fileType, err)
 }
 
 func validateCommandLists(opts *ConfigOpts) {
@@ -455,7 +463,7 @@ func (opts *ConfigOpts) setupVault() error {
 
 	unmarshalErr := opts.koanf.UnmarshalWithConf("vault.keys", &opts.VaultKeys, koanf.UnmarshalConf{Tag: "yaml"})
 	if unmarshalErr != nil {
-		logging.ExitWithMSG(fmt.Sprintf("error unmarshalling vault.keys into struct: %v", unmarshalErr), 1, &opts.Logger)
+		logging.ExitWithMSG(fmt.Sprintf("error unmarshaling vault.keys into struct: %v", unmarshalErr), 1, &opts.Logger)
 	}
 
 	opts.vaultClient = client
@@ -565,6 +573,10 @@ func processCmds(opts *ConfigOpts) error {
 					cmd.RemoteHost.HostName = host.HostName
 				}
 			} else {
+				opts.Logger.Info().Msgf("adding host %s to host list", *cmd.Host)
+				if opts.Hosts == nil {
+					opts.Hosts = make(map[string]*Host)
+				}
 				opts.Hosts[*cmd.Host] = &Host{Host: *cmd.Host}
 				cmd.RemoteHost = &Host{Host: *cmd.Host}
 			}
@@ -577,10 +589,11 @@ func processCmds(opts *ConfigOpts) error {
 					return err
 				}
 				cmd.Dir = &cmdDir
+			} else {
+				cmd.Dir = &opts.ConfigDir
 			}
 		}
 
-		// Parse package commands
 		if cmd.Type == PackageCT {
 			if cmd.PackageManager == "" {
 				return fmt.Errorf("package manager is required for package command %s", cmd.PackageName)
@@ -612,18 +625,28 @@ func processCmds(opts *ConfigOpts) error {
 				return fmt.Errorf("username is required for user command %s", cmd.Name)
 			}
 
-			detectOSType(cmd, opts)
-			var err error
+			err := detectOSType(cmd, opts)
+			if err != nil {
+				opts.Logger.Info().Err(err).Str("command", cmdName).Send()
+			}
 
 			// Validate the operation
 			switch cmd.UserOperation {
 			case "add", "remove", "modify", "checkIfExists", "delete", "password":
 				cmd.userMan, err = usermanager.NewUserManager(cmd.OS)
+				if cmd.UserOperation == "password" {
+					cmd.UserPassword = expandExternalConfigDirectives(cmd.UserPassword, opts)
+				}
 				if cmd.Host != nil {
 					host, ok := opts.Hosts[*cmd.Host]
 					if ok {
 						cmd.userMan, err = usermanager.NewUserManager(host.OS)
 					}
+				}
+				for indx, key := range cmd.UserSshPubKeys {
+					opts.Logger.Debug().Msg("adding SSH Keys")
+					key = expandExternalConfigDirectives(key, opts)
+					cmd.UserSshPubKeys[indx] = key
 				}
 				if err != nil {
 					return err
@@ -656,14 +679,8 @@ func processCmds(opts *ConfigOpts) error {
 	return nil
 }
 
-// processHooks evaluates if hooks are valid Commands
-//
-// The cmd.hookRefs[hookType] is created with any hooks found.
-//
-// Returns an error, if any, if the hook command is not found
 func processHooks(cmd *Command, hooks []string, opts *ConfigOpts, hookType string) error {
 
-	// initialize hook type
 	var hookCmdFound bool
 	cmd.hookRefs = map[string]map[string]*Command{}
 	cmd.hookRefs[hookType] = map[string]*Command{}
@@ -691,11 +708,14 @@ func processHooks(cmd *Command, hooks []string, opts *ConfigOpts, hookType strin
 
 func detectOSType(cmd *Command, opts *ConfigOpts) error {
 	if cmd.Host == nil {
-		if runtime.GOOS == "linux" { // also can be specified to FreeBSD
+		if runtime.GOOS == "linux" {
 			cmd.OS = "linux"
 			opts.Logger.Info().Msg("Unix/Linux type OS detected")
+			return nil
 		}
+		return fmt.Errorf("using an os that is not yet supported for user commands")
 	}
+
 	host, ok := opts.Hosts[*cmd.Host]
 	if ok {
 		if host.OS != "" {

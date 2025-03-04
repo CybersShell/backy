@@ -51,44 +51,30 @@ type (
 	Command struct {
 		Name string `yaml:"name,omitempty"`
 
-		// command to run
 		Cmd string `yaml:"cmd"`
 
 		// See CommandType enum further down the page for acceptable values
 		Type CommandType `yaml:"type,omitempty"`
 
-		// host on which to run cmd
 		Host *string `yaml:"host,omitempty"`
 
-		// Hooks are for running commands on certain events
 		Hooks *Hooks `yaml:"hooks,omitempty"`
 
-		// hook refs are internal references of commands for each hook type
 		hookRefs map[string]map[string]*Command
 
-		// Shell specifies which shell to run the command in, if any.
 		Shell string `yaml:"shell,omitempty"`
 
 		RemoteHost *Host `yaml:"-"`
 
-		// Args is an array that holds the arguments to cmd
 		Args []string `yaml:"args,omitempty"`
 
-		/*
-			Dir specifies a directory in which to run the command.
-		*/
 		Dir *string `yaml:"dir,omitempty"`
 
-		// Env points to a file containing env variables to be used with the command
 		Env string `yaml:"env,omitempty"`
 
-		// Environment holds env variables to be used with the command
 		Environment []string `yaml:"environment,omitempty"`
 
-		// Output determines if output is requested.
-		//
-		// Only for when command is in a list.
-		GetOutput bool `yaml:"getOutput,omitempty"`
+		GetOutputInList bool `yaml:"getOutputInList,omitempty"`
 
 		ScriptEnvFile string `yaml:"scriptEnvFile"`
 
@@ -102,10 +88,8 @@ type (
 
 		PackageName string `yaml:"packageName,omitempty"`
 
-		// Version specifies the desired version for package execution
 		PackageVersion string `yaml:"packageVersion,omitempty"`
 
-		// PackageOperation specifies the action for package-related commands (e.g., "install" or "remove")
 		PackageOperation PackageOperation `yaml:"packageOperation,omitempty"`
 
 		pkgMan pkgman.PackageManager
@@ -113,42 +97,35 @@ type (
 		packageCmdSet bool
 		// END PACKAGE COMMAND FIELDS
 
-		// RemoteSource specifies a URL to fetch the command or configuration remotely
 		RemoteSource string `yaml:"remoteSource,omitempty"`
 
-		// FetchBeforeExecution determines if the remoteSource should be fetched before running
 		FetchBeforeExecution bool `yaml:"fetchBeforeExecution,omitempty"`
 
 		Fetcher remotefetcher.RemoteFetcher
 
 		// BEGIN USER COMMAND FIELDS
 
-		// Username specifies the username for user creation or related operations
 		Username string `yaml:"userName,omitempty"`
 
 		UserID string `yaml:"userID,omitempty"`
 
-		// UserGroups specifies the groups to add the user to
 		UserGroups []string `yaml:"userGroups,omitempty"`
 
-		// UserHome specifies the home directory for the user
 		UserHome string `yaml:"userHome,omitempty"`
 
-		// UserShell specifies the shell for the user
 		UserShell string `yaml:"userShell,omitempty"`
 
-		// SystemUser specifies whether the user is a system account
 		SystemUser bool `yaml:"systemUser,omitempty"`
 
-		// UserPassword specifies the password for the user (can be file: or plain text)
 		UserPassword string `yaml:"userPassword,omitempty"`
+
+		UserSshPubKeys []string `yaml:"userSshPubKeys,omitempty"`
 
 		userMan usermanager.UserManager
 
 		// OS for the command, only used when type is user
 		OS string `yaml:"OS,omitempty"`
 
-		// UserOperation specifies the action for user-related commands (e.g., "create" or "remove")
 		UserOperation string `yaml:"userOperation,omitempty"`
 
 		userCmdSet bool

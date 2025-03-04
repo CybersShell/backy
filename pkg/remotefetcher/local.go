@@ -20,7 +20,7 @@ func (l *LocalFetcher) Fetch(source string) ([]byte, error) {
 		if l.config.IgnoreFileNotFound {
 			return nil, ErrIgnoreFileNotFound
 		}
-		return nil, nil
+		return nil, err
 	}
 	file, err := os.Open(source)
 	if err != nil {
