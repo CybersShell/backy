@@ -258,7 +258,6 @@ func expandEnvVars(backyEnv map[string]string, envVars []string) {
 		return ""
 	}
 
-	// parse env variables using new macros
 	for indx, v := range envVars {
 		if strings.HasPrefix(v, externDirectiveStart) && strings.HasSuffix(v, externDirectiveEnd) {
 			if strings.HasPrefix(v, envExternDirectiveStart) {
@@ -349,7 +348,7 @@ func parsePackageVersion(output string, cmdCtxLogger zerolog.Logger, command *Co
 	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, false), err
 }
 
-func expandExternalConfigDirectives(key string, opts *ConfigOpts) string {
+func getExternalConfigDirectiveValue(key string, opts *ConfigOpts) string {
 	if !(strings.HasPrefix(key, externDirectiveStart) && strings.HasSuffix(key, externDirectiveEnd)) {
 		return key
 	}
@@ -357,7 +356,7 @@ func expandExternalConfigDirectives(key string, opts *ConfigOpts) string {
 	if strings.HasPrefix(key, envExternDirectiveStart) {
 		key = strings.TrimPrefix(key, envExternDirectiveStart)
 		key = strings.TrimSuffix(key, externDirectiveEnd)
-		return os.Getenv(key)
+		key = os.Getenv(key)
 	}
 	if strings.HasPrefix(key, externFileDirectiveStart) {
 		var err error
@@ -368,6 +367,9 @@ func expandExternalConfigDirectives(key string, opts *ConfigOpts) string {
 		if err != nil {
 			opts.Logger.Err(err).Send()
 			return ""
+		}
+		if !path.IsAbs(key) {
+			key = path.Join(opts.ConfigDir, key)
 		}
 		keyValue, err = os.ReadFile(key)
 		if err != nil {

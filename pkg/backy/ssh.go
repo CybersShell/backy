@@ -23,7 +23,7 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-var PrivateKeyExtraInfoErr = errors.New("Private key may be encrypted. \nIf encrypted, make sure the password is specified correctly in the correct section. This may be done in one of three ways: \n privatekeypassword: env:PR_KEY_PASS \n privatekeypassword: file:/path/to/password-file \n privatekeypassword: password (not recommended). \n ")
+var PrivateKeyExtraInfoErr = errors.New("Private key may be encrypted. \nIf encrypted, make sure the password is specified correctly in the correct section. This may be done in one of two ways: \n Using external directives - see docs \n privatekeypassword: password (not recommended). \n ")
 var TS = strings.TrimSpace
 
 // ConnectToHost connects to a host by looking up the config values in the file ~/.ssh/config
@@ -120,7 +120,6 @@ func (remoteConfig *Host) ConnectToHost(opts *ConfigOpts) error {
 		return errors.Wrap(err, "could not create hostkeycallback function")
 	}
 	remoteConfig.ClientConfig.HostKeyCallback = hostKeyCallback
-	// opts.Logger.Info().Str("user", remoteConfig.ClientConfig.User).Send()
 
 	remoteConfig.SshClient, connectErr = remoteConfig.ConnectThroughBastion(opts.Logger)
 	if connectErr != nil {
@@ -181,11 +180,7 @@ func (remoteHost *Host) GetAuthMethods(opts *ConfigOpts) error {
 			return err
 		}
 
-		remoteHost.PrivateKeyPassword, err = GetPrivateKeyPassword(remoteHost.PrivateKeyPassword, opts, opts.Logger)
-
-		if err != nil {
-			return err
-		}
+		remoteHost.PrivateKeyPassword = GetPrivateKeyPassword(remoteHost.PrivateKeyPassword, opts)
 
 		if remoteHost.PrivateKeyPassword == "" {
 
@@ -208,14 +203,9 @@ func (remoteHost *Host) GetAuthMethods(opts *ConfigOpts) error {
 		}
 	}
 
-	if remoteHost.Password == "" {
+	if remoteHost.Password != "" {
 
-		remoteHost.Password, err = GetPassword(remoteHost.Password, opts, opts.Logger)
-
-		if err != nil {
-
-			return err
-		}
+		remoteHost.Password = GetPassword(remoteHost.Password, opts)
 
 		remoteHost.ClientConfig.Auth = append(remoteHost.ClientConfig.Auth, ssh.Password(remoteHost.Password))
 	}
@@ -250,14 +240,13 @@ func (remoteHost *Host) GetPrivateKeyFileFromConfig() {
 // If it is the port is searched in the SSH config file(s)
 func (remoteHost *Host) GetPort() {
 	port := fmt.Sprintf("%d", remoteHost.Port)
-	// port specifed?
+	// port specified?
 	// port will be 0 if missing from backy config
 	if port == "0" {
 		port, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "Port")
 
 		if port == "" {
 
-			// get port from default SSH config file
 			port = remoteHost.SSHConfigFile.DefaultUserSettings.Get(remoteHost.Host, "Port")
 
 			// set port to be default
@@ -272,7 +261,6 @@ func (remoteHost *Host) GetPort() {
 
 func (remoteHost *Host) CombineHostNameWithPort() {
 
-	// if the port is already in the HostName, leave it
 	if strings.HasSuffix(remoteHost.HostName, fmt.Sprintf(":%d", remoteHost.Port)) {
 		return
 	}
@@ -332,64 +320,13 @@ func (remotehHost *Host) GetKnownHosts() error {
 	return knownHostsFileErr
 }
 
-func GetPrivateKeyPassword(key string, opts *ConfigOpts, log zerolog.Logger) (string, error) {
-
-	var prKeyPassword string
-	if strings.HasPrefix(key, "file:") {
-		privKeyPassFilePath := strings.TrimPrefix(key, "file:")
-		privKeyPassFilePath, _ = getFullPathWithHomeDir(privKeyPassFilePath)
-		keyFile, keyFileErr := os.Open(privKeyPassFilePath)
-		if keyFileErr != nil {
-			return "", errors.Errorf("Private key password file %s failed to open. \n Make sure it is accessible and correct.", privKeyPassFilePath)
-		}
-		passwordScanner := bufio.NewScanner(keyFile)
-		for passwordScanner.Scan() {
-			prKeyPassword = passwordScanner.Text()
-		}
-	} else if strings.HasPrefix(key, "env:") {
-		privKey := strings.TrimPrefix(key, "env:")
-		privKey = strings.TrimPrefix(privKey, "${")
-		privKey = strings.TrimSuffix(privKey, "}")
-		privKey = strings.TrimPrefix(privKey, "$")
-		prKeyPassword = os.Getenv(privKey)
-	} else {
-		prKeyPassword = key
-	}
-	prKeyPassword = GetVaultKey(prKeyPassword, opts, opts.Logger)
-	return prKeyPassword, nil
+func GetPrivateKeyPassword(key string, opts *ConfigOpts) string {
+	return getExternalConfigDirectiveValue(key, opts)
 }
 
 // GetPassword gets any password
-func GetPassword(pass string, opts *ConfigOpts, log zerolog.Logger) (string, error) {
-
-	pass = strings.TrimSpace(pass)
-	if pass == "" {
-		return "", nil
-	}
-	var password string
-	if strings.HasPrefix(pass, "file:") {
-		passFilePath := strings.TrimPrefix(pass, "file:")
-		passFilePath, _ = getFullPathWithHomeDir(passFilePath)
-		keyFile, keyFileErr := os.Open(passFilePath)
-		if keyFileErr != nil {
-			return "", errors.New("Password file failed to open")
-		}
-		passwordScanner := bufio.NewScanner(keyFile)
-		for passwordScanner.Scan() {
-			password = passwordScanner.Text()
-		}
-	} else if strings.HasPrefix(pass, "env:") {
-		passEnv := strings.TrimPrefix(pass, "env:")
-		passEnv = strings.TrimPrefix(passEnv, "${")
-		passEnv = strings.TrimSuffix(passEnv, "}")
-		passEnv = strings.TrimPrefix(passEnv, "$")
-		password = os.Getenv(passEnv)
-	} else {
-		password = pass
-	}
-	password = GetVaultKey(password, opts, opts.Logger)
-
-	return password, nil
+func GetPassword(pass string, opts *ConfigOpts) string {
+	return getExternalConfigDirectiveValue(pass, opts)
 }
 
 func (remoteConfig *Host) GetProxyJumpFromConfig(hosts map[string]*Host) error {

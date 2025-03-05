@@ -1,0 +1,3 @@
+kind: Changed
+body: 'FileDirective: use the config directory if path is not absolute'
+time: 2025-03-05T00:34:15.689980075-06:00

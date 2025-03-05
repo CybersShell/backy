@@ -127,7 +127,7 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 
 	unmarshalConfig(backyKoanf, "commands", &opts.Cmds, opts.Logger)
 
-	validateCommandEnvironments(opts)
+	getCommandEnvironments(opts)
 
 	unmarshalConfig(backyKoanf, "hosts", &opts.Hosts, opts.Logger)
 
@@ -245,11 +245,11 @@ func unmarshalConfig(k *koanf.Koanf, key string, target interface{}, log zerolog
 	}
 }
 
-func validateCommandEnvironments(opts *ConfigOpts) {
+func getCommandEnvironments(opts *ConfigOpts) {
 	for cmdName, cmdConf := range opts.Cmds {
+		opts.Logger.Debug().Str("env file", cmdConf.Env).Str("cmd", cmdName).Send()
 		if err := testFile(cmdConf.Env); err != nil {
-			opts.Logger.Info().Str("cmd", cmdName).Err(err).Send()
-			os.Exit(1)
+			logging.ExitWithMSG("Could not open file"+cmdConf.Env+": "+err.Error(), 1, &opts.Logger)
 		}
 		expandEnvVars(opts.backyEnv, cmdConf.Environment)
 	}
@@ -499,16 +499,7 @@ func getVaultSecret(vaultClient *vault.Client, key *VaultKey) (string, error) {
 	return value, nil
 }
 
-func isVaultKey(str string) (string, bool) {
-	str = strings.TrimSpace(str)
-	return strings.TrimPrefix(str, "vault:"), strings.HasPrefix(str, "vault:")
-}
-
-func parseVaultKey(str string, keys []*VaultKey) (*VaultKey, error) {
-	keyName, isKey := isVaultKey(str)
-	if !isKey {
-		return nil, nil
-	}
+func parseVaultKey(keyName string, keys []*VaultKey) (*VaultKey, error) {
 
 	for _, k := range keys {
 		if k.Name == keyName {
@@ -635,7 +626,7 @@ func processCmds(opts *ConfigOpts) error {
 			case "add", "remove", "modify", "checkIfExists", "delete", "password":
 				cmd.userMan, err = usermanager.NewUserManager(cmd.OS)
 				if cmd.UserOperation == "password" {
-					cmd.UserPassword = expandExternalConfigDirectives(cmd.UserPassword, opts)
+					cmd.UserPassword = getExternalConfigDirectiveValue(cmd.UserPassword, opts)
 				}
 				if cmd.Host != nil {
 					host, ok := opts.Hosts[*cmd.Host]
@@ -645,7 +636,7 @@ func processCmds(opts *ConfigOpts) error {
 				}
 				for indx, key := range cmd.UserSshPubKeys {
 					opts.Logger.Debug().Msg("adding SSH Keys")
-					key = expandExternalConfigDirectives(key, opts)
+					key = getExternalConfigDirectiveValue(key, opts)
 					cmd.UserSshPubKeys[indx] = key
 				}
 				if err != nil {
