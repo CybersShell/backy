@@ -166,6 +166,12 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			}
 		}
 
+		if command.Type == UserCT {
+			if command.UserOperation == "password" {
+				localCMD.Stdin = command.stdin
+				cmdCtxLogger.Info().Str("password", command.UserPassword).Msg("user password to be updated")
+			}
+		}
 		if command.Dir != nil {
 			localCMD.Dir = *command.Dir
 		}

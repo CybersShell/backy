@@ -81,15 +81,16 @@ func (opts *ConfigOpts) InitConfig() {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing cache: %v", err), 1, nil)
 	}
 
-	fetcher, err := remotefetcher.NewRemoteFetcher(opts.ConfigFilePath, opts.Cache)
-
 	if isRemoteURL(opts.ConfigFilePath) {
 		p, _ := getRemoteDir(opts.ConfigFilePath)
 		opts.ConfigDir = p
 	}
+
+	fetcher, err := remotefetcher.NewRemoteFetcher(opts.ConfigFilePath, opts.Cache)
 	if err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
 	}
+
 	if opts.ConfigFilePath != "" {
 		loadConfigFile(fetcher, opts.ConfigFilePath, backyKoanf, opts)
 	} else {
@@ -625,7 +626,9 @@ func processCmds(opts *ConfigOpts) error {
 			switch cmd.UserOperation {
 			case "add", "remove", "modify", "checkIfExists", "delete", "password":
 				cmd.userMan, err = usermanager.NewUserManager(cmd.OS)
+
 				if cmd.UserOperation == "password" {
+					opts.Logger.Debug().Msg("changing password for user: " + cmd.Username)
 					cmd.UserPassword = getExternalConfigDirectiveValue(cmd.UserPassword, opts)
 				}
 				if cmd.Host != nil {

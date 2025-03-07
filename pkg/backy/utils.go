@@ -181,7 +181,6 @@ func testFile(c string) error {
 			return fileOpenErr
 		}
 	}
-
 	return nil
 }
 
@@ -352,7 +351,7 @@ func getExternalConfigDirectiveValue(key string, opts *ConfigOpts) string {
 	if !(strings.HasPrefix(key, externDirectiveStart) && strings.HasSuffix(key, externDirectiveEnd)) {
 		return key
 	}
-	opts.Logger.Info().Str("expanding external key", key).Send()
+	opts.Logger.Debug().Str("expanding external key", key).Send()
 	if strings.HasPrefix(key, envExternDirectiveStart) {
 		key = strings.TrimPrefix(key, envExternDirectiveStart)
 		key = strings.TrimSuffix(key, externDirectiveEnd)

@@ -205,7 +205,11 @@ func (remoteHost *Host) GetAuthMethods(opts *ConfigOpts) error {
 
 	if remoteHost.Password != "" {
 
+		opts.Logger.Debug().Str("password", remoteHost.Password).Str("Host", remoteHost.Host).Send()
+
 		remoteHost.Password = GetPassword(remoteHost.Password, opts)
+
+		// opts.Logger.Debug().Str("actual password", remoteHost.Password).Str("Host", remoteHost.Host).Send()
 
 		remoteHost.ClientConfig.Auth = append(remoteHost.ClientConfig.Auth, ssh.Password(remoteHost.Password))
 	}
@@ -310,13 +314,13 @@ func (remoteHost *Host) ConnectThroughBastion(log zerolog.Logger) (*ssh.Client, 
 
 // GetKnownHosts resolves the host's KnownHosts file if it is defined
 // if not defined, the default location for this file is used
-func (remotehHost *Host) GetKnownHosts() error {
+func (remoteHost *Host) GetKnownHosts() error {
 	var knownHostsFileErr error
-	if TS(remotehHost.KnownHostsFile) != "" {
-		remotehHost.KnownHostsFile, knownHostsFileErr = getFullPathWithHomeDir(remotehHost.KnownHostsFile)
+	if TS(remoteHost.KnownHostsFile) != "" {
+		remoteHost.KnownHostsFile, knownHostsFileErr = getFullPathWithHomeDir(remoteHost.KnownHostsFile)
 		return knownHostsFileErr
 	}
-	remotehHost.KnownHostsFile, knownHostsFileErr = getFullPathWithHomeDir("~/.ssh/known_hosts")
+	remoteHost.KnownHostsFile, knownHostsFileErr = getFullPathWithHomeDir("~/.ssh/known_hosts")
 	return knownHostsFileErr
 }
 
@@ -427,7 +431,6 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 			env:  command.Environment,
 		}
 	)
-	// Getting the command type must be done before concatenating the arguments
 	command = getCommandTypeAndSetCommandInfo(command)
 
 	// Prepare command arguments
@@ -503,59 +506,69 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 			ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
 		}
 		cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
-		// Run simple command
+
+		if command.Type == UserCT && command.UserOperation == "password" {
+			// cmdCtxLogger.Debug().Msgf("adding stdin")
+			userNamePass := fmt.Sprintf("%s:%s", command.Username, command.UserPassword)
+			ArgsStr = fmt.Sprintf("echo %s | chpasswd", userNamePass)
+
+			// commandSession.Stdin = command.stdin
+		}
 		if err := commandSession.Run(ArgsStr); err != nil {
 			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running command: %w", err)
 		}
 
-		if command.Type == UserCT && command.UserOperation == "add" {
-			if command.UserSshPubKeys != nil {
-				var (
-					f        *sftp.File
-					err      error
-					userHome []byte
-					client   *sftp.Client
-				)
+		if command.Type == UserCT {
 
-				cmdCtxLogger.Info().Msg("adding SSH Keys")
+			if command.UserOperation == "add" {
+				if command.UserSshPubKeys != nil {
+					var (
+						f        *sftp.File
+						err      error
+						userHome []byte
+						client   *sftp.Client
+					)
 
-				commandSession, _ = command.RemoteHost.createSSHSession(opts)
-				userHome, err = commandSession.CombinedOutput(fmt.Sprintf("grep \"%s\" /etc/passwd | cut -d: -f6", command.Username))
-				if err != nil {
-					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
-				}
+					cmdCtxLogger.Info().Msg("adding SSH Keys")
 
-				command.UserHome = strings.TrimSpace(string(userHome))
-				userSshDir := fmt.Sprintf("%s/.ssh", command.UserHome)
-				client, err = sftp.NewClient(command.RemoteHost.SshClient)
-				if err != nil {
-					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating sftp client: %v", err)
-				}
-
-				client.MkdirAll(userSshDir)
-				_, err = client.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
-				if err != nil {
-					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
-				}
-				f, err = client.OpenFile(fmt.Sprintf("%s/authorized_keys", userSshDir), os.O_APPEND|os.O_CREATE|os.O_WRONLY)
-				if err != nil {
-					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
-				}
-				defer f.Close()
-				for _, k := range command.UserSshPubKeys {
-					buf := bytes.NewBufferString(k)
-					cmdCtxLogger.Info().Str("key", k).Msg("adding SSH key")
-					if _, err := f.ReadFrom(buf); err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error adding to authorized keys: %v", err)
+					commandSession, _ = command.RemoteHost.createSSHSession(opts)
+					userHome, err = commandSession.CombinedOutput(fmt.Sprintf("grep \"%s\" /etc/passwd | cut -d: -f6", command.Username))
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
 					}
-				}
 
-				commandSession, _ = command.RemoteHost.createSSHSession(opts)
-				_, err = commandSession.CombinedOutput(fmt.Sprintf("chown -R %s:%s %s", command.Username, command.Username, userHome))
-				if err != nil {
-					return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), err
-				}
+					command.UserHome = strings.TrimSpace(string(userHome))
+					userSshDir := fmt.Sprintf("%s/.ssh", command.UserHome)
+					client, err = sftp.NewClient(command.RemoteHost.SshClient)
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating sftp client: %v", err)
+					}
 
+					client.MkdirAll(userSshDir)
+					_, err = client.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+					}
+					f, err = client.OpenFile(fmt.Sprintf("%s/authorized_keys", userSshDir), os.O_APPEND|os.O_CREATE|os.O_WRONLY)
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+					}
+					defer f.Close()
+					for _, k := range command.UserSshPubKeys {
+						buf := bytes.NewBufferString(k)
+						cmdCtxLogger.Info().Str("key", k).Msg("adding SSH key")
+						if _, err := f.ReadFrom(buf); err != nil {
+							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error adding to authorized keys: %v", err)
+						}
+					}
+
+					commandSession, _ = command.RemoteHost.createSSHSession(opts)
+					_, err = commandSession.CombinedOutput(fmt.Sprintf("chown -R %s:%s %s", command.Username, command.Username, userHome))
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), err
+					}
+
+				}
 			}
 		}
 	}
