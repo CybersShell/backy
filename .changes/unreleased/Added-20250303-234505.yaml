@@ -1,3 +1,0 @@
-kind: Added
-body: 'directives: added support for fetching values using directive `%{externalSource:key}%`'
-time: 2025-03-03T23:45:05.666939653-06:00
