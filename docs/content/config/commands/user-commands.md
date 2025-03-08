@@ -10,10 +10,12 @@ This is dedicated to `user` commands. The command `type` field must be `user`. U
 | --- | --- | --- | --- |
 | `userName` | The name of a user to be configured. | `string` | yes |
 | `userOperation` | The type of operation to perform. | `string` | yes |
-| `userID` | The user ID to use. | `string` | yes |
-| `userGroups` | The groups the user should be added to. | `[]string` | yes |
-| `userShell` | The shell for the user. | `string` | yes |
+| `userID` | The user ID to use. | `string` | no |
+| `userGroups` | The groups the user should be added to. | `[]string` | no |
+| `userSshPubKeys` | The keys to add to the user's authorized keys. | `[]string` | no |
+| `userShell` | The shell for the user. | `string` | no |
 | `userHome` | The user's home directory. | `string` | no |
+| `userPassword` | The new password value when using the `password` operation. Can be specified by using external directive. | `string` | no |
 
 
 #### example

@@ -58,6 +58,7 @@ func (opts *ConfigOpts) SetupNotify() {
 					opts.Logger.Info().Err(fmt.Errorf("error: ID %s not found in mail object", confId)).Str("list", confName).Send()
 					continue
 				}
+				conf.Password = getExternalConfigDirectiveValue(conf.Password, opts)
 				mailConf := setupMail(conf)
 				services = append(services, mailConf)
 			case "matrix":
@@ -66,6 +67,7 @@ func (opts *ConfigOpts) SetupNotify() {
 					opts.Logger.Info().Err(fmt.Errorf("error: ID %s not found in matrix object", confId)).Str("list", confName).Send()
 					continue
 				}
+				conf.AccessToken = getExternalConfigDirectiveValue(conf.AccessToken, opts)
 				mtrxConf, mtrxErr := setupMatrix(conf)
 				if mtrxErr != nil {
 					opts.Logger.Info().Str("list", confName).Err(fmt.Errorf("error: configuring matrix id %s failed during setup: %w", id, mtrxErr))

@@ -15,5 +15,5 @@ The `exec` subcommand can do some things that the configuration file can't do ye
 The commands have to be defined in the config file. The hosts need to at least be in the ssh_config(5) file.
 
 ```sh
-backy exec host [--commands=command1 -commands=command2 ... | -c command1 -c command2 ...] [--hosts=host1 --hosts=hosts2 ... | -m host1 -c host2 ...]  [flags]
+backy exec host [--commands=command1 -commands=command2 ... | -c command1 -c command2 ...] [--hosts=host1 --hosts=hosts2 ... | -m host1 -m host2 ...]  [flags]
 ```

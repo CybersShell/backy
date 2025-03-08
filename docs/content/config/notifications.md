@@ -39,23 +39,23 @@ There must be a section with an id (eg. `mail.test-svr`) following one of these 
 
 ### mail
 
-| key | description | type
-| --- | --- | ---
-| `host` | Specifies the SMTP host to connect to | `string`
-| `port` | Specifies the SMTP port | `uint16`
-| `senderaddress` | Address from which to send mail | `string`
-| `to` | Recipients to send emails to | `[]string`
-| `username` | SMTP username | `string`
-| `password` | SMTP password | `string`
+| key | description | type | External directive support |
+| --- | --- | --- | --- |
+| `host` | Specifies the SMTP host to connect to | `string` | no
+| `port` | Specifies the SMTP port | `uint16` | no
+| `senderaddress` | Address from which to send mail | `string` | no
+| `to` | Recipients to send emails to | `[]string` | no
+| `username` | SMTP username | `string` | no
+| `password` | SMTP password | `string` | yes
 
 ### matrix
 
-| key | description | type
-| --- | --- | ---
-| `home-server` | Specifies the Matrix server connect to | `string`
-| `room-id` | Specifies the room ID of the room to send messages to | `string`
-| `access-token` | Matrix access token | `string`
-| `user-id` | Matrix user ID | `string`
+| key | description | type | External directive support |
+| --- | --- | ---| ---- |
+| `home-server` | Specifies the Matrix server connect to | `string` | no
+| `room-id` | Specifies the room ID of the room to send messages to | `string` | no
+| `access-token` | Matrix access token  | `string` | yes
+| `user-id` | Matrix user ID | `string` | no
 
 To get your access token (assumes you are using [Element](https://element.io/)) :
 

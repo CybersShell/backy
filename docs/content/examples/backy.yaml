@@ -71,7 +71,7 @@ hosts:
     hostname: some-hostname
     config: ~/.ssh/config
     user: user
-    privatekeypath: /path/to/private/key
+    privateKeyPath: /path/to/private/key
     port: 22
     # can also be env:VAR
     password: file:/path/to/file

@@ -26,15 +26,15 @@ type (
 		ConfigFilePath     string `yaml:"config,omitempty"`
 		Host               string `yaml:"host,omitempty"`
 		HostName           string `yaml:"hostname,omitempty"`
-		KnownHostsFile     string `yaml:"knownhostsfile,omitempty"`
+		KnownHostsFile     string `yaml:"knownHostsFile,omitempty"`
 		ClientConfig       *ssh.ClientConfig
 		SSHConfigFile      *sshConfigFile
 		SshClient          *ssh.Client
 		Port               uint16 `yaml:"port,omitempty"`
 		ProxyJump          string `yaml:"proxyjump,omitempty"`
 		Password           string `yaml:"password,omitempty"`
-		PrivateKeyPath     string `yaml:"privatekeypath,omitempty"`
-		PrivateKeyPassword string `yaml:"privatekeypassword,omitempty"`
+		PrivateKeyPath     string `yaml:"privateKeyPath,omitempty"`
+		PrivateKeyPassword string `yaml:"privateKeyPassword,omitempty"`
 		useDefaultConfig   bool
 		User               string `yaml:"user,omitempty"`
 		isProxyHost        bool

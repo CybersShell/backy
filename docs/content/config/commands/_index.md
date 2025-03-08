@@ -12,17 +12,17 @@ weight: 1
 
 Values available for this section **(case-sensitive)**:
 
-| name | notes | type | required
-| --- | --- | --- | --- |
-| `cmd` | Defines the command to execute | `string` | yes |
-| `Args` | Defines the arguments to the command | `[]string` | no |
-| `environment` | Defines environment variables for the command | `[]string` | no |
-| `type` | See documentation further down the page. Additional fields may be required. | `string` | no |
-| `getOutput` | Command(s) output is in the notification(s) | `bool` | no |
-| `host` | If not specified, the command will execute locally. | `string` | no |
-| `scriptEnvFile` | When type is `scriptFile` or `script`, this file is prepended to the input. | `string` | no |
-| `shell` | Run the command in the shell | `string` | no |
-| `hooks` | Hooks are used at the end of the individual command. Must have at least `error`, `success`, or `final`. | `map[string][]string` | no |
+| name            | notes                                                                                                   | type                  | required | External directive support |
+| ----------------| ------------------------------------------------------------------------------------------------------- | --------------------- | -------- |----------------------------|
+| `cmd`           | Defines the command to execute                                                                          | `string`              | yes      | No                         |
+| `Args`          | Defines the arguments to the command                                                                    | `[]string`            | no       | No                         |
+| `environment`   | Defines environment variables for the command                                                           | `[]string`            | no       | No                         |
+| `type`          | See documentation further down the page. Additional fields may be required.                             | `string`              | no       | No                         |
+| `getOutput`     | Command(s) output is in the notification(s)                                                             | `bool`                | no       | No                         |
+| `host`          | If not specified, the command will execute locally.                                                     | `string`              | no       | No                         |
+| `scriptEnvFile` | When type is `scriptFile` or `script`, this file is prepended to the input.                             | `string`              | no       | No                         |
+| `shell`         | Run the command in the shell                                                                            | `string`              | no       | No                         |
+| `hooks`         | Hooks are used at the end of the individual command. Must have at least `error`, `success`, or `final`. | `map[string][]string` | no       | No                         |
 
 #### cmd
 
