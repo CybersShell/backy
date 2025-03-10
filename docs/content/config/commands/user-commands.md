@@ -6,16 +6,16 @@ description: This is dedicated to user commands.
 
 This is dedicated to `user` commands. The command `type` field must be `user`. User is a type that allows one to perform user operations. There are several additional options available when `type` is `user`:
 
-| name | notes | type | required |
-| --- | --- | --- | --- |
-| `userName` | The name of a user to be configured. | `string` | yes |
-| `userOperation` | The type of operation to perform. | `string` | yes |
-| `userID` | The user ID to use. | `string` | no |
-| `userGroups` | The groups the user should be added to. | `[]string` | no |
-| `userSshPubKeys` | The keys to add to the user's authorized keys. | `[]string` | no |
-| `userShell` | The shell for the user. | `string` | no |
-| `userHome` | The user's home directory. | `string` | no |
-| `userPassword` | The new password value when using the `password` operation. Can be specified by using external directive. | `string` | no |
+| name            | notes                                                        | type       | required | External directive support
+| ----------------| -------------------------------------------------------------| ---------- | ---------| --------------------------|
+| `userName`      | The name of a user to be configured.                         | `string`   | yes      | no 						 |
+| `userOperation` | The type of operation to perform.                            | `string`   | yes      | no 						 |
+| `userID`        | The user ID to use.                                          | `string`   | no       | no 						 |
+| `userGroups`    | The groups the user should be added to.                      | `[]string` | no       | no 						 |
+| `userSshPubKeys`| The keys to add to the user's authorized keys.               | `[]string` | no       | yes 						 |
+| `userShell`     | The shell for the user.                                      | `string`   | no       | no 						 |
+| `userHome`      | The user's home directory.                                   | `string`   | no       | no 						 |
+| `userPassword`  | The new password value when using the `password` operation.  | `string`   | no       | yes						 |
 
 
 #### example
