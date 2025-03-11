@@ -248,6 +248,9 @@ func unmarshalConfig(k *koanf.Koanf, key string, target interface{}, log zerolog
 
 func getCommandEnvironments(opts *ConfigOpts) {
 	for cmdName, cmdConf := range opts.Cmds {
+		if cmdConf.Env == "" {
+			continue
+		}
 		opts.Logger.Debug().Str("env file", cmdConf.Env).Str("cmd", cmdName).Send()
 		if err := testFile(cmdConf.Env); err != nil {
 			logging.ExitWithMSG("Could not open file"+cmdConf.Env+": "+err.Error(), 1, &opts.Logger)
