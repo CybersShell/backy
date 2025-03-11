@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"text/template"
 
 	"embed"
@@ -193,6 +194,60 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		if err != nil {
 			cmdCtxLogger.Error().Err(fmt.Errorf("error when running cmd %s: %w", command.Name, err)).Send()
 			return outputArr, err
+		}
+
+		if command.Type == UserCT {
+
+			if command.UserOperation == "add" {
+				if command.UserSshPubKeys != nil {
+					var (
+						f        *os.File
+						err      error
+						userHome []byte
+					)
+
+					cmdCtxLogger.Info().Msg("adding SSH Keys")
+
+					localCMD := exec.Command(fmt.Sprintf("grep \"%s\" /etc/passwd | cut -d: -f6", command.Username))
+					userHome, err = localCMD.CombinedOutput()
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
+					}
+
+					command.UserHome = strings.TrimSpace(string(userHome))
+					userSshDir := fmt.Sprintf("%s/.ssh", command.UserHome)
+
+					os.MkdirAll(userSshDir, 0700)
+					if _, err := os.Stat(fmt.Sprintf("%s/authorized_keys", userSshDir)); os.IsNotExist(err) {
+						_, err := os.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
+						if err != nil {
+							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating file %s/authorized_keys: %v", userSshDir, err)
+						}
+
+					}
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+					}
+					f, err = os.OpenFile(fmt.Sprintf("%s/authorized_keys", userSshDir), 0700, os.ModeAppend)
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+					}
+					defer f.Close()
+					for _, k := range command.UserSshPubKeys {
+						buf := bytes.NewBufferString(k)
+						cmdCtxLogger.Info().Str("key", k).Msg("adding SSH key")
+						if _, err := f.ReadFrom(buf); err != nil {
+							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error adding to authorized keys: %v", err)
+						}
+					}
+					localCMD = exec.Command(fmt.Sprintf("chown -R %s:%s %s", command.Username, command.Username, userHome))
+					_, err = localCMD.CombinedOutput()
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), err
+					}
+
+				}
+			}
 		}
 	}
 	return outputArr, nil
