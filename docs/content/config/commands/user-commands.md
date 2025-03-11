@@ -12,6 +12,8 @@ This is dedicated to `user` commands. The command `type` field must be `user`. U
 | `userOperation` | The type of operation to perform.                            | `string`   | yes      | no 						 |
 | `userID`        | The user ID to use.                                          | `string`   | no       | no 						 |
 | `userGroups`    | The groups the user should be added to.                      | `[]string` | no       | no 						 |
+| `systemUser`    | Create a system user.                                        | `bool`     | no       | no 						 |
+| `userCreateHome`| Create the home directory.                                   | `bool`     | no       | no 						 |
 | `userSshPubKeys`| The keys to add to the user's authorized keys.               | `[]string` | no       | yes 						 |
 | `userShell`     | The shell for the user.                                      | `string`   | no       | no 						 |
 | `userHome`      | The user's home directory.                                   | `string`   | no       | no 						 |

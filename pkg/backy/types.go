@@ -117,7 +117,7 @@ type (
 
 		UserCreateHome bool `yaml:"userCreateHome,omitempty"`
 
-		SystemUser bool `yaml:"systemUser,omitempty"`
+		UserIsSystem bool `yaml:"userIsSystem,omitempty"`
 
 		UserPassword string `yaml:"userPassword,omitempty"`
 

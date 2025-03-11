@@ -293,7 +293,7 @@ func getCommandTypeAndSetCommandInfo(command *Command) *Command {
 				command.Username,
 				command.UserHome,
 				command.UserShell,
-				command.SystemUser,
+				command.UserIsSystem,
 				command.UserCreateHome,
 				command.UserGroups,
 				command.Args)
