@@ -15,7 +15,7 @@ func (l LinuxUserManager) NewLinuxManager() *LinuxUserManager {
 }
 
 // AddUser adds a new user to the system.
-func (l LinuxUserManager) AddUser(username, homeDir, shell string, createHome, isSystem bool, groups, args []string) (string, []string) {
+func (l LinuxUserManager) AddUser(username, homeDir, shell string, isSystem, createHome bool, groups, args []string) (string, []string) {
 	baseArgs := []string{}
 
 	if isSystem {
@@ -40,7 +40,6 @@ func (l LinuxUserManager) AddUser(username, homeDir, shell string, createHome, i
 
 	if createHome {
 		baseArgs = append(baseArgs, "-m")
-
 	}
 
 	args = append(baseArgs, username)
