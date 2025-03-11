@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kevinburke/ssh_config"
 	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
@@ -509,9 +510,25 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 
 		if command.Type == UserCT && command.UserOperation == "password" {
 			// cmdCtxLogger.Debug().Msgf("adding stdin")
-			userNamePass := fmt.Sprintf("%s:%s", command.Username, command.UserPassword)
-			ArgsStr = fmt.Sprintf("echo %s | chpasswd", userNamePass)
 
+			userNamePass := fmt.Sprintf("%s:%s", command.Username, command.UserPassword)
+			client, err := sftp.NewClient(command.RemoteHost.SshClient)
+			if err != nil {
+				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating sftp client: %v", err)
+			}
+			uuidFile := uuid.New()
+			passFilePath := fmt.Sprintf("/tmp/%s", uuidFile.String())
+			passFile, passFileErr := client.Create(passFilePath)
+			if passFileErr != nil {
+				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating file /tmp/%s: %v", uuidFile.String(), passFileErr)
+			}
+
+			passFile.Write([]byte(userNamePass))
+
+			ArgsStr = fmt.Sprintf("cat %s | chpasswd", passFilePath)
+			defer passFile.Close()
+
+			defer client.Remove(passFilePath)
 			// commandSession.Stdin = command.stdin
 		}
 		if err := commandSession.Run(ArgsStr); err != nil {
