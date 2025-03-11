@@ -10,7 +10,7 @@ import (
 // UserManager defines the interface for user management operations.
 // All functions but one return a string for the command and any args.
 type UserManager interface {
-	AddUser(username, homeDir, shell string, isSystem bool, groups, args []string) (string, []string)
+	AddUser(username, homeDir, shell string, createHome, isSystem bool, groups, args []string) (string, []string)
 	RemoveUser(username string) (string, []string)
 	ModifyUser(username, homeDir, shell string, groups []string) (string, []string)
 	// Modify password uses chpasswd for Linux systems to build the command to change the password

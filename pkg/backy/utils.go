@@ -294,6 +294,7 @@ func getCommandTypeAndSetCommandInfo(command *Command) *Command {
 				command.UserHome,
 				command.UserShell,
 				command.SystemUser,
+				command.UserCreateHome,
 				command.UserGroups,
 				command.Args)
 		case "modify":

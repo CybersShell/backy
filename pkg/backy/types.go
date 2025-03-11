@@ -115,6 +115,8 @@ type (
 
 		UserShell string `yaml:"userShell,omitempty"`
 
+		UserCreateHome bool `yaml:"userCreateHome,omitempty"`
+
 		SystemUser bool `yaml:"systemUser,omitempty"`
 
 		UserPassword string `yaml:"userPassword,omitempty"`
