@@ -6,6 +6,7 @@ package backy
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +17,7 @@ import (
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/remotefetcher"
+	vault "github.com/hashicorp/vault/api"
 	"github.com/joho/godotenv"
 	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
@@ -119,12 +121,12 @@ errEnvFile:
 		if strings.Contains(envVal, "=") {
 			envVarArr := strings.Split(envVal, "=")
 
-			process.Setenv(envVarArr[0], GetVaultKey(envVarArr[1], opts, log))
+			process.Setenv(envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts))
 		}
 	}
 }
 
-func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, log zerolog.Logger) {
+func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, log zerolog.Logger, opts *ConfigOpts) {
 	if envVarsToInject.file != "" {
 		envPath, _ := getFullPathWithHomeDir(envVarsToInject.file)
 
@@ -148,7 +150,8 @@ errEnvFile:
 
 	for _, envVal := range envVarsToInject.env {
 		if strings.Contains(envVal, "=") {
-			process.Env = append(process.Env, envVal)
+			envVarArr := strings.Split(envVal, "=")
+			process.Env = append(process.Env, fmt.Sprintf("%s=%s", envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts)))
 		}
 	}
 	process.Env = append(process.Env, os.Environ()...)
@@ -249,7 +252,6 @@ func (opts *ConfigOpts) loadEnv() {
 func expandEnvVars(backyEnv map[string]string, envVars []string) {
 
 	env := func(name string) string {
-		name = strings.ToUpper(name)
 		envVar, found := backyEnv[name]
 		if found {
 			return envVar
@@ -258,14 +260,14 @@ func expandEnvVars(backyEnv map[string]string, envVars []string) {
 	}
 
 	for indx, v := range envVars {
-		if strings.HasPrefix(v, externDirectiveStart) && strings.HasSuffix(v, externDirectiveEnd) {
-			if strings.HasPrefix(v, envExternDirectiveStart) {
-				v = strings.TrimPrefix(v, envExternDirectiveStart)
-				v = strings.TrimRight(v, externDirectiveEnd)
-				out, _ := shell.Expand(v, env)
-				envVars[indx] = out
-			}
+
+		if strings.HasPrefix(v, envExternDirectiveStart) && strings.HasSuffix(v, externDirectiveEnd) {
+			v = strings.TrimPrefix(v, envExternDirectiveStart)
+			v = strings.TrimRight(v, externDirectiveEnd)
+			out, _ := shell.Expand(v, env)
+			envVars[indx] = out
 		}
+
 	}
 }
 
@@ -383,6 +385,62 @@ func getExternalConfigDirectiveValue(key string, opts *ConfigOpts) string {
 		key = strings.TrimSuffix(key, externDirectiveEnd)
 		key = GetVaultKey(key, opts, opts.Logger)
 	}
+	println(key)
 
 	return key
+}
+
+func getVaultSecret(vaultClient *vault.Client, key *VaultKey) (string, error) {
+	var (
+		secret *vault.KVSecret
+		err    error
+	)
+
+	if key.ValueType == "KVv2" {
+		secret, err = vaultClient.KVv2(key.MountPath).Get(context.Background(), key.Path)
+	} else if key.ValueType == "KVv1" {
+		secret, err = vaultClient.KVv1(key.MountPath).Get(context.Background(), key.Path)
+	} else if key.ValueType != "" {
+		return "", fmt.Errorf("type %s for key %s not known. Valid types are KVv1 or KVv2", key.ValueType, key.Name)
+	} else {
+		return "", fmt.Errorf("type for key %s must be specified. Valid types are KVv1 or KVv2", key.Name)
+	}
+	if err != nil {
+		return "", fmt.Errorf("unable to read secret: %v", err)
+	}
+
+	value, ok := secret.Data[key.Key].(string)
+	println(value)
+	if !ok {
+		return "", fmt.Errorf("value type assertion failed for vault key %s: %T %#v", key.Name, secret.Data[key.Name], secret.Data[key.Name])
+	}
+
+	return value, nil
+}
+
+func getVaultKeyData(keyName string, keys []*VaultKey) (*VaultKey, error) {
+	for _, k := range keys {
+		if k.Name == keyName {
+			return k, nil
+		}
+	}
+	return nil, fmt.Errorf("key %s not found in vault keys", keyName)
+}
+
+func GetVaultKey(str string, opts *ConfigOpts, log zerolog.Logger) string {
+	key, err := getVaultKeyData(str, opts.VaultKeys)
+	if key == nil && err == nil {
+		return str
+	}
+	if err != nil && key == nil {
+		log.Err(err).Send()
+		return ""
+	}
+
+	value, secretErr := getVaultSecret(opts.vaultClient, key)
+	if secretErr != nil {
+		log.Err(secretErr).Send()
+		return value
+	}
+	return value
 }

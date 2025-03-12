@@ -96,7 +96,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 				command.Shell = "sh"
 			}
 			localCMD = exec.Command(command.Shell, command.Args...)
-			injectEnvIntoLocalCMD(envVars, localCMD, cmdCtxLogger)
+			injectEnvIntoLocalCMD(envVars, localCMD, cmdCtxLogger, opts)
 
 			cmdOutWriters = io.MultiWriter(&cmdOutBuf)
 
@@ -177,7 +177,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			localCMD.Dir = *command.Dir
 		}
 
-		injectEnvIntoLocalCMD(envVars, localCMD, cmdCtxLogger)
+		injectEnvIntoLocalCMD(envVars, localCMD, cmdCtxLogger, opts)
 
 		cmdOutWriters = io.MultiWriter(&cmdOutBuf)
 

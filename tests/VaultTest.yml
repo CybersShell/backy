@@ -1,0 +1,27 @@
+commands:
+  vaultEnvVar:
+    cmd: echo
+    shell: /bin/zsh
+    Args:
+      - ${VAULT_VAR}
+    environment:
+      "VAULT_VAR=%{vault:vaultTestSecret}%"
+
+logging:
+  verbose: true
+
+vault:
+  token: root
+  address: http://127.0.0.1:8200
+  enabled: true
+  keys:
+    - name: vaultTestSecret
+      key: data
+      mountpath: secret
+      path: test/var
+      type: KVv2 # KVv1 or KVv2
+
+cmdLists:
+  addUsers:
+    order:
+      - vaultEnvVar

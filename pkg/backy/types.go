@@ -223,6 +223,7 @@ type (
 
 	VaultKey struct {
 		Name      string `yaml:"name"`
+		Key       string `yaml:"key"`
 		Path      string `yaml:"path"`
 		ValueType string `yaml:"type"`
 		MountPath string `yaml:"mountpath"`

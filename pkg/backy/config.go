@@ -1,7 +1,6 @@
 package backy
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -473,62 +472,6 @@ func (opts *ConfigOpts) setupVault() error {
 	opts.vaultClient = client
 
 	return nil
-}
-
-func getVaultSecret(vaultClient *vault.Client, key *VaultKey) (string, error) {
-	var (
-		secret *vault.KVSecret
-		err    error
-	)
-
-	if key.ValueType == "KVv2" {
-		secret, err = vaultClient.KVv2(key.MountPath).Get(context.Background(), key.Path)
-	} else if key.ValueType == "KVv1" {
-		secret, err = vaultClient.KVv1(key.MountPath).Get(context.Background(), key.Path)
-	} else if key.ValueType != "" {
-		return "", fmt.Errorf("type %s for key %s not known. Valid types are KVv1 or KVv2", key.ValueType, key.Name)
-	} else {
-		return "", fmt.Errorf("type for key %s must be specified. Valid types are KVv1 or KVv2", key.Name)
-
-	}
-	if err != nil {
-		return "", fmt.Errorf("unable to read secret: %v", err)
-	}
-
-	value, ok := secret.Data[key.Name].(string)
-	if !ok {
-		return "", fmt.Errorf("value type assertion failed: %T %#v", secret.Data[key.Name], secret.Data[key.Name])
-	}
-
-	return value, nil
-}
-
-func parseVaultKey(keyName string, keys []*VaultKey) (*VaultKey, error) {
-
-	for _, k := range keys {
-		if k.Name == keyName {
-			return k, nil
-		}
-	}
-	return nil, fmt.Errorf("key %s not found in vault keys", keyName)
-}
-
-func GetVaultKey(str string, opts *ConfigOpts, log zerolog.Logger) string {
-	key, err := parseVaultKey(str, opts.VaultKeys)
-	if key == nil && err == nil {
-		return str
-	}
-	if err != nil && key == nil {
-		log.Err(err).Send()
-		return ""
-	}
-
-	value, secretErr := getVaultSecret(opts.vaultClient, key)
-	if secretErr != nil {
-		log.Err(secretErr).Send()
-		return value
-	}
-	return value
 }
 
 func processCmds(opts *ConfigOpts) error {

@@ -16,7 +16,7 @@ Values available for this section **(case-sensitive)**:
 | ----------------| ------------------------------------------------------------------------------------------------------- | --------------------- | -------- |----------------------------|
 | `cmd`           | Defines the command to execute                                                                          | `string`              | yes      | No                         |
 | `Args`          | Defines the arguments to the command                                                                    | `[]string`            | no       | No                         |
-| `environment`   | Defines environment variables for the command                                                           | `[]string`            | no       | No                         |
+| `environment`   | Defines environment variables for the command                                                           | `[]string`            | no       | Partial                    |
 | `type`          | See documentation further down the page. Additional fields may be required.                             | `string`              | no       | No                         |
 | `getOutput`     | Command(s) output is in the notification(s)                                                             | `bool`                | no       | No                         |
 | `host`          | If not specified, the command will execute locally.                                                     | `string`              | no       | No                         |
@@ -95,6 +95,7 @@ The following options are available:
 The environment variables support expansion:
 
 - using escaped values `$VAR` or `${VAR}`
+- using the directive`%{env:VAR}%`
 
 For now, the variables have to be defined in an `.env` file in the same directory that the program is run from.
 

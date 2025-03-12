@@ -1,0 +1,3 @@
+kind: Changed
+body: 'Vault: keys are now referenced by `name`, and the actual data by `data`'
+time: 2025-03-11T21:26:38.085271797-05:00

@@ -6,7 +6,7 @@ description: Set up and configure vault.
 
 [Vault](https://www.vaultproject.io/) is a tool for storing secrets and other data securely.
 
-Vault config can be used by prefixing `vault:` in front of a password or ENV var.
+A Vault key can be used by prefixing `%{vault:vault.keys.name}%` in a field that supports external directives.
 
 This is the object in the config file:
 
@@ -18,10 +18,12 @@ vault:
   keys:
     - name: mongourl
       mountpath: secret
+      key: data
       path: mongo/url
       type:  # KVv1 or KVv2
-    - name:
-      path:
-      type:
-      mountpath:
+    - name: someKeyName
+      mountpath: secret
+      key: keyData
+      type: KVv2
+      path: some/path
 ```
