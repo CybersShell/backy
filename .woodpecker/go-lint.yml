@@ -5,7 +5,7 @@ steps:
       - go build
       - go test
   release:
-    image: golangci/golangci-lint:v1.53.3
+    image: golangci/golangci-lint:v1.64.7
     commands:
       - golangci-lint run -v --timeout 5m
 
