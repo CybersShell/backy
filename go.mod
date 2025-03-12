@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.76.0
 	github.com/dmarkham/enumer v1.5.11
 	github.com/go-co-op/gocron v1.37.0
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault/api v1.15.0
 	github.com/joho/godotenv v1.5.1
 	github.com/kevinburke/ssh_config v1.2.0
@@ -30,7 +31,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	maunium.net/go/mautrix v0.23.0
 	mvdan.cc/sh/v3 v3.10.0
-	github.com/google/uuid v1.6.0
 )
 
 require (

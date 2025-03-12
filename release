@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eou pipefail
+go mod tidy
 go generate ./...
 CURRENT_TAG="$(go run backy.go version -V)"
 goreleaser -f .goreleaser/github.yml check
