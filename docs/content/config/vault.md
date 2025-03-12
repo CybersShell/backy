@@ -20,7 +20,7 @@ vault:
       mountpath: secret
       key: data
       path: mongo/url
-      type:  # KVv1 or KVv2
+      type: KVv2  # KVv1 or KVv2
     - name: someKeyName
       mountpath: secret
       key: keyData
