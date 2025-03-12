@@ -220,6 +220,7 @@ func setLoggingOptions(k *koanf.Koanf, opts *ConfigOpts) {
 		logFile = k.String(getLoggingKeyFromConfig("file"))
 		opts.LogFilePath = logFile
 	}
+	opts.LogFilePath = logFile
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	if isLoggingVerbose {

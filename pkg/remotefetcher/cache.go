@@ -116,7 +116,7 @@ func (c *Cache) Set(source, hash string, data []byte, dataType string) (CacheDat
 	path := filepath.Join(c.dir, fmt.Sprintf("%s-%s", fileName, sourceHash))
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.MkdirAll(c.dir, 0700)
+		_ = os.MkdirAll(c.dir, 0700)
 	}
 
 	err := os.WriteFile(path, data, 0644)
@@ -171,7 +171,7 @@ func (cf *CachedFetcher) Hash(data []byte) string {
 func LoadMetadataFromFile(filePath string) ([]*CacheData, error) {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// Create the file if it does not exist
-		os.MkdirAll(path.Dir(filePath), 0700)
+		_ = os.MkdirAll(path.Dir(filePath), 0700)
 		emptyData := []byte("[]")
 		err := os.WriteFile(filePath, emptyData, 0644)
 		if err != nil {

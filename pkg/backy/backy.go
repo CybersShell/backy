@@ -217,7 +217,13 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 					command.UserHome = strings.TrimSpace(string(userHome))
 					userSshDir := fmt.Sprintf("%s/.ssh", command.UserHome)
 
-					os.MkdirAll(userSshDir, 0700)
+					if _, err := os.Stat(userSshDir); os.IsNotExist(err) {
+						err := os.MkdirAll(userSshDir, 0700)
+						if err != nil {
+							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating directory %s %v", userSshDir, err)
+						}
+					}
+
 					if _, err := os.Stat(fmt.Sprintf("%s/authorized_keys", userSshDir)); os.IsNotExist(err) {
 						_, err := os.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
 						if err != nil {
@@ -457,7 +463,7 @@ func (cmd *Command) ExecuteHooks(hookType string, opts *ConfigOpts) {
 			cmdLogger := opts.Logger.With().
 				Str("backy-cmd", v).Str("hookType", "error").
 				Logger()
-			errCmd.RunCmd(cmdLogger, opts)
+			_, _ = errCmd.RunCmd(cmdLogger, opts)
 		}
 
 	case "success":
@@ -467,7 +473,7 @@ func (cmd *Command) ExecuteHooks(hookType string, opts *ConfigOpts) {
 			cmdLogger := opts.Logger.With().
 				Str("backy-cmd", v).Str("hookType", "success").
 				Logger()
-			successCmd.RunCmd(cmdLogger, opts)
+			_, _ = successCmd.RunCmd(cmdLogger, opts)
 		}
 	case "final":
 		for _, v := range cmd.Hooks.Final {
@@ -476,7 +482,7 @@ func (cmd *Command) ExecuteHooks(hookType string, opts *ConfigOpts) {
 			cmdLogger := opts.Logger.With().
 				Str("backy-cmd", v).Str("hookType", "final").
 				Logger()
-			finalCmd.RunCmd(cmdLogger, opts)
+			_, _ = finalCmd.RunCmd(cmdLogger, opts)
 		}
 	}
 }

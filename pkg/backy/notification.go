@@ -5,10 +5,12 @@ package backy
 
 import (
 	"fmt"
+	stdHttp "net/http"
 	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 	"github.com/nikoksr/notify"
+	"github.com/nikoksr/notify/service/http"
 	"github.com/nikoksr/notify/service/mail"
 	"github.com/nikoksr/notify/service/matrix"
 	"maunium.net/go/mautrix/id"
@@ -28,6 +30,11 @@ type MailConfig struct {
 	SenderAddress string   `yaml:"senderaddress"`
 	To            []string `yaml:"to"`
 	Password      string   `yaml:"password"`
+}
+
+type HttpConfig struct {
+	Url     string              `yaml:"url"`
+	Headers map[string][]string `yaml:"headers"`
 }
 
 // SetupNotify sets up notify instances for each command list.
@@ -74,6 +81,14 @@ func (opts *ConfigOpts) SetupNotify() {
 					continue
 				}
 				services = append(services, mtrxConf)
+			case "http":
+				conf, ok := opts.NotificationConf.HttpConfig[confId]
+				if !ok {
+					opts.Logger.Info().Err(fmt.Errorf("error: ID %s not found in http object", confId)).Str("list", confName).Send()
+					continue
+				}
+				httpConf := setupHttp(conf)
+				services = append(services, httpConf)
 
 			default:
 				opts.Logger.Info().Err(fmt.Errorf("id %s not found", id)).Str("list", confName).Send()
@@ -99,4 +114,21 @@ func setupMail(config MailConfig) *mail.Mail {
 	mailClient.AddReceivers(config.To...)
 	mailClient.BodyFormat(mail.PlainText)
 	return mailClient
+}
+
+func setupHttp(httpConf HttpConfig) *http.Service {
+
+	httpService := http.New()
+	// httpService.AddReceiversURLs(httpConf.Url)
+	httpService.AddReceivers(&http.Webhook{
+		URL:         httpConf.Url,
+		Header:      httpConf.Headers,
+		ContentType: "text/plain",
+		Method:      stdHttp.MethodPost,
+		BuildPayload: func(subject, message string) (payload any) {
+			return "[text/plain]: " + subject + " - " + message
+		},
+	})
+
+	return httpService
 }

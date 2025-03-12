@@ -110,7 +110,11 @@ func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, opt
 			goto errEnvFile
 		}
 		for key, val := range envMap {
-			process.Setenv(key, GetVaultKey(val, opts, log))
+			err = process.Setenv(key, GetVaultKey(val, opts, log))
+			if err != nil {
+				log.Error().Err(err).Send()
+
+			}
 		}
 	}
 
@@ -121,7 +125,11 @@ errEnvFile:
 		if strings.Contains(envVal, "=") {
 			envVarArr := strings.Split(envVal, "=")
 
-			process.Setenv(envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts))
+			err := process.Setenv(envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts))
+			if err != nil {
+				log.Error().Err(err).Send()
+
+			}
 		}
 	}
 }

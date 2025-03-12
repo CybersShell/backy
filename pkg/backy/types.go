@@ -239,6 +239,7 @@ type (
 	Notifications struct {
 		MailConfig   map[string]MailConfig   `yaml:"mail,omitempty"`
 		MatrixConfig map[string]MatrixStruct `yaml:"matrix,omitempty"`
+		HttpConfig   map[string]HttpConfig   `yaml:"http,omitempty"`
 	}
 
 	CmdOutput struct {

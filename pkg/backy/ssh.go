@@ -523,12 +523,19 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating file /tmp/%s: %v", uuidFile.String(), passFileErr)
 			}
 
-			passFile.Write([]byte(userNamePass))
+			_, err = passFile.Write([]byte(userNamePass))
+			if err != nil {
+				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error writing to file /tmp/%s: %v", uuidFile.String(), err)
+			}
 
 			ArgsStr = fmt.Sprintf("cat %s | chpasswd", passFilePath)
 			defer passFile.Close()
 
-			defer client.Remove(passFilePath)
+			rmFileFunc := func() {
+				_ = client.Remove(passFilePath)
+			}
+
+			defer rmFileFunc()
 			// commandSession.Stdin = command.stdin
 		}
 		if err := commandSession.Run(ArgsStr); err != nil {
@@ -561,7 +568,10 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating sftp client: %v", err)
 					}
 
-					client.MkdirAll(userSshDir)
+					err = client.MkdirAll(userSshDir)
+					if err != nil {
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating directory %s: %v", userSshDir, err)
+					}
 					_, err = client.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
 					if err != nil {
 						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
