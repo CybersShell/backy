@@ -30,6 +30,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	maunium.net/go/mautrix v0.23.0
 	mvdan.cc/sh/v3 v3.10.0
+	github.com/google/uuid v1.6.0
 )
 
 require (
@@ -51,7 +52,6 @@ require (
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect

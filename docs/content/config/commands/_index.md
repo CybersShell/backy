@@ -95,9 +95,9 @@ The following options are available:
 The environment variables support expansion:
 
 - using escaped values `$VAR` or `${VAR}`
-- using the directive`%{env:VAR}%`
+- using any external directive, and if using the env directive, the variable will be read from a `.env` file
 
-For now, the variables have to be defined in an `.env` file in the same directory that the program is run from.
+<!-- For now, the variables expanded have to be defined in an `.env` file in the same directory that the program is run from. -->
 
 If using it with host specified, the SSH server has to be configured to accept those env variables.
 
