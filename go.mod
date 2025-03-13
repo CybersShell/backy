@@ -2,9 +2,7 @@ module git.andrewnw.xyz/CyberShell/backy
 
 go 1.23
 
-toolchain go1.23.6
-
-replace git.andrewnw.xyz/CyberShell/backy => /home/andrew/Projects/backy
+toolchain go1.23.7
 
 require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.76.0
