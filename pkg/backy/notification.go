@@ -5,7 +5,6 @@ package backy
 
 import (
 	"fmt"
-	stdHttp "net/http"
 	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
@@ -33,7 +32,8 @@ type MailConfig struct {
 }
 
 type HttpConfig struct {
-	Url     string              `yaml:"url"`
+	URL     string              `yaml:"url"`
+	Method  string              `yaml:"method"`
 	Headers map[string][]string `yaml:"headers"`
 }
 
@@ -66,6 +66,7 @@ func (opts *ConfigOpts) SetupNotify() {
 					continue
 				}
 				conf.Password = getExternalConfigDirectiveValue(conf.Password, opts)
+				opts.Logger.Debug().Str("list", confName).Str("id", confId).Msg("adding mail notification service")
 				mailConf := setupMail(conf)
 				services = append(services, mailConf)
 			case "matrix":
@@ -75,6 +76,7 @@ func (opts *ConfigOpts) SetupNotify() {
 					continue
 				}
 				conf.AccessToken = getExternalConfigDirectiveValue(conf.AccessToken, opts)
+				opts.Logger.Debug().Str("list", confName).Str("id", confId).Msg("adding matrix notification service")
 				mtrxConf, mtrxErr := setupMatrix(conf)
 				if mtrxErr != nil {
 					opts.Logger.Info().Str("list", confName).Err(fmt.Errorf("error: configuring matrix id %s failed during setup: %w", id, mtrxErr))
@@ -87,9 +89,9 @@ func (opts *ConfigOpts) SetupNotify() {
 					opts.Logger.Info().Err(fmt.Errorf("error: ID %s not found in http object", confId)).Str("list", confName).Send()
 					continue
 				}
+				opts.Logger.Debug().Str("list", confName).Str("id", confId).Msg("adding http notification service")
 				httpConf := setupHttp(conf)
 				services = append(services, httpConf)
-
 			default:
 				opts.Logger.Info().Err(fmt.Errorf("id %s not found", id)).Str("list", confName).Send()
 			}
@@ -119,14 +121,13 @@ func setupMail(config MailConfig) *mail.Mail {
 func setupHttp(httpConf HttpConfig) *http.Service {
 
 	httpService := http.New()
-	// httpService.AddReceiversURLs(httpConf.Url)
 	httpService.AddReceivers(&http.Webhook{
-		URL:         httpConf.Url,
+		URL:         httpConf.URL,
 		Header:      httpConf.Headers,
 		ContentType: "text/plain",
-		Method:      stdHttp.MethodPost,
+		Method:      httpConf.Method,
 		BuildPayload: func(subject, message string) (payload any) {
-			return "[text/plain]: " + subject + " - " + message
+			return subject + "\n\n" + message
 		},
 	})
 

@@ -393,7 +393,6 @@ func getExternalConfigDirectiveValue(key string, opts *ConfigOpts) string {
 		key = strings.TrimSuffix(key, externDirectiveEnd)
 		key = GetVaultKey(key, opts, opts.Logger)
 	}
-	println(key)
 
 	return key
 }
@@ -418,7 +417,6 @@ func getVaultSecret(vaultClient *vault.Client, key *VaultKey) (string, error) {
 	}
 
 	value, ok := secret.Data[key.Key].(string)
-	println(value)
 	if !ok {
 		return "", fmt.Errorf("value type assertion failed for vault key %s: %T %#v", key.Name, secret.Data[key.Name], secret.Data[key.Name])
 	}

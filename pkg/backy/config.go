@@ -125,6 +125,10 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 
 	log.Info().Str("config file", opts.ConfigFilePath).Send()
 
+	if err := opts.setupVault(); err != nil {
+		log.Err(err).Send()
+	}
+
 	unmarshalConfig(backyKoanf, "commands", &opts.Cmds, opts.Logger)
 
 	getCommandEnvironments(opts)
@@ -152,10 +156,6 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 	}
 
 	opts.SetupNotify()
-
-	if err := opts.setupVault(); err != nil {
-		log.Err(err).Send()
-	}
 
 	return opts
 }
