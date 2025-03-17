@@ -205,6 +205,8 @@ type (
 
 		List ListConfig
 
+		Vars map[string]string `yaml:"variables"`
+
 		VaultKeys []*VaultKey `yaml:"keys"`
 
 		koanf *koanf.Koanf

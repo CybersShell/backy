@@ -362,6 +362,7 @@ func getExternalConfigDirectiveValue(key string, opts *ConfigOpts) string {
 	if !(strings.HasPrefix(key, externDirectiveStart) && strings.HasSuffix(key, externDirectiveEnd)) {
 		return key
 	}
+	key = replaceVarInString(opts.Vars, key, opts.Logger)
 	opts.Logger.Debug().Str("expanding external key", key).Send()
 	if strings.HasPrefix(key, envExternDirectiveStart) {
 		key = strings.TrimPrefix(key, envExternDirectiveStart)

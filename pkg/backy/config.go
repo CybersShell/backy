@@ -103,6 +103,12 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 
 	backyKoanf := opts.koanf
 
+	if backyKoanf.Exists("variables") {
+		unmarshalConfig(backyKoanf, "variables", &opts.Vars, opts.Logger)
+	}
+
+	getConfigDir(opts)
+
 	opts.loadEnv()
 
 	if backyKoanf.Bool(getNestedConfig("logging", "cmd-std-out")) {
@@ -136,6 +142,11 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 	unmarshalConfig(backyKoanf, "hosts", &opts.Hosts, opts.Logger)
 
 	resolveHostConfigs(opts)
+
+	for k, v := range opts.Vars {
+		v = getExternalConfigDirectiveValue(v, opts)
+		opts.Vars[k] = v
+	}
 
 	loadCommandLists(opts, backyKoanf)
 
@@ -282,16 +293,22 @@ func resolveProxyHosts(host *Host, opts *ConfigOpts) {
 	}
 }
 
+func getConfigDir(opts *ConfigOpts) {
+	if isRemoteURL(opts.ConfigFilePath) {
+		p, _ := getRemoteDir(opts.ConfigFilePath)
+		opts.ConfigDir = p
+	} else {
+		opts.ConfigDir = path.Dir(opts.ConfigFilePath)
+	}
+}
+
 func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
 	var listConfigFiles []string
 	var u *url.URL
 	var p string
-	// if config file is remote, use the directory of the remote file
 	if isRemoteURL(opts.ConfigFilePath) {
 		p, u = getRemoteDir(opts.ConfigFilePath)
 		opts.ConfigDir = p
-		println(p)
-		// // Still use local list files if a remote config file is used, but use them last
 		listConfigFiles = []string{u.JoinPath("lists.yml").String(), u.JoinPath("lists.yaml").String()}
 	} else {
 		opts.ConfigDir = path.Dir(opts.ConfigFilePath)
@@ -479,7 +496,10 @@ func processCmds(opts *ConfigOpts) error {
 
 	// process commands
 	for cmdName, cmd := range opts.Cmds {
-
+		for i, v := range cmd.Args {
+			v = replaceVarInString(opts.Vars, v, opts.Logger)
+			cmd.Args[i] = v
+		}
 		if cmd.Name == "" {
 			cmd.Name = cmdName
 		}
@@ -504,6 +524,10 @@ func processCmds(opts *ConfigOpts) error {
 
 		// resolve hosts
 		if cmd.Host != nil {
+			cmdHost := replaceVarInString(opts.Vars, *cmd.Host, opts.Logger)
+			if cmdHost != *cmd.Host {
+				cmd.Host = &cmdHost
+			}
 			host, hostFound := opts.Hosts[*cmd.Host]
 			if hostFound {
 				cmd.RemoteHost = host
@@ -563,7 +587,7 @@ func processCmds(opts *ConfigOpts) error {
 			if cmd.Username == "" {
 				return fmt.Errorf("username is required for user command %s", cmd.Name)
 			}
-
+			cmd.Username = replaceVarInString(opts.Vars, cmd.Username, opts.Logger)
 			err := detectOSType(cmd, opts)
 			if err != nil {
 				opts.Logger.Info().Err(err).Str("command", cmdName).Send()
@@ -688,4 +712,19 @@ func keyNotSupported(oldKey, newKey string, koanf *koanf.Koanf, opts *ConfigOpts
 			opts.Logger.Fatal().Err(fmt.Errorf("key %s found; it has changed to %s", oldKey, newKey)).Send()
 		}
 	}
+}
+
+func replaceVarInString(vars map[string]string, str string, logger zerolog.Logger) string {
+	if strings.Contains(str, "%{var:") && strings.Contains(str, "}%") {
+		logger.Debug().Msgf("replacing vars in string %s", str)
+		for k, v := range vars {
+			if strings.Contains(str, "%{var:"+k+"}%") {
+				str = strings.ReplaceAll(str, "%{var:"+k+"}%", v)
+			}
+		}
+		if strings.Contains(str, "%{var:") && strings.Contains(str, "}%") {
+			logger.Warn().Msg("could not replace all vars in string")
+		}
+	}
+	return str
 }
