@@ -104,7 +104,7 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 	backyKoanf := opts.koanf
 
 	if backyKoanf.Exists("variables") {
-		unmarshalConfig(backyKoanf, "variables", &opts.Vars, opts.Logger)
+		unmarshalConfigIntoStruct(backyKoanf, "variables", &opts.Vars, opts.Logger)
 	}
 
 	getConfigDir(opts)
@@ -131,15 +131,15 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 
 	log.Info().Str("config file", opts.ConfigFilePath).Send()
 
-	if err := opts.setupVault(); err != nil {
+	if err := opts.initVault(); err != nil {
 		log.Err(err).Send()
 	}
 
-	unmarshalConfig(backyKoanf, "commands", &opts.Cmds, opts.Logger)
+	unmarshalConfigIntoStruct(backyKoanf, "commands", &opts.Cmds, opts.Logger)
 
 	getCommandEnvironments(opts)
 
-	unmarshalConfig(backyKoanf, "hosts", &opts.Hosts, opts.Logger)
+	unmarshalConfigIntoStruct(backyKoanf, "hosts", &opts.Hosts, opts.Logger)
 
 	resolveHostConfigs(opts)
 
@@ -163,7 +163,7 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 	filterExecuteLists(opts)
 
 	if backyKoanf.Exists("notifications") {
-		unmarshalConfig(backyKoanf, "notifications", &opts.NotificationConf, opts.Logger)
+		unmarshalConfigIntoStruct(backyKoanf, "notifications", &opts.NotificationConf, opts.Logger)
 	}
 
 	opts.SetupNotify()
@@ -251,7 +251,7 @@ func setupLogger(opts *ConfigOpts) zerolog.Logger {
 	return zerolog.New(writers).With().Timestamp().Logger()
 }
 
-func unmarshalConfig(k *koanf.Koanf, key string, target interface{}, log zerolog.Logger) {
+func unmarshalConfigIntoStruct(k *koanf.Koanf, key string, target interface{}, log zerolog.Logger) {
 	if err := k.UnmarshalWithConf(key, target, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error unmarshaling key %s into struct: %v", key, err), 1, &log)
 	}
@@ -331,7 +331,7 @@ func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
 		if backyKoanf.Exists("cmdLists.file") {
 			loadCmdListsFile(backyKoanf, listsConfig, opts)
 		} else {
-			unmarshalConfig(backyKoanf, "cmdLists", &opts.CmdConfigLists, opts.Logger)
+			unmarshalConfigIntoStruct(backyKoanf, "cmdLists", &opts.CmdConfigLists, opts.Logger)
 		}
 	}
 }
@@ -371,7 +371,7 @@ func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool 
 		return false
 	}
 
-	unmarshalConfig(k, "cmdLists", &opts.CmdConfigLists, opts.Logger)
+	unmarshalConfigIntoStruct(k, "cmdLists", &opts.CmdConfigLists, opts.Logger)
 	keyNotSupported("cmd-lists", "cmdLists", k, opts, true)
 	opts.CmdListFile = filePath
 	return true
@@ -399,7 +399,7 @@ func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *C
 	}
 
 	keyNotSupported("cmd-lists", "cmdLists", listsConfig, opts, true)
-	unmarshalConfig(listsConfig, "cmdLists", &opts.CmdConfigLists, opts.Logger)
+	unmarshalConfigIntoStruct(listsConfig, "cmdLists", &opts.CmdConfigLists, opts.Logger)
 	opts.Logger.Info().Str("using lists config file", opts.CmdListFile).Send()
 }
 
@@ -456,7 +456,7 @@ func getLoggingKeyFromConfig(key string) string {
 // 	return fmt.Sprintf("cmdLists.%s", list)
 // }
 
-func (opts *ConfigOpts) setupVault() error {
+func (opts *ConfigOpts) initVault() error {
 	if !opts.koanf.Bool("vault.enabled") {
 		return nil
 	}
@@ -477,7 +477,7 @@ func (opts *ConfigOpts) setupVault() error {
 		token = os.Getenv("VAULT_TOKEN")
 	}
 	if strings.TrimSpace(token) == "" {
-		return fmt.Errorf("no token found, but one was required. \n\nSet the config key vault.token or the environment variable VAULT_TOKEN")
+		return fmt.Errorf("no token found. One is required. \n\nSet the config key vault.token or the environment variable VAULT_TOKEN")
 	}
 
 	client.SetToken(token)
@@ -488,6 +488,11 @@ func (opts *ConfigOpts) setupVault() error {
 	}
 
 	opts.vaultClient = client
+
+	for _, v := range opts.VaultKeys {
+		v.Name = replaceVarInString(opts.Vars, v.Key, opts.Logger)
+		v.MountPath = replaceVarInString(opts.Vars, v.MountPath, opts.Logger)
+	}
 
 	return nil
 }
@@ -727,4 +732,10 @@ func replaceVarInString(vars map[string]string, str string, logger zerolog.Logge
 		}
 	}
 	return str
+}
+
+func VariadicFunctionParameterTest(allowedKeys ...string) {
+	if contains(allowedKeys, "file") {
+		println("file param included")
+	}
 }

@@ -278,8 +278,9 @@ type (
 	}
 
 	// use ints so we can use enums
-	CommandType      int
-	PackageOperation int
+	CommandType               int
+	PackageOperation          int
+	AllowedExternalDirectives int
 )
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=CommandType
@@ -301,4 +302,15 @@ const (
 	PackOpRemove                               // remove
 	PackOpCheckVersion                         // checkVersion
 	PackOpIsInstalled                          // isInstalled
+)
+
+//go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=AllowedExternalDirectives
+const (
+	DefaultExternalDir                AllowedExternalDirectives = iota
+	AllowedExternalDirectiveVault                               // vault
+	AllowedExternalDirectiveVaultFile                           // vault-file
+	AllowedExternalDirectiveAll                                 // vault-file-env
+	AllowedExternalDirectiveFileEnv                             // file-env
+	AllowedExternalDirectiveFile                                // file
+	AllowedExternalDirectiveEnv                                 // env
 )

@@ -537,6 +537,12 @@ func logCommandOutput(command *Command, cmdOutBuf bytes.Buffer, cmdCtxLogger zer
 	return outputArr
 }
 
+func (c *Command) GetVariablesFromConf(opts *ConfigOpts) {
+	c.ScriptEnvFile = replaceVarInString(opts.Vars, c.ScriptEnvFile, opts.Logger)
+	c.Name = replaceVarInString(opts.Vars, c.Name, opts.Logger)
+	c.OutputFile = replaceVarInString(opts.Vars, c.OutputFile, opts.Logger)
+}
+
 // func executeUserCommands() []string {
 
 // }
