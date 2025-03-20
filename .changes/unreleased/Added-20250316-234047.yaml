@@ -1,3 +1,0 @@
-kind: Added
-body: Variable support. Can be referenced with `%{var:nameOfVar}%` in select string fields.
-time: 2025-03-16T23:40:47.248328622-05:00
