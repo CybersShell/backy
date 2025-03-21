@@ -46,9 +46,9 @@ func (opts *ConfigOpts) ListCommand(cmd string) {
 		}
 
 		// is it remote or local
-		if cmdInfo.Host != nil {
+		if !IsHostLocal(cmdInfo.Host) {
 			println()
-			print("Host: ", *cmdInfo.Host)
+			print("Host: ", cmdInfo.Host)
 			println()
 
 		} else {

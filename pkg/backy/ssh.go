@@ -441,8 +441,8 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 
 	cmdCtxLogger.Info().
 		Str("Command", command.Name).
-		Str("Host", *command.Host).
-		Msgf("Running %s on host %s", getCommandTypeAndSetCommandInfoLabel(command.Type), *command.Host)
+		Str("Host", command.Host).
+		Msgf("Running %s on host %s", getCommandTypeAndSetCommandInfoLabel(command.Type), command.Host)
 
 	// cmdCtxLogger.Debug().Str("cmd", command.Cmd).Strs("args", command.Args).Send()
 
@@ -810,4 +810,9 @@ func CheckIfHostHasHostName(host string) (bool, string) {
 	}
 	println(HostName)
 	return HostName != "", HostName
+}
+
+func IsHostLocal(host string) bool {
+	host = strings.ToLower(host)
+	return host == "127.0.0.1" || host == "localhost" || host == ""
 }

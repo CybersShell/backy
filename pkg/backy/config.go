@@ -527,13 +527,13 @@ func processCmds(opts *ConfigOpts) error {
 			}
 		}
 
-		// resolve hosts
-		if cmd.Host != nil {
-			cmdHost := replaceVarInString(opts.Vars, *cmd.Host, opts.Logger)
-			if cmdHost != *cmd.Host {
-				cmd.Host = &cmdHost
+		if !IsHostLocal(cmd.Host) {
+
+			cmdHost := replaceVarInString(opts.Vars, cmd.Host, opts.Logger)
+			if cmdHost != cmd.Host {
+				cmd.Host = cmdHost
 			}
-			host, hostFound := opts.Hosts[*cmd.Host]
+			host, hostFound := opts.Hosts[cmd.Host]
 			if hostFound {
 				cmd.RemoteHost = host
 				cmd.RemoteHost.Host = host.Host
@@ -541,12 +541,12 @@ func processCmds(opts *ConfigOpts) error {
 					cmd.RemoteHost.HostName = host.HostName
 				}
 			} else {
-				opts.Logger.Info().Msgf("adding host %s to host list", *cmd.Host)
+				opts.Logger.Info().Msgf("adding host %s to host list", cmd.Host)
 				if opts.Hosts == nil {
 					opts.Hosts = make(map[string]*Host)
 				}
-				opts.Hosts[*cmd.Host] = &Host{Host: *cmd.Host}
-				cmd.RemoteHost = &Host{Host: *cmd.Host}
+				opts.Hosts[cmd.Host] = &Host{Host: cmd.Host}
+				cmd.RemoteHost = &Host{Host: cmd.Host}
 			}
 		} else {
 
@@ -607,8 +607,10 @@ func processCmds(opts *ConfigOpts) error {
 					opts.Logger.Debug().Msg("changing password for user: " + cmd.Username)
 					cmd.UserPassword = getExternalConfigDirectiveValue(cmd.UserPassword, opts)
 				}
-				if cmd.Host != nil {
-					host, ok := opts.Hosts[*cmd.Host]
+
+				if !IsHostLocal(cmd.Host) {
+
+					host, ok := opts.Hosts[cmd.Host]
 					if ok {
 						cmd.userMan, err = usermanager.NewUserManager(host.OS)
 					}
@@ -677,7 +679,9 @@ func processHooks(cmd *Command, hooks []string, opts *ConfigOpts, hookType strin
 }
 
 func detectOSType(cmd *Command, opts *ConfigOpts) error {
-	if cmd.Host == nil {
+
+	if IsHostLocal(cmd.Host) {
+
 		if runtime.GOOS == "linux" {
 			cmd.OS = "linux"
 			opts.Logger.Info().Msg("Unix/Linux type OS detected")
@@ -686,7 +690,7 @@ func detectOSType(cmd *Command, opts *ConfigOpts) error {
 		return fmt.Errorf("using an os that is not yet supported for user commands")
 	}
 
-	host, ok := opts.Hosts[*cmd.Host]
+	host, ok := opts.Hosts[cmd.Host]
 	if ok {
 		if host.OS != "" {
 			return nil

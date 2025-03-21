@@ -61,7 +61,8 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		}
 	}
 
-	if command.Host != nil {
+	if !IsHostLocal(command.Host) {
+
 		outputArr, errSSH = command.RunCmdSSH(cmdCtxLogger, opts)
 		if errSSH != nil {
 			return outputArr, errSSH
@@ -492,11 +493,10 @@ func (cmd *Command) GenerateLogger(opts *ConfigOpts) zerolog.Logger {
 		Str("Backy-cmd", cmd.Name).Str("Host", "local machine").
 		Logger()
 
-	if cmd.Host != nil {
+	if !IsHostLocal(cmd.Host) {
 		cmdLogger = opts.Logger.With().
-			Str("Backy-cmd", cmd.Name).Str("Host", *cmd.Host).
+			Str("Backy-cmd", cmd.Name).Str("Host", cmd.Host).
 			Logger()
-
 	}
 	return cmdLogger
 }
@@ -508,7 +508,7 @@ func (opts *ConfigOpts) ExecCmdsSSH(cmdList []string, hostsList []string) {
 		for _, c := range cmdList {
 			cmd := opts.Cmds[c]
 			cmd.RemoteHost = host
-			cmd.Host = &host.Host
+			cmd.Host = host.Host
 			opts.Logger.Info().Str("host", h).Str("cmd", c).Send()
 			_, err := cmd.RunCmdSSH(cmd.GenerateLogger(opts), opts)
 			if err != nil {
@@ -541,6 +541,7 @@ func (c *Command) GetVariablesFromConf(opts *ConfigOpts) {
 	c.ScriptEnvFile = replaceVarInString(opts.Vars, c.ScriptEnvFile, opts.Logger)
 	c.Name = replaceVarInString(opts.Vars, c.Name, opts.Logger)
 	c.OutputFile = replaceVarInString(opts.Vars, c.OutputFile, opts.Logger)
+	c.Host = replaceVarInString(opts.Vars, c.Host, opts.Logger)
 }
 
 // func executeUserCommands() []string {
