@@ -1,4 +1,4 @@
-package pkgcommon
+package packagemanagercommon
 
 // PackageManagerOption defines a functional option for configuring a PackageManager.
 type PackageManagerOption func(interface{})
@@ -14,4 +14,10 @@ type PackageVersion struct {
 	Candidate string
 	Match     bool
 	Message   string
+}
+
+type Package struct {
+	Name         string `yaml:"name"`
+	Version      string `yaml:"version,omitempty"`
+	VersionCheck PackageVersion
 }

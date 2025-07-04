@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman"
+	packagemanagercommon "git.andrewnw.xyz/CyberShell/backy/pkg/pkgman/common"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/remotefetcher"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/usermanager"
 	vaultapi "github.com/hashicorp/vault/api"
@@ -33,7 +34,7 @@ type (
 		Port               uint16 `yaml:"port,omitempty"`
 		ProxyJump          string `yaml:"proxyjump,omitempty"`
 		Password           string `yaml:"password,omitempty"`
-		PrivateKeyPath     string `yaml:"privateKeyPath,omitempty"`
+		PrivateKeyPath     string `yaml:"IdentityFile,omitempty"`
 		PrivateKeyPassword string `yaml:"privateKeyPassword,omitempty"`
 		useDefaultConfig   bool
 		User               string `yaml:"user,omitempty"`
@@ -74,19 +75,19 @@ type (
 
 		Environment []string `yaml:"environment,omitempty"`
 
-		GetOutputInList bool `yaml:"getOutputInList,omitempty"`
-
 		ScriptEnvFile string `yaml:"scriptEnvFile"`
 
-		OutputToLog bool `yaml:"outputToLog,omitempty"`
-
-		OutputFile string `yaml:"outputFile,omitempty"`
+		Output struct {
+			File   string `yaml:"file,omitempty"`
+			ToLog  bool   `yaml:"toLog,omitempty"`
+			InList bool   `yaml:"inList,omitempty"`
+		} `yaml:"output"`
 
 		// BEGIN PACKAGE COMMAND FIELDS
 
 		PackageManager string `yaml:"packageManager,omitempty"`
 
-		PackageName string `yaml:"packageName,omitempty"`
+		Packages []packagemanagercommon.Package `yaml:"packages,omitempty"`
 
 		PackageVersion string `yaml:"packageVersion,omitempty"`
 
@@ -135,7 +136,7 @@ type (
 		// stdin only for userOperation = password (for now)
 		stdin *strings.Reader
 
-		// END USER STRUCT FIELDS
+		// END USER STRUCommandType FIELDS
 	}
 
 	RemoteSource struct {
@@ -150,13 +151,17 @@ type (
 	BackyOptionFunc func(*ConfigOpts)
 
 	CmdList struct {
-		Name            string   `yaml:"name,omitempty"`
-		Cron            string   `yaml:"cron,omitempty"`
-		RunCmdOnFailure string   `yaml:"runCmdOnFailure,omitempty"`
-		Order           []string `yaml:"order,omitempty"`
-		Notifications   []string `yaml:"notifications,omitempty"`
-		GetOutput       bool     `yaml:"getOutput,omitempty"`
-		NotifyOnSuccess bool     `yaml:"notifyOnSuccess,omitempty"`
+		Name                                     string   `yaml:"name,omitempty"`
+		Cron                                     string   `yaml:"cron,omitempty"`
+		RunCmdOnFailure                          string   `yaml:"runCmdOnFailure,omitempty"`
+		Order                                    []string `yaml:"order,omitempty"`
+		Notifications                            []string `yaml:"notifications,omitempty"`
+		GetCommandOutputInNotificationsOnSuccess bool     `yaml:"sendNotificationOnSuccess,omitempty"`
+
+		Notify struct {
+			OnFailure bool `yaml:"onFailure,omitempty"`
+			OnSuccess bool `yaml:"onSuccess,omitempty"`
+		} `yaml:"notify,omitempty"`
 
 		NotifyConfig *notify.Notify
 		Source       string `yaml:"source"` // URL to fetch remote commands
@@ -184,6 +189,8 @@ type (
 		CmdStdOut bool
 
 		ConfigFilePath string
+
+		HostsFilePath string
 
 		ConfigDir string
 
@@ -277,6 +284,20 @@ type (
 		Error    error  // Error encountered, if any
 	}
 
+	ListMetrics struct {
+		Name                 string
+		SuccessfulExecutions uint64
+		FailedExecutions     uint64
+		TotalExecutions      uint64
+	}
+
+	CommandMetrics struct {
+		Name                 string
+		SuccessfulExecutions uint64
+		FailedExecutions     uint64
+		TotalExecutions      uint64
+	}
+
 	// use ints so we can use enums
 	CommandType               int
 	PackageOperation          int
@@ -285,29 +306,30 @@ type (
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=CommandType
 const (
-	DefaultCT      CommandType = iota //
-	ScriptCT                          // script
-	ScriptFileCT                      // scriptFile
-	RemoteScriptCT                    // remoteScript
-	PackageCT                         // package
-	UserCT                            // user
+	DefaultCommandType      CommandType = iota //
+	ScriptCommandType                          // script
+	ScriptFileCommandType                      // scriptFile
+	RemoteScriptCommandType                    // remoteScript
+	PackageCommandType                         // package
+	UserCommandType                            // user
 )
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=PackageOperation
 const (
-	DefaultPO          PackageOperation = iota //
-	PackOpInstall                              // install
-	PackOpUpgrade                              // upgrade
-	PackOpPurge                                // purge
-	PackOpRemove                               // remove
-	PackOpCheckVersion                         // checkVersion
-	PackOpIsInstalled                          // isInstalled
+	DefaultPO                    PackageOperation = iota //
+	PackageOperationInstall                              // install
+	PackageOperationUpgrade                              // upgrade
+	PackageOperationPurge                                // purge
+	PackageOperationRemove                               // remove
+	PackageOperationCheckVersion                         // checkVersion
+	PackageOperationIsInstalled                          // isInstalled
 )
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=AllowedExternalDirectives
 const (
 	DefaultExternalDir                AllowedExternalDirectives = iota
 	AllowedExternalDirectiveVault                               // vault
+	AllowedExternalDirectiveVaultEnv                            // vault-env
 	AllowedExternalDirectiveVaultFile                           // vault-file
 	AllowedExternalDirectiveAll                                 // vault-file-env
 	AllowedExternalDirectiveFileEnv                             // file-env

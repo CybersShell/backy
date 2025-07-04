@@ -22,13 +22,13 @@ var (
 		Use:   "cmds [cmd1 cmd2 cmd3...]",
 		Short: "List commands defined in config file.",
 		Long:  "List commands defined in config file",
-		Run:   ListCmds,
+		Run:   ListCommands,
 	}
 	listCmdLists = &cobra.Command{
 		Use:   "lists [list1 list2 ...]",
 		Short: "List lists defined in config file.",
 		Long:  "List lists defined in config file",
-		Run:   ListCmdLists,
+		Run:   ListCommandLists,
 	}
 )
 
@@ -40,7 +40,7 @@ func init() {
 
 }
 
-func ListCmds(cmd *cobra.Command, args []string) {
+func ListCommands(cmd *cobra.Command, args []string) {
 
 	// setup based on whats passed in:
 	//   - cmds
@@ -54,17 +54,19 @@ func ListCmds(cmd *cobra.Command, args []string) {
 
 	parseS3Config()
 
-	opts := backy.NewOpts(cfgFile, backy.SetLogFile(logFile))
+	opts := backy.NewConfigOptions(configFile,
+		backy.SetLogFile(logFile),
+		backy.SetHostsConfigFile(hostsConfigFile))
 
 	opts.InitConfig()
-	opts.ReadConfig()
+	opts.ParseConfigurationFile()
 
 	for _, v := range cmdsToList {
 		opts.ListCommand(v)
 	}
 }
 
-func ListCmdLists(cmd *cobra.Command, args []string) {
+func ListCommandLists(cmd *cobra.Command, args []string) {
 
 	parseS3Config()
 
@@ -74,10 +76,12 @@ func ListCmdLists(cmd *cobra.Command, args []string) {
 		logging.ExitWithMSG("Error: lists subcommand needs lists", 1, nil)
 	}
 
-	opts := backy.NewOpts(cfgFile, backy.SetLogFile(logFile))
+	opts := backy.NewConfigOptions(configFile,
+		backy.SetLogFile(logFile),
+		backy.SetHostsConfigFile(hostsConfigFile))
 
 	opts.InitConfig()
-	opts.ReadConfig()
+	opts.ParseConfigurationFile()
 
 	for _, v := range listsToList {
 		opts.ListCommandList(v)

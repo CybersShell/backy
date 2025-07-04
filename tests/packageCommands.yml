@@ -1,0 +1,53 @@
+commands:
+  checkDockerNoVersion:
+    type: package
+    shell: zsh
+    packages: 
+      - name: "docker-ce-cli"
+      - name: "docker-ce"
+    packageManager: apt
+    packageOperation: checkVersion
+
+  checkDockerPartialVersionWithoutRegex:
+    type: package
+    shell: zsh
+    packages: 
+      - name: "docker-ce-cli"
+        version: "5:28.0.4-1"
+      - name: "docker-ce"
+        version: "5:28.0.4-1"
+    packageManager: apt
+    packageOperation: checkVersion
+
+  checkDockerPartialVersionWithRegex:
+    type: package
+    shell: zsh
+    packages: 
+      - name: "docker-ce-cli"
+        version: "5:28.0-*"
+      - name: "docker-ce"
+        version: '5:28\.0\.4-1~([A-Za-z0-9]+(\.[A-Za-z0-9]+)+)*'
+    packageManager: apt
+    packageOperation: checkVersion
+    
+  checkDockerVersionWithInvalidRegex:
+    type: package
+    shell: zsh
+    packages: 
+      - name: "docker-ce-cli"
+        version: "5:28.0-**"
+      - name: "docker-ce"
+        version: '5:28\.0\K.4-1~([A-Za-z0-9]+(\.[A-Za-z0-9]+)+)*'
+    packageManager: apt
+    packageOperation: checkVersion
+    # host: mail.andrewnw.com
+
+cmdLists:
+  packageCommands:
+    output:
+      onFailure: true
+    order:
+      - checkDockerPartialVersionWithoutRegex
+      - checkDockerPartialVersionWithRegex
+      - checkDockerVersionWithInvalidRegex
+      - checkDockerNoVersion

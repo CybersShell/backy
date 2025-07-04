@@ -1,18 +1,19 @@
 package apt
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
-	"regexp"
 	"strings"
 
-	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman/pkgcommon"
+	packagemanagercommon "git.andrewnw.xyz/CyberShell/backy/pkg/pkgman/common"
 )
 
 // AptManager implements PackageManager for systems using APT.
 type AptManager struct {
 	useAuth     bool   // Whether to use an authentication command
 	authCommand string // The authentication command, e.g., "sudo"
-	Parser      pkgcommon.PackageParser
+	Parser      packagemanagercommon.PackageParser
 }
 
 // DefaultAuthCommand is the default command used for authentication.
@@ -29,14 +30,13 @@ func NewAptManager() *AptManager {
 }
 
 // Install returns the command and arguments for installing a package.
-func (a *AptManager) Install(pkg, version string, args []string) (string, []string) {
+func (a *AptManager) Install(pkgs []packagemanagercommon.Package, args []string) (string, []string) {
 	baseCmd := a.prependAuthCommand(DefaultPackageCommand)
 	baseArgs := []string{"update", "&&", baseCmd, "install", "-y"}
-	if version != "" {
-		baseArgs = append(baseArgs, fmt.Sprintf("%s=%s", pkg, version))
-	} else {
-		baseArgs = append(baseArgs, pkg)
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
 	}
+
 	if args != nil {
 		baseArgs = append(baseArgs, args...)
 	}
@@ -44,31 +44,34 @@ func (a *AptManager) Install(pkg, version string, args []string) (string, []stri
 }
 
 // Remove returns the command and arguments for removing a package.
-func (a *AptManager) Remove(pkg string, args []string) (string, []string) {
+func (a *AptManager) Remove(pkgs []packagemanagercommon.Package, args []string) (string, []string) {
 	baseCmd := a.prependAuthCommand(DefaultPackageCommand)
-	baseArgs := []string{"remove", "-y", pkg}
+	baseArgs := []string{"remove", "-y"}
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
+	}
 	if args != nil {
 		baseArgs = append(baseArgs, args...)
 	}
 	return baseCmd, baseArgs
 }
 
-// Upgrade returns the command and arguments for upgrading a specific package.
-func (a *AptManager) Upgrade(pkg, version string) (string, []string) {
+func (a *AptManager) Upgrade(pkgs []packagemanagercommon.Package) (string, []string) {
 	baseCmd := a.prependAuthCommand(DefaultPackageCommand)
 	baseArgs := []string{"update", "&&", baseCmd, "install", "--only-upgrade", "-y"}
-	if version != "" {
-		baseArgs = append(baseArgs, fmt.Sprintf("%s=%s", pkg, version))
-	} else {
-		baseArgs = append(baseArgs, pkg)
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
 	}
+
 	return baseCmd, baseArgs
 }
 
-// CheckVersion returns the command and arguments for checking the info of a specific package.
-func (a *AptManager) CheckVersion(pkg, version string) (string, []string) {
+func (a *AptManager) CheckVersion(pkgs []packagemanagercommon.Package) (string, []string) {
 	baseCmd := a.prependAuthCommand("apt-cache")
-	baseArgs := []string{"policy", pkg}
+	baseArgs := []string{"policy"}
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
+	}
 
 	return baseCmd, baseArgs
 }
@@ -81,7 +84,7 @@ func (a *AptManager) UpgradeAll() (string, []string) {
 }
 
 // Configure applies functional options to customize the package manager.
-func (a *AptManager) Configure(options ...pkgcommon.PackageManagerOption) {
+func (a *AptManager) Configure(options ...packagemanagercommon.PackageManagerOption) {
 	for _, opt := range options {
 		opt(a)
 	}
@@ -106,25 +109,56 @@ func (a *AptManager) SetAuthCommand(authCommand string) {
 }
 
 // Parse parses the apt-cache policy output to extract Installed and Candidate versions.
-func (a *AptManager) Parse(output string) (*pkgcommon.PackageVersion, error) {
+func (a *AptManager) ParseRemotePackageManagerVersionOutput(output string) ([]packagemanagercommon.Package, []error) {
+	var (
+		packageName        string
+		installedString    string
+		candidateString    string
+		countRelevantLines int
+	)
 	// Check for error message in the output
 	if strings.Contains(output, "Unable to locate package") {
-		return nil, fmt.Errorf("error: %s", strings.TrimSpace(output))
+		return nil, []error{fmt.Errorf("error: %s", strings.TrimSpace(output))}
+	}
+	packages := []packagemanagercommon.Package{}
+	outputBuf := bytes.NewBufferString(output)
+	outputScan := bufio.NewScanner(outputBuf)
+	for outputScan.Scan() {
+		line := outputScan.Text()
+		if !strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") {
+			// count++
+			packageName = strings.TrimSpace(strings.TrimSuffix(line, ":"))
+		}
+		if strings.Contains(line, "Installed:") {
+			countRelevantLines++
+			installedString = strings.TrimPrefix(strings.TrimSpace(line), "Installed:")
+		}
+
+		if strings.Contains(line, "Candidate:") {
+			countRelevantLines++
+			candidateString = strings.TrimPrefix(strings.TrimSpace(line), "Candidate:")
+		}
+
+		if countRelevantLines == 2 {
+			countRelevantLines = 0
+			packages = append(packages, packagemanagercommon.Package{
+				Name: packageName,
+				VersionCheck: packagemanagercommon.PackageVersion{
+					Installed: strings.TrimSpace(installedString),
+					Candidate: strings.TrimSpace(candidateString),
+					Match:     installedString == candidateString,
+				}},
+			)
+		}
 	}
 
-	reInstalled := regexp.MustCompile(`Installed:\s*([^\s]+)`)
-	reCandidate := regexp.MustCompile(`Candidate:\s*([^\s]+)`)
+	return packages, nil
+}
 
-	installedMatch := reInstalled.FindStringSubmatch(output)
-	candidateMatch := reCandidate.FindStringSubmatch(output)
+func SearchPackages(pkgs []string, version string) (string, []string) {
+	baseCommand := "dpkg-query"
+	baseArgs := []string{"-W", "-f='${Package}\t${Architecture}\t${db:Status-Status}\t${Version}\t${Installed-Size}\t${Binary:summary}\n'"}
+	baseArgs = append(baseArgs, pkgs...)
 
-	if len(installedMatch) < 2 || len(candidateMatch) < 2 {
-		return nil, fmt.Errorf("failed to parse Installed or Candidate versions from apt output. check package name")
-	}
-
-	return &pkgcommon.PackageVersion{
-		Installed: strings.TrimSpace(installedMatch[1]),
-		Candidate: strings.TrimSpace(candidateMatch[1]),
-		Match:     installedMatch[1] == candidateMatch[1],
-	}, nil
+	return baseCommand, baseArgs
 }

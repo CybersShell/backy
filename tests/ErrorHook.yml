@@ -2,10 +2,18 @@ commands:
   echoTestFail:
     cmd: ech
     shell: bash
-    Args: hello world
+    Args: 
+      - hello world
     hooks:
       error:
         - errorCmd
+      final:
+        - finalCmd
+  
+  finalCmd:
+    cmd: echo
+    Args:
+      - "echo test fail"
 
   errorCmd:
     name: get docker version
@@ -15,3 +23,10 @@ commands:
     Args:
       - "-v"
     host: email-svr
+
+cmdLists:
+  TestHooks:
+    output:
+      onFailure: true
+    order:
+      - echoTestFail

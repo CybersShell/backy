@@ -35,10 +35,13 @@ func init() {
 //    2. stdin (on command line) (TODO)
 
 func Host(cmd *cobra.Command, args []string) {
-	backyConfOpts := backy.NewOpts(cfgFile, backy.SetLogFile(logFile), backy.SetCmdStdOut(cmdStdOut))
+	backyConfOpts := backy.NewConfigOptions(configFile,
+		backy.SetLogFile(logFile),
+		backy.EnableCommandStdOut(cmdStdOut),
+		backy.SetHostsConfigFile(hostsConfigFile))
 	backyConfOpts.InitConfig()
 
-	backyConfOpts.ReadConfig()
+	backyConfOpts.ParseConfigurationFile()
 
 	// check CLI input
 	if hostsList == nil {
@@ -46,13 +49,19 @@ func Host(cmd *cobra.Command, args []string) {
 	}
 
 	for _, h := range hostsList {
+		if backy.IsHostLocal(h) {
+			continue
+		}
 		// check if h exists in the config file
 		_, hostFound := backyConfOpts.Hosts[h]
 		if !hostFound {
 			// check if h exists in the SSH config file
-			hostFoundInConfig, s := backy.CheckIfHostHasHostName(h)
+			hostFoundInConfig, s := backy.DoesHostHaveHostName(h)
 			if !hostFoundInConfig {
 				logging.ExitWithMSG("host "+h+" not found", 1, &backyConfOpts.Logger)
+			}
+			if backyConfOpts.Hosts == nil {
+				backyConfOpts.Hosts = make(map[string]*backy.Host)
 			}
 			// create host with hostname and host
 			backyConfOpts.Hosts[h] = &backy.Host{Host: h, HostName: s}
@@ -68,5 +77,5 @@ func Host(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	backyConfOpts.ExecCmdsSSH(cmdList, hostsList)
+	backyConfOpts.ExecCmdsOnHosts(cmdList, hostsList)
 }

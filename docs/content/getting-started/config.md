@@ -130,7 +130,7 @@ If logfile is not defined, the log file will be written to the config directory 
 
 `console-disabled` controls whether the logging messages are echoed to StdOut. Default is false.
 
-`verbose` basically does nothing as all necessary info is already output.
+`verbose` prints out debugging messages.
 
 ```yaml
 logging:
@@ -144,7 +144,7 @@ logging:
 
 [Vault](https://www.vaultproject.io/) can be used to get some configuration values and ENV variables securely.
 
-```
+```yaml
 vault:
   token: hvs.tXqcASvTP8wg92f7riyvGyuf
   address: http://127.0.0.1:8200

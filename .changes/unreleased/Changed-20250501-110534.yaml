@@ -1,0 +1,3 @@
+kind: Changed
+body: 'Commands: moved output-prefixed keys to the `commands.[name].output` object'
+time: 2025-05-01T11:05:34.90130087-05:00

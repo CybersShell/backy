@@ -35,12 +35,12 @@ If a remote config file is specified (on the command-line using `-f`) and the li
 ```
 
 | key | description | type | required
-| --- | --- | --- | --- |
-| `order` | Defines the sequence of commands to execute | `[]string` | yes |
-| `getOutput` | Command(s) output is in the notification(s) | `bool` | no |
-| `notifications` | The notification service(s) and ID(s) to use on success and failure. Must be *`service.id`*. See the [notifications documentation page](/config/notifications/) for more | `[]string` | no |
-| `name` | Optional name of the list | `string` | no |
-| `cron` | Time at which to schedule the list. Only has affect when cron subcommand is run. | `string` | no |
+| --- | --- | --- | ---
+| `order` | Defines the sequence of commands to execute | `[]string` | yes
+| `sendNotificationOnSuccess` | Whether to send notification on list success with the commands' output | `bool` | no
+| `notifications` | The notification service(s) and ID(s) to use on success and failure. Must be *`service.id`*. See the [notifications documentation page](/config/notifications/) for more | `[]string` | no
+| `name` | Optional name of the list | `string` | no
+| `cron` | Time at which to schedule the list. Only has affect when cron subcommand is run. | `string` | no
 
 ### Order
 

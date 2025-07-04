@@ -30,9 +30,14 @@ func init() {
 }
 
 func Backup(cmd *cobra.Command, args []string) {
-	backyConfOpts := backy.NewOpts(cfgFile, backy.AddCommandLists(cmdLists), backy.SetLogFile(logFile), backy.SetCmdStdOut(cmdStdOut))
+	backyConfOpts := backy.NewConfigOptions(configFile,
+		backy.AddCommandLists(cmdLists),
+		backy.SetLogFile(logFile),
+		backy.EnableCommandStdOut(cmdStdOut),
+		backy.SetHostsConfigFile(hostsConfigFile))
+
 	backyConfOpts.InitConfig()
-	backyConfOpts.ReadConfig()
+	backyConfOpts.ParseConfigurationFile()
 
 	backyConfOpts.RunListConfig("")
 	for _, host := range backyConfOpts.Hosts {

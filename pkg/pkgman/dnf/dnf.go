@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman/pkgcommon"
+	packagemanagercommon "git.andrewnw.xyz/CyberShell/backy/pkg/pkgman/common"
 )
 
 // DnfManager implements PackageManager for systems using YUM.
@@ -26,21 +26,21 @@ func NewDnfManager() *DnfManager {
 }
 
 // Configure applies functional options to customize the package manager.
-func (y *DnfManager) Configure(options ...pkgcommon.PackageManagerOption) {
+func (y *DnfManager) Configure(options ...packagemanagercommon.PackageManagerOption) {
 	for _, opt := range options {
 		opt(y)
 	}
 }
 
 // Install returns the command and arguments for installing a package.
-func (y *DnfManager) Install(pkg, version string, args []string) (string, []string) {
+func (y *DnfManager) Install(pkgs []packagemanagercommon.Package, args []string) (string, []string) {
 	baseCmd := y.prependAuthCommand("dnf")
 	baseArgs := []string{"install", "-y"}
-	if version != "" {
-		baseArgs = append(baseArgs, fmt.Sprintf("%s-%s", pkg, version))
-	} else {
-		baseArgs = append(baseArgs, pkg)
+
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
 	}
+
 	if args != nil {
 		baseArgs = append(baseArgs, args...)
 	}
@@ -48,9 +48,13 @@ func (y *DnfManager) Install(pkg, version string, args []string) (string, []stri
 }
 
 // Remove returns the command and arguments for removing a package.
-func (y *DnfManager) Remove(pkg string, args []string) (string, []string) {
+func (y *DnfManager) Remove(pkgs []packagemanagercommon.Package, args []string) (string, []string) {
 	baseCmd := y.prependAuthCommand("dnf")
-	baseArgs := []string{"remove", "-y", pkg}
+	baseArgs := []string{"remove", "-y"}
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
+	}
+
 	if args != nil {
 		baseArgs = append(baseArgs, args...)
 	}
@@ -58,38 +62,41 @@ func (y *DnfManager) Remove(pkg string, args []string) (string, []string) {
 }
 
 // Upgrade returns the command and arguments for upgrading a specific package.
-func (y *DnfManager) Upgrade(pkg, version string) (string, []string) {
+func (y *DnfManager) Upgrade(pkgs []packagemanagercommon.Package) (string, []string) {
 	baseCmd := y.prependAuthCommand("dnf")
 	baseArgs := []string{"update", "-y"}
-	if version != "" {
-		baseArgs = append(baseArgs, fmt.Sprintf("%s-%s", pkg, version))
-	} else {
-		baseArgs = append(baseArgs, pkg)
+
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
 	}
+
 	return baseCmd, baseArgs
 }
 
 // UpgradeAll returns the command and arguments for upgrading all packages.
 func (y *DnfManager) UpgradeAll() (string, []string) {
 	baseCmd := y.prependAuthCommand("dnf")
-	baseArgs := []string{"update", "-y"}
+	baseArgs := []string{"upgrade", "-y"}
 	return baseCmd, baseArgs
 }
 
 // CheckVersion returns the command and arguments for checking the info of a specific package.
-func (d *DnfManager) CheckVersion(pkg, version string) (string, []string) {
+func (d *DnfManager) CheckVersion(pkgs []packagemanagercommon.Package) (string, []string) {
 	baseCmd := d.prependAuthCommand("dnf")
-	baseArgs := []string{"info", pkg}
+	baseArgs := []string{"info"}
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
+	}
 
 	return baseCmd, baseArgs
 }
 
 // Parse parses the dnf info output to extract Installed and Candidate versions.
-func (d DnfManager) Parse(output string) (*pkgcommon.PackageVersion, error) {
+func (d DnfManager) ParseRemotePackageManagerVersionOutput(output string) ([]packagemanagercommon.Package, []error) {
 
 	// Check for error message in the output
 	if strings.Contains(output, "No matching packages to list") {
-		return nil, fmt.Errorf("error: package not listed")
+		return nil, []error{fmt.Errorf("error: package not listed")}
 	}
 
 	// Define regular expressions to capture installed and available versions
@@ -111,13 +118,10 @@ func (d DnfManager) Parse(output string) (*pkgcommon.PackageVersion, error) {
 	}
 
 	if installedVersion == "" && candidateVersion == "" {
-		return nil, fmt.Errorf("failed to parse versions from dnf output")
+		return nil, []error{fmt.Errorf("failed to parse versions from dnf output")}
 	}
 
-	return &pkgcommon.PackageVersion{
-		Installed: installedVersion,
-		Candidate: candidateVersion,
-	}, nil
+	return nil, nil
 }
 
 // prependAuthCommand prepends the authentication command if UseAuth is true.

@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
@@ -67,8 +68,14 @@ func SetLogFile(logFile string) BackyOptionFunc {
 	}
 }
 
-// SetCmdStdOut forces the command output to stdout
-func SetCmdStdOut(setStdOut bool) BackyOptionFunc {
+func SetHostsConfigFile(hostsConfigFile string) BackyOptionFunc {
+	return func(bco *ConfigOpts) {
+		bco.HostsFilePath = hostsConfigFile
+	}
+}
+
+// EnableCommandStdOut forces the command output to stdout
+func EnableCommandStdOut(setStdOut bool) BackyOptionFunc {
 	return func(bco *ConfigOpts) {
 		bco.CmdStdOut = setStdOut
 	}
@@ -81,7 +88,7 @@ func EnableCron() BackyOptionFunc {
 	}
 }
 
-func NewOpts(configFilePath string, opts ...BackyOptionFunc) *ConfigOpts {
+func NewConfigOptions(configFilePath string, opts ...BackyOptionFunc) *ConfigOpts {
 	b := &ConfigOpts{}
 	b.ConfigFilePath = configFilePath
 	for _, opt := range opts {
@@ -110,7 +117,7 @@ func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, opt
 			goto errEnvFile
 		}
 		for key, val := range envMap {
-			err = process.Setenv(key, GetVaultKey(val, opts, log))
+			err = process.Setenv(key, getExternalConfigDirectiveValue(val, opts, AllowedExternalDirectiveVault))
 			if err != nil {
 				log.Error().Err(err).Send()
 
@@ -125,10 +132,9 @@ errEnvFile:
 		if strings.Contains(envVal, "=") {
 			envVarArr := strings.Split(envVal, "=")
 
-			err := process.Setenv(envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts))
+			err := process.Setenv(envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts, AllowedExternalDirectiveVaultFile))
 			if err != nil {
 				log.Error().Err(err).Send()
-
 			}
 		}
 	}
@@ -159,7 +165,7 @@ errEnvFile:
 	for _, envVal := range envVarsToInject.env {
 		if strings.Contains(envVal, "=") {
 			envVarArr := strings.Split(envVal, "=")
-			process.Env = append(process.Env, fmt.Sprintf("%s=%s", envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts)))
+			process.Env = append(process.Env, fmt.Sprintf("%s=%s", envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts, AllowedExternalDirectiveVault)))
 		}
 	}
 	process.Env = append(process.Env, os.Environ()...)
@@ -281,21 +287,21 @@ func expandEnvVars(backyEnv map[string]string, envVars []string) {
 
 func getCommandTypeAndSetCommandInfo(command *Command) *Command {
 
-	if command.Type == PackageCT && !command.packageCmdSet {
+	if command.Type == PackageCommandType && !command.packageCmdSet {
 		command.packageCmdSet = true
 		switch command.PackageOperation {
-		case PackOpInstall:
-			command.Cmd, command.Args = command.pkgMan.Install(command.PackageName, command.PackageVersion, command.Args)
-		case PackOpRemove:
-			command.Cmd, command.Args = command.pkgMan.Remove(command.PackageName, command.Args)
-		case PackOpUpgrade:
-			command.Cmd, command.Args = command.pkgMan.Upgrade(command.PackageName, command.PackageVersion)
-		case PackOpCheckVersion:
-			command.Cmd, command.Args = command.pkgMan.CheckVersion(command.PackageName, command.PackageVersion)
+		case PackageOperationInstall:
+			command.Cmd, command.Args = command.pkgMan.Install(command.Packages, command.Args)
+		case PackageOperationRemove:
+			command.Cmd, command.Args = command.pkgMan.Remove(command.Packages, command.Args)
+		case PackageOperationUpgrade:
+			command.Cmd, command.Args = command.pkgMan.Upgrade(command.Packages)
+		case PackageOperationCheckVersion:
+			command.Cmd, command.Args = command.pkgMan.CheckVersion(command.Packages)
 		}
 	}
 
-	if command.Type == UserCT && !command.userCmdSet {
+	if command.Type == UserCommandType && !command.userCmdSet {
 		command.userCmdSet = true
 		switch command.UserOperation {
 		case "add":
@@ -327,72 +333,121 @@ func getCommandTypeAndSetCommandInfo(command *Command) *Command {
 
 func parsePackageVersion(output string, cmdCtxLogger zerolog.Logger, command *Command, cmdOutBuf bytes.Buffer) ([]string, error) {
 
-	var err error
-	pkgVersion, err := command.pkgMan.Parse(output)
-	// println(output)
-	if err != nil {
-		cmdCtxLogger.Error().Err(err).Str("package", command.PackageName).Msg("Error parsing package version output")
-		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), err
+	var errs []error
+	pkgVersionOnSystem, errs := command.pkgMan.ParseRemotePackageManagerVersionOutput(output)
+	if errs != nil {
+		cmdCtxLogger.Error().Errs("Error parsing package version output", errs).Send()
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error parsing package version output: %v", errs)
 	}
 
-	cmdCtxLogger.Info().
-		Str("Installed", pkgVersion.Installed).
-		Str("Candidate", pkgVersion.Candidate).
-		Msg("Package version comparison")
-
-	if command.PackageVersion != "" {
-		if pkgVersion.Installed == command.PackageVersion {
-			cmdCtxLogger.Info().Msgf("Installed version matches specified version: %s", command.PackageVersion)
-		} else {
-			cmdCtxLogger.Info().Msgf("Installed version does not match specified version: %s", command.PackageVersion)
-			err = fmt.Errorf("Installed version does not match specified version: %s", command.PackageVersion)
+	for _, p := range pkgVersionOnSystem {
+		packageIndex := getPackageIndexFromCommand(command, p.Name)
+		if packageIndex == -1 {
+			cmdCtxLogger.Error().Str("package", p.Name).Msg("Package not found in command")
+			continue
 		}
-	} else {
-		if pkgVersion.Installed == pkgVersion.Candidate {
-			cmdCtxLogger.Info().Msg("Installed and Candidate versions match")
+		command.Packages[packageIndex].VersionCheck = p.VersionCheck
+		packageFromCommand := command.Packages[packageIndex]
+		cmdCtxLogger.Info().
+			Str("Installed", packageFromCommand.VersionCheck.Installed).
+			Msg("Package version comparison")
+
+		versionLogger := cmdCtxLogger.With().Str("package", packageFromCommand.Name).Logger()
+
+		if packageFromCommand.Version != "" {
+			versionLogger := cmdCtxLogger.With().Str("package", packageFromCommand.Name).Str("Specified Version", packageFromCommand.Version).Logger()
+			packageVersionRegex, PkgRegexErr := regexp.Compile(packageFromCommand.Version)
+			if PkgRegexErr != nil {
+				versionLogger.Error().Err(PkgRegexErr).Msg("Error compiling package version regex")
+				errs = append(errs, PkgRegexErr)
+				continue
+			}
+			if p.Version == packageFromCommand.Version {
+				versionLogger.Info().Msgf("Installed version matches specified version: %s", packageFromCommand.Version)
+			} else if packageVersionRegex.MatchString(p.VersionCheck.Installed) {
+				versionLogger.Info().Msgf("Installed version contains specified version: %s", packageFromCommand.Version)
+			} else {
+				versionLogger.Info().Msg("Installed version does not match specified version")
+				errs = append(errs, fmt.Errorf("installed version of %s does not match specified version: %s", packageFromCommand.Name, packageFromCommand.Version))
+			}
 		} else {
-			cmdCtxLogger.Info().Msg("Installed and Candidate versions differ")
-			err = errors.New("Installed and Candidate versions differ")
+			if p.VersionCheck.Installed == p.VersionCheck.Candidate {
+				versionLogger.Info().Msg("Installed and Candidate versions match")
+			} else {
+				cmdCtxLogger.Info().Msg("Installed and Candidate versions differ")
+				errs = append(errs, errors.New("installed and Candidate versions differ"))
+			}
 		}
 	}
-	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, false), err
+	if errs == nil {
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
+	}
+	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error parsing package version output: %v", errs)
 }
 
-func getExternalConfigDirectiveValue(key string, opts *ConfigOpts) string {
+func getPackageIndexFromCommand(command *Command, name string) int {
+	for i, v := range command.Packages {
+		if name == v.Name {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func getExternalConfigDirectiveValue(key string, opts *ConfigOpts, allowedDirectives AllowedExternalDirectives) string {
 	if !(strings.HasPrefix(key, externDirectiveStart) && strings.HasSuffix(key, externDirectiveEnd)) {
 		return key
 	}
 	key = replaceVarInString(opts.Vars, key, opts.Logger)
 	opts.Logger.Debug().Str("expanding external key", key).Send()
+
 	if strings.HasPrefix(key, envExternDirectiveStart) {
-		key = strings.TrimPrefix(key, envExternDirectiveStart)
-		key = strings.TrimSuffix(key, externDirectiveEnd)
-		key = os.Getenv(key)
+		if IsExternalDirectiveEnv(allowedDirectives) {
+
+			key = strings.TrimPrefix(key, envExternDirectiveStart)
+			key = strings.TrimSuffix(key, externDirectiveEnd)
+			key = os.Getenv(key)
+		} else {
+			opts.Logger.Error().Msgf("Config key with value %s does not support env directive", key)
+		}
 	}
+
 	if strings.HasPrefix(key, externFileDirectiveStart) {
-		var err error
-		var keyValue []byte
-		key = strings.TrimPrefix(key, externFileDirectiveStart)
-		key = strings.TrimSuffix(key, externDirectiveEnd)
-		key, err = getFullPathWithHomeDir(key)
-		if err != nil {
-			opts.Logger.Err(err).Send()
-			return ""
+		if IsExternalDirectiveFile(allowedDirectives) {
+
+			var err error
+			var keyValue []byte
+			key = strings.TrimPrefix(key, externFileDirectiveStart)
+			key = strings.TrimSuffix(key, externDirectiveEnd)
+			key, err = getFullPathWithHomeDir(key)
+			if err != nil {
+				opts.Logger.Err(err).Send()
+				return ""
+			}
+			if !path.IsAbs(key) {
+				key = path.Join(opts.ConfigDir, key)
+			}
+			keyValue, err = os.ReadFile(key)
+			if err != nil {
+				opts.Logger.Err(err).Send()
+				return ""
+			}
+			key = string(keyValue)
+		} else {
+			opts.Logger.Error().Msgf("Config key with value %s does not support file directive", key)
 		}
-		if !path.IsAbs(key) {
-			key = path.Join(opts.ConfigDir, key)
-		}
-		keyValue, err = os.ReadFile(key)
-		if err != nil {
-			opts.Logger.Err(err).Send()
-			return ""
-		}
-		key = string(keyValue)
 	}
+
 	if strings.HasPrefix(key, vaultExternDirectiveStart) {
-		key = strings.TrimPrefix(key, vaultExternDirectiveStart)
-		key = strings.TrimSuffix(key, externDirectiveEnd)
-		key = GetVaultKey(key, opts, opts.Logger)
+		if IsExternalDirectiveVault(allowedDirectives) {
+
+			key = strings.TrimPrefix(key, vaultExternDirectiveStart)
+			key = strings.TrimSuffix(key, externDirectiveEnd)
+			key = GetVaultKey(key, opts, opts.Logger)
+		} else {
+			opts.Logger.Error().Msgf("Config key with value %s does not support vault directive", key)
+		}
 	}
 
 	return key
@@ -450,4 +505,16 @@ func GetVaultKey(str string, opts *ConfigOpts, log zerolog.Logger) string {
 		return value
 	}
 	return value
+}
+
+func IsExternalDirectiveFile(allowedExternalDirectives AllowedExternalDirectives) bool {
+	return strings.Contains(allowedExternalDirectives.String(), "file")
+}
+
+func IsExternalDirectiveEnv(allowedExternalDirectives AllowedExternalDirectives) bool {
+	return strings.Contains(allowedExternalDirectives.String(), "env")
+}
+
+func IsExternalDirectiveVault(allowedExternalDirectives AllowedExternalDirectives) bool {
+	return strings.Contains(allowedExternalDirectives.String(), "vault")
 }

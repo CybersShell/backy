@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const _AllowedExternalDirectivesName = "DefaultExternalDirvaultvault-filevault-file-envfile-envfileenv"
+const _AllowedExternalDirectivesName = "DefaultExternalDirvaultvault-envvault-filevault-file-envfile-envfileenv"
 
-var _AllowedExternalDirectivesIndex = [...]uint8{0, 18, 23, 33, 47, 55, 59, 62}
+var _AllowedExternalDirectivesIndex = [...]uint8{0, 18, 23, 32, 42, 56, 64, 68, 71}
 
-const _AllowedExternalDirectivesLowerName = "defaultexternaldirvaultvault-filevault-file-envfile-envfileenv"
+const _AllowedExternalDirectivesLowerName = "defaultexternaldirvaultvault-envvault-filevault-file-envfile-envfileenv"
 
 func (i AllowedExternalDirectives) String() string {
 	if i < 0 || i >= AllowedExternalDirectives(len(_AllowedExternalDirectivesIndex)-1) {
@@ -27,40 +27,44 @@ func _AllowedExternalDirectivesNoOp() {
 	var x [1]struct{}
 	_ = x[DefaultExternalDir-(0)]
 	_ = x[AllowedExternalDirectiveVault-(1)]
-	_ = x[AllowedExternalDirectiveVaultFile-(2)]
-	_ = x[AllowedExternalDirectiveAll-(3)]
-	_ = x[AllowedExternalDirectiveFileEnv-(4)]
-	_ = x[AllowedExternalDirectiveFile-(5)]
-	_ = x[AllowedExternalDirectiveEnv-(6)]
+	_ = x[AllowedExternalDirectiveVaultEnv-(2)]
+	_ = x[AllowedExternalDirectiveVaultFile-(3)]
+	_ = x[AllowedExternalDirectiveAll-(4)]
+	_ = x[AllowedExternalDirectiveFileEnv-(5)]
+	_ = x[AllowedExternalDirectiveFile-(6)]
+	_ = x[AllowedExternalDirectiveEnv-(7)]
 }
 
-var _AllowedExternalDirectivesValues = []AllowedExternalDirectives{DefaultExternalDir, AllowedExternalDirectiveVault, AllowedExternalDirectiveVaultFile, AllowedExternalDirectiveAll, AllowedExternalDirectiveFileEnv, AllowedExternalDirectiveFile, AllowedExternalDirectiveEnv}
+var _AllowedExternalDirectivesValues = []AllowedExternalDirectives{DefaultExternalDir, AllowedExternalDirectiveVault, AllowedExternalDirectiveVaultEnv, AllowedExternalDirectiveVaultFile, AllowedExternalDirectiveAll, AllowedExternalDirectiveFileEnv, AllowedExternalDirectiveFile, AllowedExternalDirectiveEnv}
 
 var _AllowedExternalDirectivesNameToValueMap = map[string]AllowedExternalDirectives{
 	_AllowedExternalDirectivesName[0:18]:       DefaultExternalDir,
 	_AllowedExternalDirectivesLowerName[0:18]:  DefaultExternalDir,
 	_AllowedExternalDirectivesName[18:23]:      AllowedExternalDirectiveVault,
 	_AllowedExternalDirectivesLowerName[18:23]: AllowedExternalDirectiveVault,
-	_AllowedExternalDirectivesName[23:33]:      AllowedExternalDirectiveVaultFile,
-	_AllowedExternalDirectivesLowerName[23:33]: AllowedExternalDirectiveVaultFile,
-	_AllowedExternalDirectivesName[33:47]:      AllowedExternalDirectiveAll,
-	_AllowedExternalDirectivesLowerName[33:47]: AllowedExternalDirectiveAll,
-	_AllowedExternalDirectivesName[47:55]:      AllowedExternalDirectiveFileEnv,
-	_AllowedExternalDirectivesLowerName[47:55]: AllowedExternalDirectiveFileEnv,
-	_AllowedExternalDirectivesName[55:59]:      AllowedExternalDirectiveFile,
-	_AllowedExternalDirectivesLowerName[55:59]: AllowedExternalDirectiveFile,
-	_AllowedExternalDirectivesName[59:62]:      AllowedExternalDirectiveEnv,
-	_AllowedExternalDirectivesLowerName[59:62]: AllowedExternalDirectiveEnv,
+	_AllowedExternalDirectivesName[23:32]:      AllowedExternalDirectiveVaultEnv,
+	_AllowedExternalDirectivesLowerName[23:32]: AllowedExternalDirectiveVaultEnv,
+	_AllowedExternalDirectivesName[32:42]:      AllowedExternalDirectiveVaultFile,
+	_AllowedExternalDirectivesLowerName[32:42]: AllowedExternalDirectiveVaultFile,
+	_AllowedExternalDirectivesName[42:56]:      AllowedExternalDirectiveAll,
+	_AllowedExternalDirectivesLowerName[42:56]: AllowedExternalDirectiveAll,
+	_AllowedExternalDirectivesName[56:64]:      AllowedExternalDirectiveFileEnv,
+	_AllowedExternalDirectivesLowerName[56:64]: AllowedExternalDirectiveFileEnv,
+	_AllowedExternalDirectivesName[64:68]:      AllowedExternalDirectiveFile,
+	_AllowedExternalDirectivesLowerName[64:68]: AllowedExternalDirectiveFile,
+	_AllowedExternalDirectivesName[68:71]:      AllowedExternalDirectiveEnv,
+	_AllowedExternalDirectivesLowerName[68:71]: AllowedExternalDirectiveEnv,
 }
 
 var _AllowedExternalDirectivesNames = []string{
 	_AllowedExternalDirectivesName[0:18],
 	_AllowedExternalDirectivesName[18:23],
-	_AllowedExternalDirectivesName[23:33],
-	_AllowedExternalDirectivesName[33:47],
-	_AllowedExternalDirectivesName[47:55],
-	_AllowedExternalDirectivesName[55:59],
-	_AllowedExternalDirectivesName[59:62],
+	_AllowedExternalDirectivesName[23:32],
+	_AllowedExternalDirectivesName[32:42],
+	_AllowedExternalDirectivesName[42:56],
+	_AllowedExternalDirectivesName[56:64],
+	_AllowedExternalDirectivesName[64:68],
+	_AllowedExternalDirectivesName[68:71],
 }
 
 // AllowedExternalDirectivesString retrieves an enum value from the enum constants string name.

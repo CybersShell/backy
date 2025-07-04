@@ -20,7 +20,7 @@ package cmd
 
 // func config(cmd *cobra.Command, args []string) {
 
-// 	opts := backy.NewOpts(cfgFile, backy.cronEnabled())
+// 	opts := backy.NewConfigOptions(configFile, backy.cronEnabled())
 // 	opts.InitConfig()
 
 // }

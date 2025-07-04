@@ -95,10 +95,11 @@ func (opts *ConfigOpts) InitConfig() {
 	} else {
 		loadDefaultConfigFiles(fetcher, configFiles, backyKoanf, opts)
 	}
+
 	opts.koanf = backyKoanf
 }
 
-func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
+func (opts *ConfigOpts) ParseConfigurationFile() *ConfigOpts {
 	setTerminalEnv()
 
 	backyKoanf := opts.koanf
@@ -129,9 +130,23 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 	log := setupLogger(opts)
 	opts.Logger = log
 
+	hostsFetcher, err := remotefetcher.NewRemoteFetcher(opts.HostsFilePath, opts.Cache)
+	opts.Logger.Info().Str("hosts file", opts.HostsFilePath).Send()
+	if err != nil {
+		logging.ExitWithMSG(fmt.Sprintf("error initializing config fetcher: %v", err), 1, nil)
+	}
+
+	var hostKoanf = koanf.New(".")
+	if opts.HostsFilePath != "" {
+		loadConfigFile(hostsFetcher, opts.HostsFilePath, hostKoanf, opts)
+		unmarshalConfigIntoStruct(hostKoanf, "hosts", &opts.Hosts, opts.Logger)
+	} else {
+		unmarshalConfigIntoStruct(backyKoanf, "hosts", &opts.Hosts, opts.Logger)
+	}
+
 	log.Info().Str("config file", opts.ConfigFilePath).Send()
 
-	if err := opts.initVault(); err != nil {
+	if err := opts.initializeVault(); err != nil {
 		log.Err(err).Send()
 	}
 
@@ -139,12 +154,10 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 
 	getCommandEnvironments(opts)
 
-	unmarshalConfigIntoStruct(backyKoanf, "hosts", &opts.Hosts, opts.Logger)
-
-	resolveHostConfigs(opts)
+	getHostConfigs(opts)
 
 	for k, v := range opts.Vars {
-		v = getExternalConfigDirectiveValue(v, opts)
+		v = getExternalConfigDirectiveValue(v, opts, AllowedExternalDirectiveAll)
 		opts.Vars[k] = v
 	}
 
@@ -171,13 +184,13 @@ func (opts *ConfigOpts) ReadConfig() *ConfigOpts {
 	return opts
 }
 
-func loadConfigFile(fetcher remotefetcher.RemoteFetcher, filePath string, k *koanf.Koanf, opts *ConfigOpts) {
+func loadConfigFile(fetcher remotefetcher.RemoteFetcher, filePath string, koanfConfigParser *koanf.Koanf, opts *ConfigOpts) {
 	data, err := fetcher.Fetch(filePath)
 	if err != nil {
 		logging.ExitWithMSG(generateFileFetchErrorString(filePath, "config", err), 1, nil)
 	}
 
-	if err := k.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
+	if err := koanfConfigParser.Load(rawbytes.Provider(data), yaml.Parser()); err != nil {
 		logging.ExitWithMSG(fmt.Sprintf("error loading config: %v", err), 1, &opts.Logger)
 	}
 }
@@ -222,24 +235,23 @@ func validateExecCommandsFromCLI(k *koanf.Koanf, opts *ConfigOpts) {
 	}
 }
 
-func setLoggingOptions(k *koanf.Koanf, opts *ConfigOpts) {
-	isLoggingVerbose := k.Bool(getLoggingKeyFromConfig("verbose"))
+func setLoggingOptions(backyKoanf *koanf.Koanf, opts *ConfigOpts) {
+	isVerboseLoggingSetInConfig := backyKoanf.Bool(getLoggingKeyFromConfig("verbose"))
 
 	// if log file is set in config file and not set on command line, use "./backy.log"
 	logFile := "./backy.log"
-	if opts.LogFilePath == "" && k.Exists(getLoggingKeyFromConfig("file")) {
-		logFile = k.String(getLoggingKeyFromConfig("file"))
+	if opts.LogFilePath == "" && backyKoanf.Exists(getLoggingKeyFromConfig("file")) {
+		logFile = backyKoanf.String(getLoggingKeyFromConfig("file"))
 		opts.LogFilePath = logFile
 	}
-	opts.LogFilePath = logFile
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if isLoggingVerbose {
+	if isVerboseLoggingSetInConfig {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		os.Setenv("BACKY_LOGLEVEL", fmt.Sprintf("%v", zerolog.GlobalLevel()))
 	}
 
-	if k.Bool(getLoggingKeyFromConfig("console-disabled")) {
+	if backyKoanf.Bool(getLoggingKeyFromConfig("console-disabled")) {
 		os.Setenv("BACKY_CONSOLE_LOGGING", "")
 	} else {
 		os.Setenv("BACKY_CONSOLE_LOGGING", "enabled")
@@ -270,18 +282,18 @@ func getCommandEnvironments(opts *ConfigOpts) {
 	}
 }
 
-func resolveHostConfigs(opts *ConfigOpts) {
+func getHostConfigs(opts *ConfigOpts) {
 	for hostConfigName, host := range opts.Hosts {
 		if host.Host == "" {
 			host.Host = hostConfigName
 		}
 		if host.ProxyJump != "" {
-			resolveProxyHosts(host, opts)
+			getProxyHosts(host, opts)
 		}
 	}
 }
 
-func resolveProxyHosts(host *Host, opts *ConfigOpts) {
+func getProxyHosts(host *Host, opts *ConfigOpts) {
 	proxyHosts := strings.Split(host.ProxyJump, ",")
 	for _, h := range proxyHosts {
 		proxyHost, defined := opts.Hosts[h]
@@ -321,17 +333,19 @@ func loadCommandLists(opts *ConfigOpts, backyKoanf *koanf.Koanf) {
 
 	listsConfig := koanf.New(".")
 
-	for _, l := range listConfigFiles {
-		if loadListConfigFile(l, listsConfig, opts) {
-			break
-		}
-	}
-
 	if backyKoanf.Exists("cmdLists") {
 		if backyKoanf.Exists("cmdLists.file") {
 			loadCmdListsFile(backyKoanf, listsConfig, opts)
 		} else {
 			unmarshalConfigIntoStruct(backyKoanf, "cmdLists", &opts.CmdConfigLists, opts.Logger)
+		}
+	}
+
+	if opts.CmdConfigLists == nil {
+		for _, l := range listConfigFiles {
+			if loadListConfigFile(l, listsConfig, opts) {
+				break
+			}
 		}
 	}
 }
@@ -380,6 +394,7 @@ func loadListConfigFile(filePath string, k *koanf.Koanf, opts *ConfigOpts) bool 
 func loadCmdListsFile(backyKoanf *koanf.Koanf, listsConfig *koanf.Koanf, opts *ConfigOpts) {
 	opts.CmdListFile = strings.TrimSpace(backyKoanf.String("cmdLists.file"))
 	if !path.IsAbs(opts.CmdListFile) {
+		// TODO: Needs testing - might cause undefined/unexpected behavior if remote config path is used
 		opts.CmdListFile = path.Join(path.Dir(opts.ConfigFilePath), opts.CmdListFile)
 	}
 
@@ -456,7 +471,7 @@ func getLoggingKeyFromConfig(key string) string {
 // 	return fmt.Sprintf("cmdLists.%s", list)
 // }
 
-func (opts *ConfigOpts) initVault() error {
+func (opts *ConfigOpts) initializeVault() error {
 	if !opts.koanf.Bool("vault.enabled") {
 		return nil
 	}
@@ -501,6 +516,8 @@ func processCmds(opts *ConfigOpts) error {
 
 	// process commands
 	for cmdName, cmd := range opts.Cmds {
+		cmd.GetVariablesFromConf(opts)
+		cmd.Cmd = replaceVarInString(opts.Vars, cmd.Cmd, opts.Logger)
 		for i, v := range cmd.Args {
 			v = replaceVarInString(opts.Vars, v, opts.Logger)
 			cmd.Args[i] = v
@@ -508,9 +525,8 @@ func processCmds(opts *ConfigOpts) error {
 		if cmd.Name == "" {
 			cmd.Name = cmdName
 		}
-		// println("Cmd.Name = " + cmd.Name)
+
 		hooks := cmd.Hooks
-		// resolve hooks
 		if hooks != nil {
 
 			processHookSuccess := processHooks(cmd, hooks.Error, opts, "error")
@@ -562,15 +578,15 @@ func processCmds(opts *ConfigOpts) error {
 			}
 		}
 
-		if cmd.Type == PackageCT {
+		if cmd.Type == PackageCommandType {
 			if cmd.PackageManager == "" {
-				return fmt.Errorf("package manager is required for package command %s", cmd.PackageName)
+				return fmt.Errorf("package manager is required for package command %s", cmd.Name)
 			}
 			if cmd.PackageOperation.String() == "" {
-				return fmt.Errorf("package operation is required for package command %s", cmd.PackageName)
+				return fmt.Errorf("package operation is required for package command %s", cmd.Name)
 			}
-			if cmd.PackageName == "" {
-				return fmt.Errorf("package name is required for package command %s", cmd.PackageName)
+			if cmd.Packages == nil {
+				return fmt.Errorf("package name is required for package command %s", cmd.Name)
 			}
 			var err error
 
@@ -588,7 +604,7 @@ func processCmds(opts *ConfigOpts) error {
 		}
 
 		// Parse user commands
-		if cmd.Type == UserCT {
+		if cmd.Type == UserCommandType {
 			if cmd.Username == "" {
 				return fmt.Errorf("username is required for user command %s", cmd.Name)
 			}
@@ -605,7 +621,7 @@ func processCmds(opts *ConfigOpts) error {
 
 				if cmd.UserOperation == "password" {
 					opts.Logger.Debug().Msg("changing password for user: " + cmd.Username)
-					cmd.UserPassword = getExternalConfigDirectiveValue(cmd.UserPassword, opts)
+					cmd.UserPassword = getExternalConfigDirectiveValue(cmd.UserPassword, opts, AllowedExternalDirectiveAll)
 				}
 
 				if !IsHostLocal(cmd.Host) {
@@ -617,7 +633,7 @@ func processCmds(opts *ConfigOpts) error {
 				}
 				for indx, key := range cmd.UserSshPubKeys {
 					opts.Logger.Debug().Msg("adding SSH Keys")
-					key = getExternalConfigDirectiveValue(key, opts)
+					key = getExternalConfigDirectiveValue(key, opts, AllowedExternalDirectiveAll)
 					cmd.UserSshPubKeys[indx] = key
 				}
 				if err != nil {
@@ -629,7 +645,7 @@ func processCmds(opts *ConfigOpts) error {
 
 		}
 
-		if cmd.Type == RemoteScriptCT {
+		if cmd.Type == RemoteScriptCommandType {
 			var fetchErr error
 			if !isRemoteURL(cmd.Cmd) {
 				return fmt.Errorf("remoteScript command %s must be a remote resource", cmdName)
@@ -640,9 +656,9 @@ func processCmds(opts *ConfigOpts) error {
 			}
 
 		}
-		if cmd.OutputFile != "" {
+		if cmd.Output.File != "" {
 			var err error
-			cmd.OutputFile, err = getFullPathWithHomeDir(cmd.OutputFile)
+			cmd.Output.File, err = getFullPathWithHomeDir(cmd.Output.File)
 			if err != nil {
 				return err
 			}
@@ -738,8 +754,9 @@ func replaceVarInString(vars map[string]string, str string, logger zerolog.Logge
 	return str
 }
 
-func VariadicFunctionParameterTest(allowedKeys ...string) {
-	if contains(allowedKeys, "file") {
-		println("file param included")
-	}
+func (c *Command) GetVariablesFromConf(opts *ConfigOpts) {
+	c.ScriptEnvFile = replaceVarInString(opts.Vars, c.ScriptEnvFile, opts.Logger)
+	c.Name = replaceVarInString(opts.Vars, c.Name, opts.Logger)
+	c.Output.File = replaceVarInString(opts.Vars, c.Output.File, opts.Logger)
+	c.Host = replaceVarInString(opts.Vars, c.Host, opts.Logger)
 }

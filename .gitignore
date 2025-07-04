@@ -5,6 +5,6 @@ dist/
 .codegpt
 
 *.log
-*.sh
+/*.sh
 /*.yaml
 /*.yml

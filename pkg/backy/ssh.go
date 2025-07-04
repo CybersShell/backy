@@ -29,38 +29,38 @@ var TS = strings.TrimSpace
 
 // ConnectToHost connects to a host by looking up the config values in the file ~/.ssh/config
 // It uses any set values and looks up an unset values in the config files
-// remoteConfig is modified directly. The *ssh.Client is returned as part of remoteConfig,
+// remoteHost is modified directly. The *ssh.Client is returned as part of remoteHost,
 // If configFile is empty, any required configuration is looked up in the default config files
 // If any value is not found, defaults are used
-func (remoteConfig *Host) ConnectToHost(opts *ConfigOpts) error {
+func (remoteHost *Host) ConnectToHost(opts *ConfigOpts) error {
 
 	var connectErr error
 
-	if TS(remoteConfig.ConfigFilePath) == "" {
-		remoteConfig.useDefaultConfig = true
+	if TS(remoteHost.ConfigFilePath) == "" {
+		remoteHost.useDefaultConfig = true
 	}
 
-	khPathErr := remoteConfig.GetKnownHosts()
+	khPathErr := remoteHost.GetKnownHosts()
 
 	if khPathErr != nil {
 		return khPathErr
 	}
 
-	if remoteConfig.ClientConfig == nil {
-		remoteConfig.ClientConfig = &ssh.ClientConfig{}
+	if remoteHost.ClientConfig == nil {
+		remoteHost.ClientConfig = &ssh.ClientConfig{}
 	}
 
 	var configFile *os.File
 
 	var sshConfigFileOpenErr error
 
-	if !remoteConfig.useDefaultConfig {
+	if !remoteHost.useDefaultConfig {
 		var err error
-		remoteConfig.ConfigFilePath, err = getFullPathWithHomeDir(remoteConfig.ConfigFilePath)
+		remoteHost.ConfigFilePath, err = getFullPathWithHomeDir(remoteHost.ConfigFilePath)
 		if err != nil {
 			return err
 		}
-		configFile, sshConfigFileOpenErr = os.Open(remoteConfig.ConfigFilePath)
+		configFile, sshConfigFileOpenErr = os.Open(remoteHost.ConfigFilePath)
 		if sshConfigFileOpenErr != nil {
 			return sshConfigFileOpenErr
 		}
@@ -71,22 +71,22 @@ func (remoteConfig *Host) ConnectToHost(opts *ConfigOpts) error {
 			return sshConfigFileOpenErr
 		}
 	}
-	remoteConfig.SSHConfigFile = &sshConfigFile{}
-	remoteConfig.SSHConfigFile.DefaultUserSettings = ssh_config.DefaultUserSettings
+	remoteHost.SSHConfigFile = &sshConfigFile{}
+	remoteHost.SSHConfigFile.DefaultUserSettings = ssh_config.DefaultUserSettings
 	var decodeErr error
-	remoteConfig.SSHConfigFile.SshConfigFile, decodeErr = ssh_config.Decode(configFile)
+	remoteHost.SSHConfigFile.SshConfigFile, decodeErr = ssh_config.Decode(configFile)
 	if decodeErr != nil {
 		return decodeErr
 	}
 
-	err := remoteConfig.GetProxyJumpFromConfig(opts.Hosts)
+	err := remoteHost.GetProxyJumpFromConfig(opts.Hosts)
 
 	if err != nil {
 		return err
 	}
 
-	if remoteConfig.ProxyHost != nil {
-		for _, proxyHost := range remoteConfig.ProxyHost {
+	if remoteHost.ProxyHost != nil {
+		for _, proxyHost := range remoteHost.ProxyHost {
 			err := proxyHost.GetProxyJumpConfig(opts.Hosts, opts)
 			opts.Logger.Info().Msgf("Proxy host: %s", proxyHost.Host)
 			if err != nil {
@@ -95,49 +95,49 @@ func (remoteConfig *Host) ConnectToHost(opts *ConfigOpts) error {
 		}
 	}
 
-	remoteConfig.ClientConfig.Timeout = time.Second * 30
+	remoteHost.ClientConfig.Timeout = time.Second * 30
 
-	remoteConfig.GetPrivateKeyFileFromConfig()
+	remoteHost.GetPrivateKeyFileFromConfig()
 
-	remoteConfig.GetPort()
+	remoteHost.GetPort()
 
-	remoteConfig.GetHostName()
+	remoteHost.GetHostName()
 
-	remoteConfig.CombineHostNameWithPort()
+	remoteHost.CombineHostNameWithPort()
 
-	remoteConfig.GetSshUserFromConfig()
+	remoteHost.GetSshUserFromConfig()
 
-	if remoteConfig.HostName == "" {
-		return errors.Errorf("No hostname found or specified for host %s", remoteConfig.Host)
+	if remoteHost.HostName == "" {
+		return errors.Errorf("No hostname found or specified for host %s", remoteHost.Host)
 	}
 
-	err = remoteConfig.GetAuthMethods(opts)
+	err = remoteHost.GetAuthMethods(opts)
 	if err != nil {
 		return err
 	}
 
-	hostKeyCallback, err := knownhosts.New(remoteConfig.KnownHostsFile)
+	hostKeyCallback, err := knownhosts.New(remoteHost.KnownHostsFile)
 	if err != nil {
 		return errors.Wrap(err, "could not create hostkeycallback function")
 	}
-	remoteConfig.ClientConfig.HostKeyCallback = hostKeyCallback
+	remoteHost.ClientConfig.HostKeyCallback = hostKeyCallback
 
-	remoteConfig.SshClient, connectErr = remoteConfig.ConnectThroughBastion(opts.Logger)
+	remoteHost.SshClient, connectErr = remoteHost.ConnectThroughBastion(opts.Logger)
 	if connectErr != nil {
 		return connectErr
 	}
-	if remoteConfig.SshClient != nil {
-		opts.Hosts[remoteConfig.Host] = remoteConfig
+	if remoteHost.SshClient != nil {
+		opts.Hosts[remoteHost.Host] = remoteHost
 		return nil
 	}
 
-	opts.Logger.Info().Msgf("Connecting to host %s", remoteConfig.HostName)
-	remoteConfig.SshClient, connectErr = ssh.Dial("tcp", remoteConfig.HostName, remoteConfig.ClientConfig)
+	opts.Logger.Info().Msgf("Connecting to host %s", remoteHost.HostName)
+	remoteHost.SshClient, connectErr = ssh.Dial("tcp", remoteHost.HostName, remoteHost.ClientConfig)
 	if connectErr != nil {
 		return connectErr
 	}
 
-	opts.Hosts[remoteConfig.Host] = remoteConfig
+	opts.Hosts[remoteHost.Host] = remoteHost
 	return nil
 }
 
@@ -227,6 +227,8 @@ func (remoteHost *Host) GetPrivateKeyFileFromConfig() {
 	var identityFile string
 	if remoteHost.PrivateKeyPath == "" {
 		identityFile, _ = remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "IdentityFile")
+		// println("Identity file:", identityFile)
+		// println("Host:", remoteHost.Host)
 		if identityFile == "" {
 			identityFile, _ = remoteHost.SSHConfigFile.DefaultUserSettings.GetStrict(remoteHost.Host, "IdentityFile")
 			if identityFile == "" {
@@ -238,6 +240,7 @@ func (remoteHost *Host) GetPrivateKeyFileFromConfig() {
 		identityFile = remoteHost.PrivateKeyPath
 	}
 
+	// println("Identity file:", identityFile)
 	remoteHost.PrivateKeyPath, _ = getFullPathWithHomeDir(identityFile)
 }
 
@@ -326,33 +329,33 @@ func (remoteHost *Host) GetKnownHosts() error {
 }
 
 func GetPrivateKeyPassword(key string, opts *ConfigOpts) string {
-	return getExternalConfigDirectiveValue(key, opts)
+	return getExternalConfigDirectiveValue(key, opts, AllowedExternalDirectiveAll)
 }
 
 // GetPassword gets any password
 func GetPassword(pass string, opts *ConfigOpts) string {
-	return getExternalConfigDirectiveValue(pass, opts)
+	return getExternalConfigDirectiveValue(pass, opts, AllowedExternalDirectiveAll)
 }
 
-func (remoteConfig *Host) GetProxyJumpFromConfig(hosts map[string]*Host) error {
+func (remoteHost *Host) GetProxyJumpFromConfig(hosts map[string]*Host) error {
 
-	proxyJump, _ := remoteConfig.SSHConfigFile.SshConfigFile.Get(remoteConfig.Host, "ProxyJump")
+	proxyJump, _ := remoteHost.SSHConfigFile.SshConfigFile.Get(remoteHost.Host, "ProxyJump")
 	if proxyJump == "" {
-		proxyJump = remoteConfig.SSHConfigFile.DefaultUserSettings.Get(remoteConfig.Host, "ProxyJump")
+		proxyJump = remoteHost.SSHConfigFile.DefaultUserSettings.Get(remoteHost.Host, "ProxyJump")
 	}
-	if remoteConfig.ProxyJump == "" && proxyJump != "" {
-		remoteConfig.ProxyJump = proxyJump
+	if remoteHost.ProxyJump == "" && proxyJump != "" {
+		remoteHost.ProxyJump = proxyJump
 	}
-	proxyJumpHosts := strings.Split(remoteConfig.ProxyJump, ",")
-	if remoteConfig.ProxyHost == nil && len(proxyJumpHosts) == 1 {
-		remoteConfig.ProxyJump = proxyJump
+	proxyJumpHosts := strings.Split(remoteHost.ProxyJump, ",")
+	if remoteHost.ProxyHost == nil && len(proxyJumpHosts) == 1 {
+		remoteHost.ProxyJump = proxyJump
 		proxyHost, proxyHostFound := hosts[proxyJump]
 		if proxyHostFound {
-			remoteConfig.ProxyHost = append(remoteConfig.ProxyHost, proxyHost)
+			remoteHost.ProxyHost = append(remoteHost.ProxyHost, proxyHost)
 		} else {
 			if proxyJump != "" {
 				newProxy := &Host{Host: proxyJump}
-				remoteConfig.ProxyHost = append(remoteConfig.ProxyHost, newProxy)
+				remoteHost.ProxyHost = append(remoteHost.ProxyHost, newProxy)
 			}
 		}
 	}
@@ -360,25 +363,25 @@ func (remoteConfig *Host) GetProxyJumpFromConfig(hosts map[string]*Host) error {
 	return nil
 }
 
-func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *ConfigOpts) error {
+func (remoteHost *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *ConfigOpts) error {
 
-	if TS(remoteConfig.ConfigFilePath) == "" {
-		remoteConfig.useDefaultConfig = true
+	if TS(remoteHost.ConfigFilePath) == "" {
+		remoteHost.useDefaultConfig = true
 	}
 
-	khPathErr := remoteConfig.GetKnownHosts()
+	khPathErr := remoteHost.GetKnownHosts()
 
 	if khPathErr != nil {
 		return khPathErr
 	}
-	if remoteConfig.ClientConfig == nil {
-		remoteConfig.ClientConfig = &ssh.ClientConfig{}
+	if remoteHost.ClientConfig == nil {
+		remoteHost.ClientConfig = &ssh.ClientConfig{}
 	}
 	var configFile *os.File
 	var sshConfigFileOpenErr error
-	if !remoteConfig.useDefaultConfig {
+	if !remoteHost.useDefaultConfig {
 
-		configFile, sshConfigFileOpenErr = os.Open(remoteConfig.ConfigFilePath)
+		configFile, sshConfigFileOpenErr = os.Open(remoteHost.ConfigFilePath)
 		if sshConfigFileOpenErr != nil {
 			return sshConfigFileOpenErr
 		}
@@ -389,39 +392,39 @@ func (remoteConfig *Host) GetProxyJumpConfig(hosts map[string]*Host, opts *Confi
 			return sshConfigFileOpenErr
 		}
 	}
-	remoteConfig.SSHConfigFile = &sshConfigFile{}
-	remoteConfig.SSHConfigFile.DefaultUserSettings = ssh_config.DefaultUserSettings
+	remoteHost.SSHConfigFile = &sshConfigFile{}
+	remoteHost.SSHConfigFile.DefaultUserSettings = ssh_config.DefaultUserSettings
 	var decodeErr error
-	remoteConfig.SSHConfigFile.SshConfigFile, decodeErr = ssh_config.Decode(configFile)
+	remoteHost.SSHConfigFile.SshConfigFile, decodeErr = ssh_config.Decode(configFile)
 	if decodeErr != nil {
 		return decodeErr
 	}
-	remoteConfig.GetPrivateKeyFileFromConfig()
-	remoteConfig.GetPort()
-	remoteConfig.GetHostName()
-	remoteConfig.CombineHostNameWithPort()
-	remoteConfig.GetSshUserFromConfig()
-	remoteConfig.isProxyHost = true
-	if remoteConfig.HostName == "" {
-		return errors.Errorf("No hostname found or specified for host %s", remoteConfig.Host)
+	remoteHost.GetPrivateKeyFileFromConfig()
+	remoteHost.GetPort()
+	remoteHost.GetHostName()
+	remoteHost.CombineHostNameWithPort()
+	remoteHost.GetSshUserFromConfig()
+	remoteHost.isProxyHost = true
+	if remoteHost.HostName == "" {
+		return errors.Errorf("No hostname found or specified for host %s", remoteHost.Host)
 	}
-	err := remoteConfig.GetAuthMethods(opts)
+	err := remoteHost.GetAuthMethods(opts)
 	if err != nil {
 		return err
 	}
 
 	// TODO: Add value/option to config for host key and add bool to check for host key
-	hostKeyCallback, err := knownhosts.New(remoteConfig.KnownHostsFile)
+	hostKeyCallback, err := knownhosts.New(remoteHost.KnownHostsFile)
 	if err != nil {
 		return fmt.Errorf("could not create hostkeycallback function: %v", err)
 	}
-	remoteConfig.ClientConfig.HostKeyCallback = hostKeyCallback
-	hosts[remoteConfig.Host] = remoteConfig
+	remoteHost.ClientConfig.HostKeyCallback = hostKeyCallback
+	hosts[remoteHost.Host] = remoteHost
 
 	return nil
 }
 
-func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([]string, error) {
+func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([]string, error) {
 	var (
 		ArgsStr       string
 		cmdOutBuf     bytes.Buffer
@@ -473,14 +476,14 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 
 	// Handle command execution based on type
 	switch command.Type {
-	case ScriptCT:
+	case ScriptCommandType:
 		return command.runScript(commandSession, cmdCtxLogger, &cmdOutBuf)
-	case RemoteScriptCT:
+	case RemoteScriptCommandType:
 		return command.runRemoteScript(commandSession, cmdCtxLogger, &cmdOutBuf)
-	case ScriptFileCT:
+	case ScriptFileCommandType:
 		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
-	case PackageCT:
-		if command.PackageOperation == PackOpCheckVersion {
+	case PackageCommandType:
+		if command.PackageOperation == PackageOperationCheckVersion {
 			commandSession.Stderr = nil
 			// Execute the package version command remotely
 			// Parse the output of package version command
@@ -497,7 +500,7 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 			cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
 			// Run simple command
 			if err := commandSession.Run(ArgsStr); err != nil {
-				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running command: %w", err)
+				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
 			}
 		}
 	default:
@@ -508,24 +511,24 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 		}
 		cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
 
-		if command.Type == UserCT && command.UserOperation == "password" {
+		if command.Type == UserCommandType && command.UserOperation == "password" {
 			// cmdCtxLogger.Debug().Msgf("adding stdin")
 
 			userNamePass := fmt.Sprintf("%s:%s", command.Username, command.UserPassword)
 			client, err := sftp.NewClient(command.RemoteHost.SshClient)
 			if err != nil {
-				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating sftp client: %v", err)
+				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating sftp client: %v", err)
 			}
 			uuidFile := uuid.New()
 			passFilePath := fmt.Sprintf("/tmp/%s", uuidFile.String())
 			passFile, passFileErr := client.Create(passFilePath)
 			if passFileErr != nil {
-				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating file /tmp/%s: %v", uuidFile.String(), passFileErr)
+				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating file /tmp/%s: %v", uuidFile.String(), passFileErr)
 			}
 
 			_, err = passFile.Write([]byte(userNamePass))
 			if err != nil {
-				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error writing to file /tmp/%s: %v", uuidFile.String(), err)
+				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error writing to file /tmp/%s: %v", uuidFile.String(), err)
 			}
 
 			ArgsStr = fmt.Sprintf("cat %s | chpasswd", passFilePath)
@@ -539,10 +542,12 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 			// commandSession.Stdin = command.stdin
 		}
 		if err := commandSession.Run(ArgsStr); err != nil {
-			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running command: %w", err)
+			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
 		}
 
-		if command.Type == UserCT {
+		if command.Type == UserCommandType {
+
+			// REFACTOR IF/WHEN WINDOWS SUPPORT IS ADDED
 
 			if command.UserOperation == "add" {
 				if command.UserSshPubKeys != nil {
@@ -558,41 +563,41 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 					commandSession, _ = command.RemoteHost.createSSHSession(opts)
 					userHome, err = commandSession.CombinedOutput(fmt.Sprintf("grep \"%s\" /etc/passwd | cut -d: -f6", command.Username))
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
 					}
 
 					command.UserHome = strings.TrimSpace(string(userHome))
 					userSshDir := fmt.Sprintf("%s/.ssh", command.UserHome)
 					client, err = sftp.NewClient(command.RemoteHost.SshClient)
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating sftp client: %v", err)
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating sftp client: %v", err)
 					}
 
 					err = client.MkdirAll(userSshDir)
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating directory %s: %v", userSshDir, err)
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating directory %s: %v", userSshDir, err)
 					}
 					_, err = client.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
 					}
 					f, err = client.OpenFile(fmt.Sprintf("%s/authorized_keys", userSshDir), os.O_APPEND|os.O_CREATE|os.O_WRONLY)
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
 					}
 					defer f.Close()
 					for _, k := range command.UserSshPubKeys {
 						buf := bytes.NewBufferString(k)
 						cmdCtxLogger.Info().Str("key", k).Msg("adding SSH key")
 						if _, err := f.ReadFrom(buf); err != nil {
-							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error adding to authorized keys: %v", err)
+							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error adding to authorized keys: %v", err)
 						}
 					}
 
 					commandSession, _ = command.RemoteHost.createSSHSession(opts)
 					_, err = commandSession.CombinedOutput(fmt.Sprintf("chown -R %s:%s %s", command.Username, command.Username, userHome))
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), err
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), err
 					}
 
 				}
@@ -600,11 +605,13 @@ func (command *Command) RunCmdSSH(cmdCtxLogger zerolog.Logger, opts *ConfigOpts)
 		}
 	}
 
-	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), nil
+	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
 }
 
 func checkPackageVersion(cmdCtxLogger zerolog.Logger, command *Command, commandSession *ssh.Session, cmdOutBuf bytes.Buffer) ([]string, error) {
-	cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Checking package versions")
+	for _, p := range command.Packages {
+		cmdCtxLogger.Info().Str("package", p.Name).Msg("Checking package versions")
+	}
 	// Prepare command arguments
 	ArgsStr := command.Cmd
 	for _, v := range command.Args {
@@ -619,9 +626,9 @@ func checkPackageVersion(cmdCtxLogger zerolog.Logger, command *Command, commandS
 
 		_, parseErr := parsePackageVersion(string(cmdOut), cmdCtxLogger, command, cmdOutBuf)
 		if parseErr != nil {
-			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error: package %s not listed: %w", command.PackageName, err)
+			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error: packages %v not listed: %w", command.Packages, err)
 		}
-		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running %s: %w", ArgsStr, err)
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running %s: %w", ArgsStr, err)
 	}
 
 	return parsePackageVersion(string(cmdOut), cmdCtxLogger, command, cmdOutBuf)
@@ -651,7 +658,7 @@ func (command *Command) runScript(session *ssh.Session, cmdCtxLogger zerolog.Log
 		return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error waiting for shell: %w", err)
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.OutputToLog), nil
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
 }
 
 // runScriptFile handles the execution of script files.
@@ -670,7 +677,7 @@ func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger zerolog
 		return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error waiting for shell: %w", err)
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.OutputToLog), nil
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
 }
 
 // prepareScriptBuffer prepares a buffer for inline scripts.
@@ -727,10 +734,10 @@ func (command *Command) runRemoteScript(session *ssh.Session, cmdCtxLogger zerol
 	err = session.Run(command.Shell)
 
 	if err != nil {
-		return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error running remote script: %w", err)
+		return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running remote script: %w", err)
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.OutputToLog), nil
+	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
 }
 
 // readFileToBuffer reads a file into a buffer.
@@ -803,7 +810,7 @@ func (h *Host) DetectOS(opts *ConfigOpts) (string, error) {
 	return osName, nil
 }
 
-func CheckIfHostHasHostName(host string) (bool, string) {
+func DoesHostHaveHostName(host string) (bool, string) {
 	HostName, err := ssh_config.DefaultUserSettings.GetStrict(host, "HostName")
 	if err != nil {
 		return false, ""

@@ -1,0 +1,3 @@
+kind: Added
+body: 'feat: Package operation `versionCheck` supports regular expressions (see [regexp](https://pkg.go.dev/regexp) package for docs)'
+time: 2025-04-09T17:45:28.836497149-05:00

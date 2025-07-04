@@ -35,7 +35,7 @@ var Sprintf = fmt.Sprintf
 func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([]string, error) {
 
 	var (
-		ArgsStr       string // concatenating the arguments
+		ArgsStr       string
 		cmdOutBuf     bytes.Buffer
 		cmdOutWriters io.Writer
 		errSSH        error
@@ -55,7 +55,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		ArgsStr += fmt.Sprintf(" %s", v)
 	}
 
-	if command.Type == UserCT {
+	if command.Type == UserCommandType {
 		if command.UserOperation == "password" {
 			cmdCtxLogger.Info().Str("password", command.UserPassword).Msg("user password to be updated")
 		}
@@ -63,19 +63,27 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 
 	if !IsHostLocal(command.Host) {
 
-		outputArr, errSSH = command.RunCmdSSH(cmdCtxLogger, opts)
+		outputArr, errSSH = command.RunCmdOnHost(cmdCtxLogger, opts)
 		if errSSH != nil {
 			return outputArr, errSSH
 		}
 	} else {
 
 		// Handle package operations
-		if command.Type == PackageCT && command.PackageOperation == PackOpCheckVersion {
-			cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Checking package versions")
+		if command.Type == PackageCommandType && command.PackageOperation == PackageOperationCheckVersion {
+			opts.Logger.Info().Msg("")
+			for _, p := range command.Packages {
+				cmdCtxLogger.Info().Str("package", p.Name).Msg("Checking installed and remote package versions")
+			}
+			opts.Logger.Info().Msg("")
 
 			// Execute the package version command
 			cmd := exec.Command(command.Cmd, command.Args...)
 			cmdOutWriters = io.MultiWriter(&cmdOutBuf)
+
+			if IsCmdStdOutEnabled() {
+				cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
+			}
 			cmd.Stdout = cmdOutWriters
 			cmd.Stderr = cmdOutWriters
 
@@ -87,7 +95,8 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		}
 
 		var localCMD *exec.Cmd
-		if command.Type == RemoteScriptCT {
+
+		if command.Type == RemoteScriptCommandType {
 			script, err := command.Fetcher.Fetch(command.Cmd)
 			if err != nil {
 				return nil, err
@@ -104,8 +113,8 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			if IsCmdStdOutEnabled() {
 				cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
 			}
-			if command.OutputFile != "" {
-				file, err := os.Create(command.OutputFile)
+			if command.Output.File != "" {
+				file, err := os.Create(command.Output.File)
 				if err != nil {
 					return nil, fmt.Errorf("error creating output file: %w", err)
 				}
@@ -138,7 +147,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 				if str, ok := outMap["output"].(string); ok {
 					outputArr = append(outputArr, str)
 				}
-				if command.OutputToLog {
+				if command.Output.ToLog {
 					cmdCtxLogger.Info().Fields(outMap).Send()
 				}
 			}
@@ -159,8 +168,10 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			cmdCtxLogger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine", command.Name)).Send()
 
 			// execute package commands in a shell
-			if command.Type == PackageCT {
-				cmdCtxLogger.Info().Str("package", command.PackageName).Msg("Executing package command")
+			if command.Type == PackageCommandType {
+				for _, p := range command.Packages {
+					cmdCtxLogger.Info().Str("packages", p.Name).Msg("Executing package command")
+				}
 				ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
 				localCMD = exec.Command("/bin/sh", "-c", ArgsStr)
 			} else {
@@ -168,7 +179,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			}
 		}
 
-		if command.Type == UserCT {
+		if command.Type == UserCommandType {
 			if command.UserOperation == "password" {
 				localCMD.Stdin = command.stdin
 				cmdCtxLogger.Info().Str("password", command.UserPassword).Msg("user password to be updated")
@@ -197,14 +208,14 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			return outputArr, err
 		}
 
-		if command.Type == UserCT {
+		if command.Type == UserCommandType {
 
 			if command.UserOperation == "add" {
 				if command.UserSshPubKeys != nil {
 					var (
-						f        *os.File
-						err      error
-						userHome []byte
+						authorizedKeysFile *os.File
+						err                error
+						userHome           []byte
 					)
 
 					cmdCtxLogger.Info().Msg("adding SSH Keys")
@@ -212,7 +223,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 					localCMD := exec.Command(fmt.Sprintf("grep \"%s\" /etc/passwd | cut -d: -f6", command.Username))
 					userHome, err = localCMD.CombinedOutput()
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
 					}
 
 					command.UserHome = strings.TrimSpace(string(userHome))
@@ -221,33 +232,33 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 					if _, err := os.Stat(userSshDir); os.IsNotExist(err) {
 						err := os.MkdirAll(userSshDir, 0700)
 						if err != nil {
-							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating directory %s %v", userSshDir, err)
+							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating directory %s %v", userSshDir, err)
 						}
 					}
 
 					if _, err := os.Stat(fmt.Sprintf("%s/authorized_keys", userSshDir)); os.IsNotExist(err) {
 						_, err := os.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
 						if err != nil {
-							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error creating file %s/authorized_keys: %v", userSshDir, err)
+							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating file %s/authorized_keys: %v", userSshDir, err)
 						}
 					}
 
-					f, err = os.OpenFile(fmt.Sprintf("%s/authorized_keys", userSshDir), 0700, os.ModeAppend)
+					authorizedKeysFile, err = os.OpenFile(fmt.Sprintf("%s/authorized_keys", userSshDir), 0700, os.ModeAppend)
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
 					}
-					defer f.Close()
+					defer authorizedKeysFile.Close()
 					for _, k := range command.UserSshPubKeys {
 						buf := bytes.NewBufferString(k)
 						cmdCtxLogger.Info().Str("key", k).Msg("adding SSH key")
-						if _, err := f.ReadFrom(buf); err != nil {
-							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), fmt.Errorf("error adding to authorized keys: %v", err)
+						if _, err := authorizedKeysFile.ReadFrom(buf); err != nil {
+							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error adding to authorized keys: %v", err)
 						}
 					}
 					localCMD = exec.Command(fmt.Sprintf("chown -R %s:%s %s", command.Username, command.Username, userHome))
 					_, err = localCMD.CombinedOutput()
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.OutputToLog), err
+						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), err
 					}
 
 				}
@@ -257,16 +268,18 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 	return outputArr, nil
 }
 
-func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- CmdResult, opts *ConfigOpts) {
+func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- string, opts *ConfigOpts) {
 	for list := range jobs {
 		fieldsMap := map[string]interface{}{"list": list.Name}
 		var cmdLogger zerolog.Logger
+		var commandExecuted *Command
 		var cmdsRan []string
 		var outStructArr []outStruct
 		var hasError bool // Tracks if any command in the list failed
 
 		for _, cmd := range list.Order {
 			cmdToRun := opts.Cmds[cmd]
+			commandExecuted = cmdToRun
 			currentCmd := cmdToRun.Name
 			fieldsMap["cmd"] = currentCmd
 			cmdLogger = cmdToRun.GenerateLogger(opts)
@@ -277,23 +290,21 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 
 			if runErr != nil {
 
-				// Log the error and send a failed result
 				cmdLogger.Err(runErr).Send()
-				results <- CmdResult{CmdName: cmd, ListName: list.Name, Error: runErr}
 
-				// Execute error hooks for the failed command
 				cmdToRun.ExecuteHooks("error", opts)
 
 				// Notify failure
 				if list.NotifyConfig != nil {
 					notifyError(cmdLogger, msgTemps, list, cmdsRan, outStructArr, runErr, cmdToRun)
 				}
+
+				// Execute error hooks for the failed command
 				hasError = true
 				break
 			}
 
-			// Collect output if required
-			if list.GetOutput || cmdToRun.GetOutputInList {
+			if list.GetCommandOutputInNotificationsOnSuccess || cmdToRun.Output.InList {
 				outStructArr = append(outStructArr, outStruct{
 					CmdName:     currentCmd,
 					CmdExecuted: currentCmd,
@@ -302,27 +313,17 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 			}
 		}
 
-		if !hasError && list.NotifyConfig != nil && (list.NotifyOnSuccess || list.GetOutput) {
+		if !hasError && list.NotifyConfig != nil && list.Notify.OnFailure {
 			notifySuccess(cmdLogger, msgTemps, list, cmdsRan, outStructArr)
 		}
 
-		for _, cmd := range list.Order {
-			cmdToRun := opts.Cmds[cmd]
-
-			if !hasError {
-				cmdToRun.ExecuteHooks("success", opts)
-			}
-
-			// Execute final hooks for every command
-			cmdToRun.ExecuteHooks("final", opts)
+		if !hasError {
+			commandExecuted.ExecuteHooks("success", opts)
 		}
 
-		// Send the final result for the list
-		if hasError {
-			results <- CmdResult{CmdName: cmdsRan[len(cmdsRan)-1], ListName: list.Name, Error: fmt.Errorf("list execution failed")}
-		} else {
-			results <- CmdResult{CmdName: cmdsRan[len(cmdsRan)-1], ListName: list.Name, Error: nil}
-		}
+		commandExecuted.ExecuteHooks("final", opts)
+
+		results <- "done"
 	}
 }
 
@@ -371,7 +372,7 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 	}
 	configListsLen := len(opts.CmdConfigLists)
 	listChan := make(chan *CmdList, configListsLen)
-	results := make(chan CmdResult, configListsLen)
+	results := make(chan string, configListsLen)
 
 	// Start workers
 	for w := 1; w <= configListsLen; w++ {
@@ -391,9 +392,7 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 
 	// Process results
 	for a := 1; a <= configListsLen; a++ {
-		result := <-results
-		opts.Logger.Debug().Msgf("Processing result for list %s, command %s", result.ListName, result.CmdName)
-
+		<-results
 	}
 	opts.closeHostConnections()
 }
@@ -460,29 +459,31 @@ func (cmd *Command) ExecuteHooks(hookType string, opts *ConfigOpts) {
 	case "error":
 		for _, v := range cmd.Hooks.Error {
 			errCmd := opts.Cmds[v]
-			opts.Logger.Info().Msgf("Running error hook command %s", v)
 			cmdLogger := opts.Logger.With().
 				Str("backy-cmd", v).Str("hookType", "error").
 				Logger()
+			cmdLogger.Info().Msgf("Running error hook command %s", v)
+			// URGENT: Never returns
 			_, _ = errCmd.RunCmd(cmdLogger, opts)
+			return
 		}
 
 	case "success":
 		for _, v := range cmd.Hooks.Success {
 			successCmd := opts.Cmds[v]
-			opts.Logger.Info().Msgf("Running success hook command %s", v)
 			cmdLogger := opts.Logger.With().
 				Str("backy-cmd", v).Str("hookType", "success").
 				Logger()
+			cmdLogger.Info().Msgf("Running success hook command %s", v)
 			_, _ = successCmd.RunCmd(cmdLogger, opts)
 		}
 	case "final":
 		for _, v := range cmd.Hooks.Final {
 			finalCmd := opts.Cmds[v]
-			opts.Logger.Info().Msgf("Running final hook command %s", v)
 			cmdLogger := opts.Logger.With().
 				Str("backy-cmd", v).Str("hookType", "final").
 				Logger()
+			cmdLogger.Info().Msgf("Running final hook command %s", v)
 			_, _ = finalCmd.RunCmd(cmdLogger, opts)
 		}
 	}
@@ -501,18 +502,27 @@ func (cmd *Command) GenerateLogger(opts *ConfigOpts) zerolog.Logger {
 	return cmdLogger
 }
 
-func (opts *ConfigOpts) ExecCmdsSSH(cmdList []string, hostsList []string) {
+func (opts *ConfigOpts) ExecCmdsOnHosts(cmdList []string, hostsList []string) {
 	// Iterate over hosts and exec commands
 	for _, h := range hostsList {
 		host := opts.Hosts[h]
 		for _, c := range cmdList {
 			cmd := opts.Cmds[c]
 			cmd.RemoteHost = host
-			cmd.Host = host.Host
-			opts.Logger.Info().Str("host", h).Str("cmd", c).Send()
-			_, err := cmd.RunCmdSSH(cmd.GenerateLogger(opts), opts)
-			if err != nil {
-				opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
+			cmd.Host = h
+			if IsHostLocal(h) {
+				_, err := cmd.RunCmd(cmd.GenerateLogger(opts), opts)
+				if err != nil {
+					opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
+				}
+			} else {
+
+				cmd.Host = host.Host
+				opts.Logger.Info().Str("host", h).Str("cmd", c).Send()
+				_, err := cmd.RunCmdOnHost(cmd.GenerateLogger(opts), opts)
+				if err != nil {
+					opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
+				}
 			}
 		}
 	}
@@ -530,18 +540,11 @@ func logCommandOutput(command *Command, cmdOutBuf bytes.Buffer, cmdCtxLogger zer
 		if str, ok := outMap["output"].(string); ok {
 			outputArr = append(outputArr, str)
 		}
-		if command.OutputToLog {
+		if command.Output.ToLog {
 			cmdCtxLogger.Info().Fields(outMap).Send()
 		}
 	}
 	return outputArr
-}
-
-func (c *Command) GetVariablesFromConf(opts *ConfigOpts) {
-	c.ScriptEnvFile = replaceVarInString(opts.Vars, c.ScriptEnvFile, opts.Logger)
-	c.Name = replaceVarInString(opts.Vars, c.Name, opts.Logger)
-	c.OutputFile = replaceVarInString(opts.Vars, c.OutputFile, opts.Logger)
-	c.Host = replaceVarInString(opts.Vars, c.Host, opts.Logger)
 }
 
 // func executeUserCommands() []string {

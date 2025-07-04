@@ -3,8 +3,9 @@ package yum
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
-	"git.andrewnw.xyz/CyberShell/backy/pkg/pkgman/pkgcommon"
+	packagemanagercommon "git.andrewnw.xyz/CyberShell/backy/pkg/pkgman/common"
 )
 
 // YumManager implements PackageManager for systems using YUM.
@@ -25,21 +26,20 @@ func NewYumManager() *YumManager {
 }
 
 // Configure applies functional options to customize the package manager.
-func (y *YumManager) Configure(options ...pkgcommon.PackageManagerOption) {
+func (y *YumManager) Configure(options ...packagemanagercommon.PackageManagerOption) {
 	for _, opt := range options {
 		opt(y)
 	}
 }
 
 // Install returns the command and arguments for installing a package.
-func (y *YumManager) Install(pkg, version string, args []string) (string, []string) {
+func (y *YumManager) Install(pkgs []packagemanagercommon.Package, args []string) (string, []string) {
 	baseCmd := y.prependAuthCommand("yum")
 	baseArgs := []string{"install", "-y"}
-	if version != "" {
-		baseArgs = append(baseArgs, fmt.Sprintf("%s-%s", pkg, version))
-	} else {
-		baseArgs = append(baseArgs, pkg)
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
 	}
+
 	if args != nil {
 		baseArgs = append(baseArgs, args...)
 	}
@@ -47,9 +47,13 @@ func (y *YumManager) Install(pkg, version string, args []string) (string, []stri
 }
 
 // Remove returns the command and arguments for removing a package.
-func (y *YumManager) Remove(pkg string, args []string) (string, []string) {
+func (y *YumManager) Remove(pkgs []packagemanagercommon.Package, args []string) (string, []string) {
 	baseCmd := y.prependAuthCommand("yum")
-	baseArgs := []string{"remove", "-y", pkg}
+	baseArgs := []string{"remove", "-y"}
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
+	}
+
 	if args != nil {
 		baseArgs = append(baseArgs, args...)
 	}
@@ -57,14 +61,13 @@ func (y *YumManager) Remove(pkg string, args []string) (string, []string) {
 }
 
 // Upgrade returns the command and arguments for upgrading a specific package.
-func (y *YumManager) Upgrade(pkg, version string) (string, []string) {
+func (y *YumManager) Upgrade(pkgs []packagemanagercommon.Package) (string, []string) {
 	baseCmd := y.prependAuthCommand("yum")
 	baseArgs := []string{"update", "-y"}
-	if version != "" {
-		baseArgs = append(baseArgs, fmt.Sprintf("%s-%s", pkg, version))
-	} else {
-		baseArgs = append(baseArgs, pkg)
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
 	}
+
 	return baseCmd, baseArgs
 }
 
@@ -76,17 +79,27 @@ func (y *YumManager) UpgradeAll() (string, []string) {
 }
 
 // CheckVersion returns the command and arguments for checking the info of a specific package.
-func (y *YumManager) CheckVersion(pkg, version string) (string, []string) {
+func (y *YumManager) CheckVersion(pkgs []packagemanagercommon.Package) (string, []string) {
 	baseCmd := y.prependAuthCommand("yum")
-	baseArgs := []string{"info", pkg}
+	baseArgs := []string{"info"}
+	for _, p := range pkgs {
+		baseArgs = append(baseArgs, p.Name)
+	}
 
 	return baseCmd, baseArgs
 }
 
 // Parse parses the dnf info output to extract Installed and Candidate versions.
-func (y YumManager) Parse(output string) (*pkgcommon.PackageVersion, error) {
-	reInstalled := regexp.MustCompile(`(?m)^Installed Packages\s*Name\s*:\s*\S+\s*Version\s*:\s*([^\s]+)\s*Release\s*:\s*([^\s]+)`)
-	reAvailable := regexp.MustCompile(`(?m)^Available Packages\s*Name\s*:\s*\S+\s*Version\s*:\s*([^\s]+)\s*Release\s*:\s*([^\s]+)`)
+func (y YumManager) ParseRemotePackageManagerVersionOutput(output string) ([]packagemanagercommon.Package, []error) {
+
+	// Check for error message in the output
+	if strings.Contains(output, "No matching packages to list") {
+		return nil, []error{fmt.Errorf("error: package not listed")}
+	}
+
+	// Define regular expressions to capture installed and available versions
+	reInstalled := regexp.MustCompile(`(?m)^Installed packages\s*Name\s*:\s*\S+\s*Epoch\s*:\s*\S+\s*Version\s*:\s*([^\s]+)\s*Release\s*:\s*([^\s]+)`)
+	reAvailable := regexp.MustCompile(`(?m)^Available packages\s*Name\s*:\s*\S+\s*Epoch\s*:\s*\S+\s*Version\s*:\s*([^\s]+)\s*Release\s*:\s*([^\s]+)`)
 
 	installedMatch := reInstalled.FindStringSubmatch(output)
 	candidateMatch := reAvailable.FindStringSubmatch(output)
@@ -103,13 +116,10 @@ func (y YumManager) Parse(output string) (*pkgcommon.PackageVersion, error) {
 	}
 
 	if installedVersion == "" && candidateVersion == "" {
-		return nil, fmt.Errorf("failed to parse versions from dnf output")
+		return nil, []error{fmt.Errorf("failed to parse versions from dnf output")}
 	}
 
-	return &pkgcommon.PackageVersion{
-		Installed: installedVersion,
-		Candidate: candidateVersion,
-	}, nil
+	return nil, nil
 }
 
 // prependAuthCommand prepends the authentication command if UseAuth is true.

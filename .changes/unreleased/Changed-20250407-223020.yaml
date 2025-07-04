@@ -1,0 +1,3 @@
+kind: Changed
+body: "`PackageManager.Parse` renamed to `ParseRemotePackageManagerVersionOutput`. This now returns arrays of PackageManagerCommon.Package and errors."
+time: 2025-04-07T22:30:20.342177323-05:00
