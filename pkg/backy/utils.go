@@ -333,11 +333,12 @@ func getCommandTypeAndSetCommandInfo(command *Command) *Command {
 
 func parsePackageVersion(output string, cmdCtxLogger zerolog.Logger, command *Command, cmdOutBuf bytes.Buffer) ([]string, error) {
 
+	var err error
 	var errs []error
-	pkgVersionOnSystem, errs := command.pkgMan.ParseRemotePackageManagerVersionOutput(output)
-	if errs != nil {
-		cmdCtxLogger.Error().Errs("Error parsing package version output", errs).Send()
-		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error parsing package version output: %v", errs)
+	pkgVersionOnSystem, err := command.pkgMan.ParseRemotePackageManagerVersionOutput(output)
+	if err != nil {
+		cmdCtxLogger.Error().AnErr("Error parsing package version output", err).Send()
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error parsing package version output: %v", err)
 	}
 
 	for _, p := range pkgVersionOnSystem {

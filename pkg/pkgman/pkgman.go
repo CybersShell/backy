@@ -16,7 +16,7 @@ type PackageManager interface {
 	Upgrade(pkgs []packagemanagercommon.Package) (string, []string) // Upgrade a specific package
 	UpgradeAll() (string, []string)
 	CheckVersion(pkgs []packagemanagercommon.Package) (string, []string)
-	ParseRemotePackageManagerVersionOutput(output string) ([]packagemanagercommon.Package, []error)
+	ParseRemotePackageManagerVersionOutput(output string) ([]packagemanagercommon.Package, error)
 	// Configure applies functional options to customize the package manager.
 	Configure(options ...packagemanagercommon.PackageManagerOption)
 }

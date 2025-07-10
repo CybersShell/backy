@@ -8,6 +8,14 @@ commands:
     packageManager: apt
     packageOperation: checkVersion
 
+  checkAptNoVersion:
+    type: package
+    shell: zsh
+    packages: 
+      - name: "apt"
+    packageManager: apt
+    packageOperation: checkVersion
+
   checkDockerPartialVersionWithoutRegex:
     type: package
     shell: zsh
@@ -51,3 +59,6 @@ cmdLists:
       - checkDockerPartialVersionWithRegex
       - checkDockerVersionWithInvalidRegex
       - checkDockerNoVersion
+
+logging:
+  verbose: true

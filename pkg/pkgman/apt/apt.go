@@ -109,7 +109,7 @@ func (a *AptManager) SetAuthCommand(authCommand string) {
 }
 
 // Parse parses the apt-cache policy output to extract Installed and Candidate versions.
-func (a *AptManager) ParseRemotePackageManagerVersionOutput(output string) ([]packagemanagercommon.Package, []error) {
+func (a *AptManager) ParseRemotePackageManagerVersionOutput(output string) ([]packagemanagercommon.Package, error) {
 	var (
 		packageName        string
 		installedString    string
@@ -118,11 +118,12 @@ func (a *AptManager) ParseRemotePackageManagerVersionOutput(output string) ([]pa
 	)
 	// Check for error message in the output
 	if strings.Contains(output, "Unable to locate package") {
-		return nil, []error{fmt.Errorf("error: %s", strings.TrimSpace(output))}
+		return nil, fmt.Errorf("error: %s", strings.TrimSpace(output))
 	}
 	packages := []packagemanagercommon.Package{}
 	outputBuf := bytes.NewBufferString(output)
 	outputScan := bufio.NewScanner(outputBuf)
+	var packageCount uint
 	for outputScan.Scan() {
 		line := outputScan.Text()
 		if !strings.HasPrefix(line, "  ") && strings.HasSuffix(line, ":") {
@@ -141,15 +142,22 @@ func (a *AptManager) ParseRemotePackageManagerVersionOutput(output string) ([]pa
 
 		if countRelevantLines == 2 {
 			countRelevantLines = 0
-			packages = append(packages, packagemanagercommon.Package{
-				Name: packageName,
-				VersionCheck: packagemanagercommon.PackageVersion{
-					Installed: strings.TrimSpace(installedString),
-					Candidate: strings.TrimSpace(candidateString),
-					Match:     installedString == candidateString,
-				}},
-			)
+			if !strings.Contains(installedString, " (none)") {
+				packageCount++
+				packages = append(packages, packagemanagercommon.Package{
+					Name: packageName,
+					VersionCheck: packagemanagercommon.PackageVersion{
+						Installed: strings.TrimSpace(installedString),
+						Candidate: strings.TrimSpace(candidateString),
+						Match:     installedString == candidateString,
+					}},
+				)
+			}
 		}
+	}
+
+	if packageCount == 0 {
+		return nil, fmt.Errorf("no packages found")
 	}
 
 	return packages, nil

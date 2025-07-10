@@ -21,4 +21,4 @@ description: >
 
 ## exec host subcommand
 
-Backy has a subcommand `exec host`. This subcommand takes the flags of `-m host1 -m host2`. For now these hosts need to be defined in the config file.
+Backy has a subcommand `exec host`. This subcommand takes the flags of `-m host1 -m host2`. The commands can also be specified by `-c command1 -c command2`.

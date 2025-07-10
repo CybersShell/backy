@@ -92,11 +92,11 @@ func (d *DnfManager) CheckVersion(pkgs []packagemanagercommon.Package) (string, 
 }
 
 // Parse parses the dnf info output to extract Installed and Candidate versions.
-func (d DnfManager) ParseRemotePackageManagerVersionOutput(output string) ([]packagemanagercommon.Package, []error) {
+func (d DnfManager) ParseRemotePackageManagerVersionOutput(output string) ([]packagemanagercommon.Package, error) {
 
 	// Check for error message in the output
 	if strings.Contains(output, "No matching packages to list") {
-		return nil, []error{fmt.Errorf("error: package not listed")}
+		return nil, fmt.Errorf("error: package not listed")
 	}
 
 	// Define regular expressions to capture installed and available versions
@@ -118,7 +118,7 @@ func (d DnfManager) ParseRemotePackageManagerVersionOutput(output string) ([]pac
 	}
 
 	if installedVersion == "" && candidateVersion == "" {
-		return nil, []error{fmt.Errorf("failed to parse versions from dnf output")}
+		return nil, fmt.Errorf("failed to parse versions from dnf output")
 	}
 
 	return nil, nil

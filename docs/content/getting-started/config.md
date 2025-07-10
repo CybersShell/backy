@@ -124,9 +124,9 @@ notifications:
 
 ### Logging
 
-cmd-std-out controls whether commands output is echoed to StdOut.
+`cmd-std-out` controls whether commands output is echoed to StdOut.
 
-If logfile is not defined, the log file will be written to the config directory in the file `backy.log`.
+If `logfile` is not defined, the log file will be written to the config directory in the file `backy.log`.
 
 `console-disabled` controls whether the logging messages are echoed to StdOut. Default is false.
 
