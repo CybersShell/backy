@@ -21,7 +21,7 @@ var (
 )
 
 func init() {
-	execCmd.AddCommand(hostExecCommand)
+	execCmd.AddCommand(hostExecCommand, hostsExecCommand)
 
 }
 

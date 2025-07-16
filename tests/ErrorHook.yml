@@ -22,7 +22,6 @@ commands:
     outputToLog: true
     Args:
       - "-v"
-    host: email-svr
 
 cmdLists:
   TestHooks:

@@ -38,6 +38,14 @@ commands:
     packageManager: apt
     packageOperation: checkVersion
     
+  installJq:
+    type: package
+    shell: bash
+    packages: 
+      - name: "jq"
+    packageManager: apt
+    packageOperation: install
+
   checkDockerVersionWithInvalidRegex:
     type: package
     shell: zsh
