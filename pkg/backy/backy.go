@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -326,6 +327,71 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 		results <- "done"
 	}
 }
+func cmdListWorkerWithHosts(msgTemps *msgTemplates, jobs <-chan *CmdList, hosts <-chan *Host, results chan<- string, opts *ConfigOpts) {
+	for list := range jobs {
+		fieldsMap := map[string]interface{}{"list": list.Name}
+		var cmdLogger zerolog.Logger
+		var commandExecuted *Command
+		var cmdsRan []string
+		var outStructArr []outStruct
+		var hasError bool // Tracks if any command in the list failed
+
+		for host := range hosts {
+
+			for _, cmd := range list.Order {
+				cmdToRun := opts.Cmds[cmd]
+				if cmdToRun.Host != host.Host {
+					cmdToRun.Host = host.Host
+					cmdToRun.RemoteHost = host
+				}
+				commandExecuted = cmdToRun
+				currentCmd := cmdToRun.Name
+				fieldsMap["cmd"] = currentCmd
+				cmdLogger = cmdToRun.GenerateLogger(opts)
+				cmdLogger.Info().Fields(fieldsMap).Send()
+
+				outputArr, runErr := cmdToRun.RunCmd(cmdLogger, opts)
+				cmdsRan = append(cmdsRan, cmd)
+
+				if runErr != nil {
+
+					cmdLogger.Err(runErr).Send()
+
+					cmdToRun.ExecuteHooks("error", opts)
+
+					// Notify failure
+					if list.NotifyConfig != nil {
+						notifyError(cmdLogger, msgTemps, list, cmdsRan, outStructArr, runErr, cmdToRun)
+					}
+
+					// Execute error hooks for the failed command
+					hasError = true
+					break
+				}
+
+				if list.GetCommandOutputInNotificationsOnSuccess || cmdToRun.Output.InList {
+					outStructArr = append(outStructArr, outStruct{
+						CmdName:     currentCmd,
+						CmdExecuted: currentCmd,
+						Output:      outputArr,
+					})
+				}
+			}
+
+			if !hasError && list.NotifyConfig != nil && list.Notify.OnFailure {
+				notifySuccess(cmdLogger, msgTemps, list, cmdsRan, outStructArr)
+			}
+
+			if !hasError {
+				commandExecuted.ExecuteHooks("success", opts)
+			}
+
+			commandExecuted.ExecuteHooks("final", opts)
+
+		}
+		results <- "done"
+	}
+}
 
 func notifyError(logger zerolog.Logger, templates *msgTemplates, list *CmdList, cmdsRan []string, outStructArr []outStruct, err error, cmd *Command) {
 	errStruct := map[string]interface{}{
@@ -395,6 +461,57 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 		<-results
 	}
 	opts.closeHostConnections()
+}
+
+func (opts *ConfigOpts) ExecuteListOnHosts(lists []string) {
+
+	mTemps := &msgTemplates{
+		err:     template.Must(template.New("error.txt").ParseFS(templates, "templates/error.txt")),
+		success: template.Must(template.New("success.txt").ParseFS(templates, "templates/success.txt")),
+	}
+	for _, l := range opts.CmdConfigLists {
+		if !slices.Contains(lists, l.Name) {
+			delete(opts.CmdConfigLists, l.Name)
+		}
+	}
+	configListsLen := len(opts.CmdConfigLists)
+	listChan := make(chan *CmdList, configListsLen)
+	hostChan := make(chan *Host, len(opts.Hosts))
+	results := make(chan string, configListsLen)
+
+	// Start workers
+	for w := 1; w <= configListsLen; w++ {
+		go cmdListWorkerWithHosts(mTemps, listChan, hostChan, results, opts)
+	}
+
+	// Enqueue jobs
+	for listName, cmdConfig := range opts.CmdConfigLists {
+		if cmdConfig.Name == "" {
+			cmdConfig.Name = listName
+		}
+		listChan <- cmdConfig
+	}
+	for _, h := range opts.Hosts {
+		if h.isProxyHost {
+			continue
+		}
+		hostChan <- h
+		// for _, proxyHost := range h.ProxyHost {
+		// 	if proxyHost.isProxyHost {
+		// 		continue
+		// 	}
+		// 	hostChan <- proxyHost
+		// }
+	}
+	close(listChan)
+	close(hostChan)
+
+	// Process results
+	for a := 1; a <= configListsLen; a++ {
+		<-results
+	}
+	opts.closeHostConnections()
+
 }
 
 func (opts *ConfigOpts) ExecuteCmds() {

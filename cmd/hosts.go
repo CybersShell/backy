@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"maps"
+	"slices"
+
 	"git.andrewnw.xyz/CyberShell/backy/pkg/backy"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 	"github.com/spf13/cobra"
@@ -13,11 +16,17 @@ var (
 		Long:  "Hosts executes specified commands on all the hosts defined in config file.\nUse the --commands or -c flag to choose the commands.",
 		Run:   Hosts,
 	}
+
+	hostsListExecCommand = &cobra.Command{
+		Use:   "list list1 list2 ...",
+		Short: "Runs lists in order specified defined in config file on all hosts.",
+		Long:  "Lists executes specified lists on all the hosts defined in hosts config.\nPass the names of lists as arguments after command.",
+		Run:   HostsList,
+	}
 )
 
 func init() {
-
-	hostsExecCommand.Flags().StringArrayVarP(&cmdList, "command", "c", nil, "Accepts space-separated names of commands. Specify multiple times for multiple commands.")
+	hostsExecCommand.AddCommand(hostsListExecCommand)
 	parseS3Config()
 
 }
@@ -52,4 +61,31 @@ func Hosts(cmd *cobra.Command, args []string) {
 	}
 
 	backyConfOpts.ExecCmdsOnHosts(cmdList, hostsList)
+}
+
+func HostsList(cmd *cobra.Command, args []string) {
+	backyConfOpts := backy.NewConfigOptions(configFile,
+		backy.SetLogFile(logFile),
+		backy.EnableCommandStdOut(cmdStdOut),
+		backy.SetHostsConfigFile(hostsConfigFile))
+	backyConfOpts.InitConfig()
+
+	backyConfOpts.ParseConfigurationFile()
+
+	if len(args) == 0 {
+		logging.ExitWithMSG("error: no lists specified", 1, &backyConfOpts.Logger)
+	}
+
+	for _, l := range args {
+		_, listFound := backyConfOpts.CmdConfigLists[l]
+		if !listFound {
+			logging.ExitWithMSG("list "+l+" not found", 1, &backyConfOpts.Logger)
+		}
+	}
+
+	maps.DeleteFunc(backyConfOpts.CmdConfigLists, func(k string, v *backy.CmdList) bool {
+		return !slices.Contains(args, k)
+	})
+
+	backyConfOpts.ExecuteListOnHosts(args)
 }

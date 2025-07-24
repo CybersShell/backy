@@ -26,8 +26,9 @@ Flags:
       --cmdStdOut            Pass to print command output to stdout
   -f, --config string        config file to read from
   -h, --help                 help for backy
-      --log-file string      log file to write to
-      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+      --hostsConfig string   yaml hosts file to read from
+      --logFile string       log file to write to
+      --s3Endpoint string    Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
   -v, --verbose              Sets verbose level
 
 Use "backy [command] --help" for more information about a command.
@@ -51,8 +52,9 @@ Flags:
 Global Flags:
       --cmdStdOut            Pass to print command output to stdout
   -f, --config string        config file to read from
-      --log-file string      log file to write to
-      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+      --hostsConfig string   yaml hosts file to read from
+      --logFile string       log file to write to
+      --s3Endpoint string    Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
   -v, --verbose              Sets verbose level
 ```
 
@@ -70,8 +72,9 @@ Flags:
 Global Flags:
       --cmdStdOut            Pass to print command output to stdout
   -f, --config string        config file to read from
-      --log-file string      log file to write to
-      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+      --hostsConfig string   yaml hosts file to read from
+      --logFile string       log file to write to
+      --s3Endpoint string    Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
   -v, --verbose              Sets verbose level
 ```
 
@@ -86,6 +89,7 @@ Usage:
 
 Available Commands:
   host        Runs command defined in config file on the hosts in order specified.
+  hosts       Runs command defined in config file on the hosts in order specified.
 
 Flags:
   -h, --help   help for exec
@@ -93,8 +97,9 @@ Flags:
 Global Flags:
       --cmdStdOut            Pass to print command output to stdout
   -f, --config string        config file to read from
-      --log-file string      log file to write to
-      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+      --hostsConfig string   yaml hosts file to read from
+      --logFile string       log file to write to
+      --s3Endpoint string    Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
   -v, --verbose              Sets verbose level
 
 Use "backy exec [command] --help" for more information about a command.
@@ -117,8 +122,9 @@ Flags:
 Global Flags:
       --cmdStdOut            Pass to print command output to stdout
   -f, --config string        config file to read from
-      --log-file string      log file to write to
-      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+      --hostsConfig string   yaml hosts file to read from
+      --logFile string       log file to write to
+      --s3Endpoint string    Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
   -v, --verbose              Sets verbose level
 ```
 
@@ -138,8 +144,9 @@ Flags:
 Global Flags:
       --cmdStdOut            Pass to print command output to stdout
   -f, --config string        config file to read from
-      --log-file string      log file to write to
-      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+      --hostsConfig string   yaml hosts file to read from
+      --logFile string       log file to write to
+      --s3Endpoint string    Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
   -v, --verbose              Sets verbose level
 ```
 
@@ -161,8 +168,9 @@ Flags:
 Global Flags:
       --cmdStdOut            Pass to print command output to stdout
   -f, --config string        config file to read from
-      --log-file string      log file to write to
-      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+      --hostsConfig string   yaml hosts file to read from
+      --logFile string       log file to write to
+      --s3Endpoint string    Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
   -v, --verbose              Sets verbose level
 
 Use "backy list [command] --help" for more information about a command.
@@ -181,8 +189,9 @@ Flags:
 Global Flags:
       --cmdStdOut            Pass to print command output to stdout
   -f, --config string        config file to read from
-      --log-file string      log file to write to
-      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+      --hostsConfig string   yaml hosts file to read from
+      --logFile string       log file to write to
+      --s3Endpoint string    Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
   -v, --verbose              Sets verbose level
 ```
 ## list lists
@@ -199,7 +208,8 @@ Flags:
 Global Flags:
       --cmdStdOut            Pass to print command output to stdout
   -f, --config string        config file to read from
-      --log-file string      log file to write to
-      --s3-endpoint string   Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
+      --hostsConfig string   yaml hosts file to read from
+      --logFile string       log file to write to
+      --s3Endpoint string    Sets the S3 endpoint used for config file fetching. Overrides S3_ENDPOINT env variable.
   -v, --verbose              Sets verbose level
 ```

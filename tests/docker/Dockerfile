@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM ubuntu:latest
 
 # Install SSH server
 RUN apt-get update && \
@@ -19,7 +19,7 @@ EXPOSE 22
 RUN mkdir /var/run/sshd
 RUN chmod 0755 /var/run/sshd
 
-# RUN apt-get update && apt-get install -y 
+RUN apt-get update && apt-get install -y curl
 
 # Start SSH service
 CMD ["/usr/sbin/sshd", "-D"]
