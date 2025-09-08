@@ -11,8 +11,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
+	"sync"
 	"text/template"
 
 	"embed"
@@ -26,6 +26,124 @@ var templates embed.FS
 var requiredKeys = []string{"commands"}
 
 var Sprintf = fmt.Sprintf
+
+type CommandExecutor interface {
+	Run(cmd *Command, opts *ConfigOpts, logger zerolog.Logger) ([]string, error)
+}
+
+type OutputHandler interface {
+	CollectOutput(buf *bytes.Buffer, commandName string, logger zerolog.Logger, wantOutput bool) []string
+}
+
+type EnvInjector interface {
+	Inject(cmd *Command, opts *ConfigOpts)
+}
+
+type PackageCommandExecutor struct{}
+
+func (e *PackageCommandExecutor) Run(cmd *Command, opts *ConfigOpts, logger zerolog.Logger) ([]string, error) {
+	var (
+		ArgsStr       string
+		cmdOutBuf     bytes.Buffer
+		outputArr     []string
+		cmdOutWriters io.Writer
+	)
+
+	for _, v := range cmd.Args {
+		ArgsStr += fmt.Sprintf(" %s", v)
+	}
+
+	// Example: Check version operation
+	if cmd.PackageOperation == PackageOperationCheckVersion {
+		logger.Info().Msg("Checking package versions")
+
+		logger.Info().Msg("")
+		for _, p := range cmd.Packages {
+			logger.Info().Str("package", p.Name).Msg("Checking installed and remote package versions")
+		}
+		opts.Logger.Info().Msg("")
+
+		// Execute the package version command
+		execCmd := exec.Command(cmd.Cmd, cmd.Args...)
+		cmdOutWriters = io.MultiWriter(&cmdOutBuf)
+
+		if IsCmdStdOutEnabled() {
+			cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
+		}
+		execCmd.Stdout = cmdOutWriters
+		execCmd.Stderr = cmdOutWriters
+
+		if err := execCmd.Run(); err != nil {
+			return nil, fmt.Errorf("error running command %s: %w", ArgsStr, err)
+		}
+
+		return parsePackageVersion(cmdOutBuf.String(), logger, cmd, cmdOutBuf)
+	}
+
+	// Other package operations (install, upgrade, etc.) can be handled here
+
+	// Default: run as a shell command
+	execCmd := exec.Command(cmd.Cmd, cmd.Args...)
+	execCmd.Stdout = &cmdOutBuf
+	execCmd.Stderr = &cmdOutBuf
+	err := execCmd.Run()
+	outputArr = logCommandOutput(cmd, cmdOutBuf, logger, outputArr)
+	if err != nil {
+		logger.Error().Err(fmt.Errorf("error running package command %s: %w", cmd.Name, err)).Send()
+		return outputArr, err
+	}
+	return outputArr, nil
+}
+
+type LocalCommandExecutor struct{}
+
+func (e *LocalCommandExecutor) Run(cmd *Command, opts *ConfigOpts, logger zerolog.Logger) ([]string, error) {
+	var (
+		ArgsStr   string
+		cmdOutBuf bytes.Buffer
+		outputArr []string
+	)
+
+	for _, v := range cmd.Args {
+		ArgsStr += fmt.Sprintf(" %s", v)
+	}
+
+	// Build the command
+	var localCMD *exec.Cmd
+	if cmd.Shell != "" {
+		logger.Info().Str("Command", fmt.Sprintf("Running command %s on local machine in %s", cmd.Name, cmd.Shell)).Send()
+		ArgsStr = fmt.Sprintf("%s %s", cmd.Cmd, ArgsStr)
+		localCMD = exec.Command(cmd.Shell, "-c", ArgsStr)
+	} else {
+		localCMD = exec.Command(cmd.Cmd, cmd.Args...)
+	}
+
+	// Set working directory
+	if cmd.Dir != nil {
+		localCMD.Dir = *cmd.Dir
+	}
+
+	// Inject environment variables (extract this to an EnvInjector if desired)
+	// injectEnvIntoLocalCMD(...)
+
+	// Set output writers
+	cmdOutWriters := io.MultiWriter(&cmdOutBuf)
+	if IsCmdStdOutEnabled() {
+		cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
+	}
+	localCMD.Stdout = cmdOutWriters
+	localCMD.Stderr = cmdOutWriters
+
+	// Run the command
+	err := localCMD.Run()
+	outputArr = logCommandOutput(cmd, cmdOutBuf, logger, outputArr)
+	if err != nil {
+		logger.Error().Err(fmt.Errorf("error when running cmd %s: %w", cmd.Name, err)).Send()
+		return outputArr, err
+	}
+
+	return outputArr, nil
+}
 
 // RunCmd runs a Command.
 // The environment of local commands will be the machine's environment plus any extra
@@ -70,29 +188,10 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		}
 	} else {
 
-		// Handle package operations
-		if command.Type == PackageCommandType && command.PackageOperation == PackageOperationCheckVersion {
-			opts.Logger.Info().Msg("")
-			for _, p := range command.Packages {
-				cmdCtxLogger.Info().Str("package", p.Name).Msg("Checking installed and remote package versions")
-			}
-			opts.Logger.Info().Msg("")
-
-			// Execute the package version command
-			cmd := exec.Command(command.Cmd, command.Args...)
-			cmdOutWriters = io.MultiWriter(&cmdOutBuf)
-
-			if IsCmdStdOutEnabled() {
-				cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
-			}
-			cmd.Stdout = cmdOutWriters
-			cmd.Stderr = cmdOutWriters
-
-			if err := cmd.Run(); err != nil {
-				return nil, fmt.Errorf("error running command %s: %w", ArgsStr, err)
-			}
-
-			return parsePackageVersion(cmdOutBuf.String(), cmdCtxLogger, command, cmdOutBuf)
+		switch command.Type {
+		case PackageCommandType:
+			var executor PackageCommandExecutor
+			return executor.Run(command, opts, cmdCtxLogger)
 		}
 
 		var localCMD *exec.Cmd
@@ -393,6 +492,163 @@ func cmdListWorkerWithHosts(msgTemps *msgTemplates, jobs <-chan *CmdList, hosts 
 	}
 }
 
+// func cmdListWorkerExecuteCommandsInParallel(msgTemps *msgTemplates, jobs <-chan *CmdList, hosts <-chan *Host, results chan<- string, opts *ConfigOpts) {
+// 	opts.Logger.Info().Msg("Running commands in parallel")
+// 	for list := range jobs {
+// 		fieldsMap := map[string]interface{}{"list": list.Name}
+// 		var cmdLogger zerolog.Logger
+// 		var commandExecuted *Command
+// 		var cmdsRan []string
+// 		var outStructArr []outStruct
+// 		var hasError bool // Tracks if any command in the list failed
+
+// 		for _, cmd := range list.Order {
+// 			for host := range hosts {
+// 				cmdToRun := opts.Cmds[cmd]
+// 				if cmdToRun.Host != host.Host {
+// 					cmdToRun.Host = host.Host
+// 					cmdToRun.RemoteHost = host
+// 				}
+// 				commandExecuted = cmdToRun
+// 				currentCmd := cmdToRun.Name
+// 				fieldsMap["cmd"] = currentCmd
+// 				cmdLogger = cmdToRun.GenerateLogger(opts)
+// 				cmdLogger.Info().Fields(fieldsMap).Send()
+
+// 				outputArr, runErr := cmdToRun.RunCmd(cmdLogger, opts)
+// 				cmdsRan = append(cmdsRan, cmd)
+
+// 				if runErr != nil {
+
+// 					cmdLogger.Err(runErr).Send()
+
+// 					cmdToRun.ExecuteHooks("error", opts)
+
+// 					// Notify failure
+// 					if list.NotifyConfig != nil {
+// 						notifyError(cmdLogger, msgTemps, list, cmdsRan, outStructArr, runErr, cmdToRun)
+// 					}
+
+// 					// Execute error hooks for the failed command
+// 					hasError = true
+// 					break
+// 				}
+
+// 				if list.GetCommandOutputInNotificationsOnSuccess || cmdToRun.Output.InList {
+// 					outStructArr = append(outStructArr, outStruct{
+// 						CmdName:     currentCmd,
+// 						CmdExecuted: currentCmd,
+// 						Output:      outputArr,
+// 					})
+// 				}
+// 			}
+
+// 			if !hasError && list.NotifyConfig != nil && list.Notify.OnFailure {
+// 				notifySuccess(cmdLogger, msgTemps, list, cmdsRan, outStructArr)
+// 			}
+
+// 			if !hasError {
+// 				commandExecuted.ExecuteHooks("success", opts)
+// 			}
+
+// 			commandExecuted.ExecuteHooks("final", opts)
+
+// 		}
+// 		results <- "done"
+// 	}
+// }
+
+func cmdListWorkerExecuteCommandsInParallel(msgTemps *msgTemplates, jobs <-chan *CmdList, hosts <-chan *Host, results chan<- string, opts *ConfigOpts) {
+	opts.Logger.Info().Msg("Running commands in parallel")
+	for list := range jobs {
+		fieldsMap := map[string]interface{}{"list": list.Name}
+		var cmdLogger zerolog.Logger
+		var commandExecuted *Command
+		var cmdsRan []string
+		var outStructArr []outStruct
+		var hasError bool // Tracks if any command in the list failed
+
+		var wg sync.WaitGroup
+		hostList := []*Host{}
+		for host := range hosts {
+			hostList = append(hostList, host)
+		}
+		println("Total hosts to run commands on:", len(hostList))
+		println("Total commands to run:", len(list.Order))
+
+		for _, cmd := range list.Order {
+			cmdsRan = append(cmdsRan, cmd)
+			println("Running cmd:", cmd, "on", len(hostList), "hosts")
+			outputChan := make(chan outStruct, len(hostList))
+			errorChan := make(chan error, len(hostList))
+			// cmdToRun := opts.Cmds[cmd]
+			origCmd := opts.Cmds[cmd]
+
+			for _, host := range hostList {
+				wg.Add(1)
+				cmdToRun := *origCmd // shallow copy
+				commandExecuted = origCmd
+				if cmdToRun.Host != host.Host {
+					cmdToRun.Host = host.Host
+					cmdToRun.RemoteHost = host
+				}
+				cmdLogger = cmdToRun.GenerateLogger(opts)
+				cmdLogger.Info().Fields(fieldsMap).Send()
+				print("Running cmd on: ", host.Host, "\n")
+
+				go func(cmd string, host *Host) {
+					defer wg.Done()
+					currentCmd := cmdToRun.Name
+					fieldsMap["cmd"] = currentCmd
+
+					outputArr, runErr := cmdToRun.RunCmd(cmdLogger, opts)
+					if runErr != nil {
+						cmdLogger.Err(runErr).Send()
+						cmdToRun.ExecuteHooks("error", opts)
+						errorChan <- runErr
+						return
+					}
+
+					if list.GetCommandOutputInNotificationsOnSuccess || cmdToRun.Output.InList {
+						outputChan <- outStruct{
+							CmdName:     currentCmd,
+							CmdExecuted: currentCmd,
+							Output:      outputArr,
+						}
+					}
+				}(cmd, host)
+			}
+
+			wg.Wait()
+			close(outputChan)
+			close(errorChan)
+
+			for out := range outputChan {
+				outStructArr = append(outStructArr, out)
+			}
+			if len(errorChan) > 0 {
+				hasError = true
+				runErr := <-errorChan
+				if list.NotifyConfig != nil {
+					notifyError(cmdLogger, msgTemps, list, cmdsRan, outStructArr, runErr, commandExecuted)
+				}
+				break
+			}
+
+			if !hasError && list.NotifyConfig != nil && list.Notify.OnFailure {
+				notifySuccess(cmdLogger, msgTemps, list, cmdsRan, outStructArr)
+			}
+
+			if !hasError {
+				commandExecuted.ExecuteHooks("success", opts)
+			}
+
+		}
+		commandExecuted.ExecuteHooks("final", opts)
+		results <- "done"
+	}
+}
+
 func notifyError(logger zerolog.Logger, templates *msgTemplates, list *CmdList, cmdsRan []string, outStructArr []outStruct, err error, cmd *Command) {
 	errStruct := map[string]interface{}{
 		"listName":  list.Name,
@@ -463,17 +719,17 @@ func (opts *ConfigOpts) RunListConfig(cron string) {
 	opts.closeHostConnections()
 }
 
-func (opts *ConfigOpts) ExecuteListOnHosts(lists []string) {
+func (opts *ConfigOpts) ExecuteListOnHosts(lists []string, parallel bool) {
 
 	mTemps := &msgTemplates{
 		err:     template.Must(template.New("error.txt").ParseFS(templates, "templates/error.txt")),
 		success: template.Must(template.New("success.txt").ParseFS(templates, "templates/success.txt")),
 	}
-	for _, l := range opts.CmdConfigLists {
-		if !slices.Contains(lists, l.Name) {
-			delete(opts.CmdConfigLists, l.Name)
-		}
-	}
+	// for _, l := range opts.CmdConfigLists {
+	// 	if !slices.Contains(lists, l.Name) {
+	// 		delete(opts.CmdConfigLists, l.Name)
+	// 	}
+	// }
 	configListsLen := len(opts.CmdConfigLists)
 	listChan := make(chan *CmdList, configListsLen)
 	hostChan := make(chan *Host, len(opts.Hosts))
@@ -481,7 +737,11 @@ func (opts *ConfigOpts) ExecuteListOnHosts(lists []string) {
 
 	// Start workers
 	for w := 1; w <= configListsLen; w++ {
-		go cmdListWorkerWithHosts(mTemps, listChan, hostChan, results, opts)
+		if parallel {
+			go cmdListWorkerExecuteCommandsInParallel(mTemps, listChan, hostChan, results, opts)
+		} else {
+			go cmdListWorkerWithHosts(mTemps, listChan, hostChan, results, opts)
+		}
 	}
 
 	// Enqueue jobs
@@ -624,6 +884,33 @@ func (opts *ConfigOpts) ExecCmdsOnHosts(cmdList []string, hostsList []string) {
 	for _, h := range hostsList {
 		host := opts.Hosts[h]
 		for _, c := range cmdList {
+			cmd := opts.Cmds[c]
+			cmd.RemoteHost = host
+			cmd.Host = h
+			if IsHostLocal(h) {
+				_, err := cmd.RunCmd(cmd.GenerateLogger(opts), opts)
+				if err != nil {
+					opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
+				}
+			} else {
+
+				cmd.Host = host.Host
+				opts.Logger.Info().Str("host", h).Str("cmd", c).Send()
+				_, err := cmd.RunCmdOnHost(cmd.GenerateLogger(opts), opts)
+				if err != nil {
+					opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
+				}
+			}
+		}
+	}
+}
+
+func (opts *ConfigOpts) ExecCmdsOnHostsInParallel(cmdList []string, hostsList []string) {
+	opts.Logger.Info().Msg("Executing commands in parallel on hosts")
+	// Iterate over hosts and exec commands
+	for _, c := range cmdList {
+		for _, h := range hostsList {
+			host := opts.Hosts[h]
 			cmd := opts.Cmds[c]
 			cmd.RemoteHost = host
 			cmd.Host = h

@@ -12,7 +12,7 @@ type RemoteFetcher interface {
 
 	// Parse decodes the raw data into a Go structure (e.g., Commands, CommandLists)
 	// Takes the raw data as input and populates the target interface
-	Parse(data []byte, target interface{}) error
+	Parse(data []byte, target any) error
 
 	// Hash returns the hash of the configuration data
 	Hash(data []byte) string

@@ -67,6 +67,14 @@ commands:
     packageManager: apt
     packageOperation: checkVersion
 
+  hostname:
+    shell: zsh
+    cmd: hostname
+    Args:
+      - '-f'
+    output:
+      toLog: true
+
 
 cmdLists:
   packageCommands:
@@ -83,7 +91,9 @@ cmdLists:
       onFailure: true
     order:
       - installJq
+      - checkDockerNoVersion
+      - hostname
 
 logging:
   verbose: true
-  cmd-std-out: true
+  cmd-std-out: false

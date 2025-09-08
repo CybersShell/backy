@@ -10,6 +10,8 @@ import (
 )
 
 var (
+	runCommandsInParallel bool
+
 	hostsExecCommand = &cobra.Command{
 		Use:   "hosts [--command=command1 --command=command2 ... | -c command1 -c command2 ...]",
 		Short: "Runs command defined in config file on the hosts in order specified.",
@@ -27,8 +29,8 @@ var (
 
 func init() {
 	hostsExecCommand.AddCommand(hostsListExecCommand)
+	hostsListExecCommand.Flags().BoolVarP(&runCommandsInParallel, "parallel", "p", false, "Run commands in parallel on hosts")
 	parseS3Config()
-
 }
 
 // cli input should be hosts and commands. Hosts are defined in config files.
@@ -87,5 +89,5 @@ func HostsList(cmd *cobra.Command, args []string) {
 		return !slices.Contains(args, k)
 	})
 
-	backyConfOpts.ExecuteListOnHosts(args)
+	backyConfOpts.ExecuteListOnHosts(args, runCommandsInParallel)
 }

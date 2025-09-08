@@ -27,6 +27,10 @@ import (
 var PrivateKeyExtraInfoErr = errors.New("Private key may be encrypted. \nIf encrypted, make sure the password is specified correctly in the correct section. This may be done in one of two ways: \n Using external directives - see docs \n privatekeypassword: password (not recommended). \n ")
 var TS = strings.TrimSpace
 
+type RemoteHostCommandExecutor interface {
+	RunCmdOnHost(command *Command, commandSession *ssh.Session, cmdCtxLogger zerolog.Logger, cmdOutBuf bytes.Buffer) ([]string, error)
+}
+
 // ConnectToHost connects to a host by looking up the config values in the file ~/.ssh/config
 // It uses any set values and looks up an unset values in the config files
 // remoteHost is modified directly. The *ssh.Client is returned as part of remoteHost,
@@ -483,26 +487,8 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 	case ScriptFileCommandType:
 		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
 	case PackageCommandType:
-		if command.PackageOperation == PackageOperationCheckVersion {
-			commandSession.Stderr = nil
-			// Execute the package version command remotely
-			// Parse the output of package version command
-			// Compare versions
-			// Check if a specific version is specified
-			commandSession.Stdout = nil
-			return checkPackageVersion(cmdCtxLogger, command, commandSession, cmdOutBuf)
-		} else {
-			if command.Shell != "" {
-				ArgsStr = fmt.Sprintf("%s -c '%s %s'", command.Shell, command.Cmd, ArgsStr)
-			} else {
-				ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
-			}
-			cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
-			// Run simple command
-			if err := commandSession.Run(ArgsStr); err != nil {
-				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
-			}
-		}
+		var remoteHostPackageExecutor RemoteHostPackageExecutor
+		return remoteHostPackageExecutor.RunCmdOnHost(command, commandSession, cmdCtxLogger, cmdOutBuf)
 	default:
 		if command.Shell != "" {
 			ArgsStr = fmt.Sprintf("%s -c '%s %s'", command.Shell, command.Cmd, ArgsStr)
@@ -539,7 +525,6 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 			}
 
 			defer rmFileFunc()
-			// commandSession.Stdin = command.stdin
 		}
 		if err := commandSession.Run(ArgsStr); err != nil {
 			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
@@ -822,4 +807,35 @@ func DoesHostHaveHostName(host string) (bool, string) {
 func IsHostLocal(host string) bool {
 	host = strings.ToLower(host)
 	return host == "127.0.0.1" || host == "localhost" || host == ""
+}
+
+type RemoteHostPackageExecutor struct{}
+
+func (r RemoteHostPackageExecutor) RunCmdOnHost(command *Command, commandSession *ssh.Session, cmdCtxLogger zerolog.Logger, cmdOutBuf bytes.Buffer) ([]string, error) {
+	var ArgsStr string
+	// Prepare command arguments
+	for _, v := range command.Args {
+		ArgsStr += fmt.Sprintf(" %s", v)
+	}
+
+	if command.PackageOperation == PackageOperationCheckVersion {
+		commandSession.Stderr = nil
+		// Execute the package version command remotely
+		// Parse the output of package version command
+		// Compare versions
+		// Check if a specific version is specified
+		commandSession.Stdout = nil
+		return checkPackageVersion(cmdCtxLogger, command, commandSession, cmdOutBuf)
+	}
+	if command.Shell != "" {
+		ArgsStr = fmt.Sprintf("%s -c '%s %s'", command.Shell, command.Cmd, ArgsStr)
+	} else {
+		ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
+	}
+	cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
+	// Run simple command
+	if err := commandSession.Run(ArgsStr); err != nil {
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
+	}
+	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
 }
