@@ -678,7 +678,11 @@ func (command *Command) prepareScriptBuffer() (*bytes.Buffer, error) {
 		buffer.WriteByte('\n')
 	}
 
-	buffer.WriteString(command.Cmd + "\n")
+	buffer.WriteString(command.Cmd)
+	for _, arg := range command.Args {
+		buffer.WriteString(" " + arg)
+	}
+	buffer.WriteByte('\n')
 	return &buffer, nil
 }
 

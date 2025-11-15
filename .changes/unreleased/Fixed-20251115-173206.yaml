@@ -1,0 +1,3 @@
+kind: Fixed
+body: Cmd Type `script` now correctly appends arguments
+time: 2025-11-15T17:32:06.86128885-06:00
