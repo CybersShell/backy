@@ -1,6 +1,7 @@
 baseURL: https://backy.cybershell.xyz/
 languageCode: en-us
 title: A tool for commands
+ignoreLogs: 'warning-partial-superfluous-prefix'
 theme:
   - hugo-theme-relearn
   - plausible-hugo
@@ -13,6 +14,7 @@ module:
   imports:
     - path: github.com/divinerites/plausible-hugo
     - path: github.com/McShelby/hugo-theme-relearn
+      version: "v8.2.0"
 params:
   themeVariant:
     - auto: []
