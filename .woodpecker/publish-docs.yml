@@ -1,6 +1,6 @@
 steps:
   build:
-    image: hugomods/hugo:debian-ci-0.146.0
+    image: hugomods/hugo:debian-ci-v0.146.0
     commands:
       - git submodule foreach 'git fetch origin; git checkout $(git describe --tags `git rev-list --tags --max-count=1`);'
       - cd docs
