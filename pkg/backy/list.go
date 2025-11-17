@@ -81,7 +81,7 @@ func (opts *ConfigOpts) ListCommandList(list string) {
 	// bool for commands not found
 	// gets set to false if a command is not found
 	// set to true if the command is found
-	var listFound bool = false
+	var listFound bool
 	var listInfo *CmdList
 	// check commands in file against cmd
 	for listInFile, l := range opts.CmdConfigLists {

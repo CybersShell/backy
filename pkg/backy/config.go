@@ -239,10 +239,10 @@ func setLoggingOptions(backyKoanf *koanf.Koanf, opts *ConfigOpts) {
 	isVerboseLoggingSetInConfig := backyKoanf.Bool(getLoggingKeyFromConfig("verbose"))
 
 	// if log file is set in config file and not set on command line, use "./backy.log"
-	logFile := "./backy.log"
 	if opts.LogFilePath == "" && backyKoanf.Exists(getLoggingKeyFromConfig("file")) {
-		logFile = backyKoanf.String(getLoggingKeyFromConfig("file"))
-		opts.LogFilePath = logFile
+		opts.LogFilePath = backyKoanf.String(getLoggingKeyFromConfig("file"))
+	} else {
+		opts.LogFilePath = "./backy.log"
 	}
 
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
