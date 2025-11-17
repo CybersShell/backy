@@ -1,7 +1,6 @@
 baseURL: https://backy.cybershell.xyz/
 languageCode: en-us
 title: A tool for commands
-ignoreLogs: 'warning-partial-superfluous-prefix'
 theme:
   - hugo-theme-relearn
   - plausible-hugo
