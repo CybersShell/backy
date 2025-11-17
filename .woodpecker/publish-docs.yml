@@ -1,11 +1,11 @@
 steps:
   build:
-    image: hugomods/hugo:ci
+    image: hugomods/hugo:debian-ci-0.146.0
     commands:
       - git submodule foreach 'git fetch origin; git checkout $(git describe --tags `git rev-list --tags --max-count=1`);'
       - cd docs
       - hugo mod get -u github.com/divinerites/plausible-hugo
-      - hugo mod get -u github.com/McShelby/hugo-theme-relearn@7.3.1
+      - hugo mod get -u github.com/McShelby/hugo-theme-relearn@8.2.0
       - hugo
 
   deploy:
