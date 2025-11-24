@@ -1,3 +1,0 @@
-kind: Added
-body: 'CLI: add global flag --hostsConfig that allows hosts to be dynamic in relation to the main config'
-time: 2025-07-04T10:21:26.864635558-05:00

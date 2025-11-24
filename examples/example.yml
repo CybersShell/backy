@@ -7,7 +7,8 @@ commands:
       - down
     # if host is not defined, command will be run locally
     # The host has to be defined in either the config file or the SSH Config files
-    host: some-host
+    hosts: 
+     - prod
     hooks:
       error:
         - some-other-command-when-failing

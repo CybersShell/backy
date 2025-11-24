@@ -454,6 +454,10 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 	// cmdCtxLogger.Debug().Str("cmd", command.Cmd).Strs("args", command.Args).Send()
 
 	// Ensure SSH client is connected
+	if command.RemoteHost == nil {
+		cmdCtxLogger.Err(fmt.Errorf("remote host is not defined for command %s", command.Name)).Send()
+		return nil, fmt.Errorf("remote host is not defined for command %s", command.Name)
+	}
 	if command.RemoteHost.SshClient == nil {
 		if err := command.RemoteHost.ConnectToHost(opts); err != nil {
 			return nil, fmt.Errorf("failed to connect to host: %w", err)

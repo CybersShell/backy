@@ -145,6 +145,73 @@ func (e *LocalCommandExecutor) Run(cmd *Command, opts *ConfigOpts, logger zerolo
 	return outputArr, nil
 }
 
+// ensureRemoteHost ensures localCmd.RemoteHost is set for the given host.
+// It prefers opts.Hosts lookup and falls back to a minimal Host entry so remote execution can proceed.
+func (opts *ConfigOpts) ensureRemoteHost(localCmd *Command, host string) {
+	if localCmd.RemoteHost != nil {
+		return
+	}
+	if opts != nil && opts.Hosts != nil {
+		if rh, found := opts.Hosts[host]; found {
+			localCmd.RemoteHost = rh
+			return
+		}
+	}
+	// fallback: create a minimal Host so RunCmdOnHost sees a non-nil RemoteHost.
+	// This uses host as the address/alias; further fields (user/key) will use defaults.
+	localCmd.RemoteHost = &Host{Host: host}
+}
+
+// ExecCommandOnHostsParallel runs a single configured command concurrently on the command.Hosts list.
+// It reuses the standard RunCmd / RunCmdOnHost flow so the behavior is identical to normal execution.
+func (opts *ConfigOpts) ExecCommandOnHostsParallel(cmdName string) ([]CmdResult, error) {
+	cmdObj, ok := opts.Cmds[cmdName]
+	if !ok {
+		return nil, fmt.Errorf("command %s not found", cmdName)
+	}
+	if len(cmdObj.Hosts) == 0 {
+		return nil, fmt.Errorf("no hosts configured for command %s", cmdName)
+	}
+
+	var wg sync.WaitGroup
+	resultsCh := make(chan CmdResult, len(cmdObj.Hosts))
+
+	for _, host := range cmdObj.Hosts {
+		wg.Add(1)
+		go func(h string) {
+			defer wg.Done()
+			// shallow copy to avoid races
+			local := *cmdObj
+			local.Host = h
+			opts.Logger.Debug().Str("host", h).Msg("executing command in parallel on host")
+
+			var err error
+			if IsHostLocal(h) {
+				_, err := local.RunCmd(local.GenerateLogger(opts), opts)
+				resultsCh <- CmdResult{CmdName: cmdName, ListName: "", Error: err}
+				return
+				// _, err = local.RunCmd(local.GenerateLogger(opts), opts)
+			}
+
+			// ensure RemoteHost is populated before calling RunCmdOnHost
+			opts.ensureRemoteHost(&local, h)
+
+			_, err = local.RunCmdOnHost(local.GenerateLogger(opts), opts)
+
+			resultsCh <- CmdResult{CmdName: cmdName, ListName: "", Error: err}
+		}(host)
+	}
+
+	wg.Wait()
+	close(resultsCh)
+
+	var results []CmdResult
+	for r := range resultsCh {
+		results = append(results, r)
+	}
+	return results, nil
+}
+
 // RunCmd runs a Command.
 // The environment of local commands will be the machine's environment plus any extra
 // variables specified in the Env file or Environment.
@@ -166,6 +233,14 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 
 		outputArr []string // holds the output strings returned by processes
 	)
+
+	if command.Host != "" && command.Hosts != nil {
+		cmdCtxLogger.Warn().Msg("both 'host' and 'hosts' are set; 'hosts' will be ignored")
+		return nil, fmt.Errorf("both 'host' and 'hosts' are set; please set one or the other")
+	} else if command.Hosts != nil {
+		opts.ExecCommandOnHostsParallel(command.Name)
+		return nil, nil
+	}
 
 	// Getting the command type must be done before concatenating the arguments
 	command = getCommandTypeAndSetCommandInfo(command)

@@ -19,7 +19,8 @@ Values available for this section **(case-sensitive)**:
 | `environment`   | Defines environment variables for the command                                                           | `[]string`            | no       | Partial                    |
 | `type`          | See documentation further down the page. Additional fields may be required.                             | `string`              | no       | No                         |
 | `getOutput`     | Command(s) output is in the notification(s)                                                             | `bool`                | no       | No                         |
-| `host`          | If not specified, the command will execute locally.                                                     | `string`              | no       | No                         |
+| `host`          | Depricated: use `hosts`. If not specified, the command will execute locally.                                                     | `string`              | no       | No                         |
+| `hosts`         | Must be specified to run commands both locallly and in parrallel.                                                     | `[]string`              | no       | No                         |
 | `scriptEnvFile` | When type is `scriptFile` or `script`, this file is prepended to the input.                             | `string`              | no       | No                         |
 | `shell`         | Run the command in the shell                                                                            | `string`              | no       | No                         |
 | `hooks`         | Hooks are used at the end of the individual command. Must have at least `error`, `success`, or `final`. | `map[string][]string` | no       | No                         |
@@ -51,7 +52,12 @@ Get command output when a notification is sent.
 
 Is not required. Can be `true` or `false`.
 
-#### host
+### host
+
+
+{{% notice warning %}}
+Depricated: use `hosts` instead.
+{{% /notice %}}
 
 {{% notice info %}}
 If any `host` is not defined or left blank, the command will run on the local machine.
@@ -65,6 +71,36 @@ If any `host` from the commands section does not match any object in the `hosts`
 For example, say that I have a host defined in my SSH config with the `Host` defined as `web-prod`.
 If I assign a value to host as `host: web-prod` and don't specify this value in the `hosts` object, web-prod will be used as the `Host` in searching the SSH config files.
 {{% /notice %}}
+
+### hosts
+
+{{% notice info %}}
+If any `command.[name].hosts` index is `localhost` or `127.0.0.1`, the command will run on the local machine.
+
+You can also remove the field to have the command run locally.
+{{% /notice %}}
+
+Host may or may not be defined in the `hosts` section.
+
+{{% notice info %}}
+If any `host` from the commands section does not match any object in the `hosts` section, the `Host` is assumed to be this value. This value will be used to search in the default SSH config files.
+
+For example, say that I have a host defined in my SSH config with the `Host` defined as `web-prod`.
+If I assign a value to host as `host: web-prod` and don't specify this value in the `hosts` object, web-prod will be used as the `Host` in searching the SSH config files.
+{{% /notice %}}
+
+###### Example:
+
+
+```yaml
+command:
+  start-some-process:
+    cmd: start-server
+    hosts:
+      - prod-1
+      - prod-2
+```
+
 
 ### shell
 

@@ -1,3 +1,0 @@
-kind: Changed
-body: lists loaded from external files only if no list config present in current file
-time: 2025-03-25T00:33:57.039431409-05:00

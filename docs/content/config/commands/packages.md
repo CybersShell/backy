@@ -8,7 +8,7 @@ This is dedicated to `package` commands. The command `type` field must be `packa
 
 | name | notes | type | required |
 | --- | --- | --- | --- |
-| `packageName` | The name of a package to be modified. | `string` | yes |
+| `packageName` | The name of a package to be modified. | `[]packagemanagercommon.Package` | yes |
 | `packageManager` | The name of the package manger to be used. | `string` | yes |
 | `packageOperation` | The type of operation to perform. | `string` | yes |
 | `packageVersion` | The version of a package. | `string` | no |
@@ -22,7 +22,9 @@ The following is an example of a package command:
  update-docker:
     type: package
     shell: zsh
-    packageName: docker-ce
+    packages:
+	  - name: docker-ce
+	    version: 10
     packageManager: apt
     packageOperation: install
     host: debian-based-host

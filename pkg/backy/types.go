@@ -57,7 +57,8 @@ type (
 		// See CommandType enum further down the page for acceptable values
 		Type CommandType `yaml:"type,omitempty"`
 
-		Host string `yaml:"host,omitempty"`
+		Host  string   `yaml:"host,omitempty"`
+		Hosts []string `yaml:"hosts,omitempty"`
 
 		Hooks *Hooks `yaml:"hooks,omitempty"`
 
