@@ -471,9 +471,6 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 	}
 	defer commandSession.Close()
 
-	// Inject environment variables
-	injectEnvIntoSSH(envVars, commandSession, opts, cmdCtxLogger)
-
 	// Set output writers
 	cmdOutWriters = io.MultiWriter(&cmdOutBuf)
 	if IsCmdStdOutEnabled() {
@@ -492,6 +489,7 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
 	case PackageCommandType:
 		var remoteHostPackageExecutor RemoteHostPackageExecutor
+		injectEnvIntoSSH(envVars, commandSession, opts, cmdCtxLogger)
 		return remoteHostPackageExecutor.RunCmdOnHost(command, commandSession, cmdCtxLogger, cmdOutBuf)
 	default:
 		if command.Shell != "" {
@@ -500,6 +498,12 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 			ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
 		}
 		cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
+
+		//! environment vars and SSH:
+		//? skip if commandType is not *script*?
+		//? option to use SSH setenv or add to beginning?
+		// Inject environment variables
+		injectEnvIntoSSH(envVars, commandSession, opts, cmdCtxLogger)
 
 		if command.Type == UserCommandType && command.UserOperation == "password" {
 			// cmdCtxLogger.Debug().Msgf("adding stdin")
@@ -673,6 +677,11 @@ func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger zerolog
 func (command *Command) prepareScriptBuffer() (*bytes.Buffer, error) {
 	var buffer bytes.Buffer
 
+	for _, envVar := range command.Environment {
+		buffer.WriteString(fmt.Sprintf("export %s", envVar))
+		buffer.WriteByte('\n')
+	}
+
 	if command.ScriptEnvFile != "" {
 		envBuffer, err := readFileToBuffer(command.ScriptEnvFile)
 		if err != nil {
@@ -693,6 +702,11 @@ func (command *Command) prepareScriptBuffer() (*bytes.Buffer, error) {
 // prepareScriptFileBuffer prepares a buffer for script files.
 func (command *Command) prepareScriptFileBuffer() (*bytes.Buffer, error) {
 	var buffer bytes.Buffer
+
+	for _, envVar := range command.Environment {
+		buffer.WriteString(fmt.Sprintf("export %s", envVar))
+		buffer.WriteByte('\n')
+	}
 
 	// Handle script environment file
 	if command.ScriptEnvFile != "" {
