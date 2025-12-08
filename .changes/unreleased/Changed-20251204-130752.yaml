@@ -1,0 +1,3 @@
+kind: Changed
+body: fix local command injection by running in a shell
+time: 2025-12-04T13:07:52.991487307-06:00

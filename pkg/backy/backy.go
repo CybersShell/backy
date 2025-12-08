@@ -350,7 +350,11 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 				ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
 				localCMD = exec.Command("/bin/sh", "-c", ArgsStr)
 			} else {
-				localCMD = exec.Command(command.Cmd, command.Args...)
+				if command.Env != "" || command.Environment != nil {
+					localCMD = exec.Command("/bin/sh", "-c", ArgsStr)
+				} else {
+					localCMD = exec.Command(command.Cmd, command.Args...)
+				}
 			}
 		}
 

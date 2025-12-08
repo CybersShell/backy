@@ -22,6 +22,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/knadh/koanf/v2"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
 	"mvdan.cc/sh/v3/shell"
 )
@@ -99,7 +100,7 @@ func NewConfigOptions(configFilePath string, opts ...BackyOptionFunc) *ConfigOpt
 	return b
 }
 
-func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, opts *ConfigOpts, log zerolog.Logger) {
+func injectEnvIntoSSH(envVarsToInject environmentVars, session *ssh.Session, opts *ConfigOpts, log zerolog.Logger) error {
 	if envVarsToInject.file != "" {
 		envPath, envPathErr := getFullPathWithHomeDir(envVarsToInject.file)
 		if envPathErr != nil {
@@ -113,31 +114,31 @@ func injectEnvIntoSSH(envVarsToInject environmentVars, process *ssh.Session, opt
 
 		envMap, err := godotenv.Parse(file)
 		if err != nil {
-			log.Error().Str("envFile", envPath).Err(err).Send()
-			goto errEnvFile
+			log.Fatal().Str("envFile", envPath).Err(err).Send()
 		}
 		for key, val := range envMap {
-			err = process.Setenv(key, getExternalConfigDirectiveValue(val, opts, AllowedExternalDirectiveVault))
+			err = session.Setenv(key, getExternalConfigDirectiveValue(val, opts, AllowedExternalDirectiveVault))
 			if err != nil {
-				log.Error().Err(err).Send()
-
+				log.Info().Err(err).Send()
+				return fmt.Errorf("failed to set environment variable %s: %w", val, err)
 			}
 		}
 	}
 
-errEnvFile:
 	// fmt.Printf("%v", envVarsToInject.env)
 	for _, envVal := range envVarsToInject.env {
 		// don't append env Vars for Backy
 		if strings.Contains(envVal, "=") {
 			envVarArr := strings.Split(envVal, "=")
 
-			err := process.Setenv(envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts, AllowedExternalDirectiveVaultFile))
+			err := session.Setenv(envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts, AllowedExternalDirectiveVaultFile))
 			if err != nil {
-				log.Error().Err(err).Send()
+				log.Info().Err(err).Send()
+				return fmt.Errorf("failed to set environment variable %s: %w", envVarArr[1], err)
 			}
 		}
 	}
+	return nil
 }
 
 func injectEnvIntoLocalCMD(envVarsToInject environmentVars, process *exec.Cmd, log zerolog.Logger, opts *ConfigOpts) {
@@ -169,6 +170,35 @@ errEnvFile:
 		}
 	}
 	process.Env = append(process.Env, os.Environ()...)
+}
+
+func prependEnvVarsToCommand(envVars environmentVars, opts *ConfigOpts, command string, args []string, cmdCtxLogger zerolog.Logger) string {
+	var envPrefix string
+	if envVars.file != "" {
+		envPath, envPathErr := getFullPathWithHomeDir(envVars.file)
+		if envPathErr != nil {
+			cmdCtxLogger.Fatal().Str("envFile", envPath).Err(envPathErr).Send()
+		}
+		file, err := os.Open(envPath)
+		if err != nil {
+			log.Fatal().Str("envFile", envPath).Err(err).Send()
+		}
+		defer file.Close()
+
+		envMap, err := godotenv.Parse(file)
+		if err != nil {
+			log.Fatal().Str("envFile", envPath).Err(err).Send()
+		}
+		for key, val := range envMap {
+			envPrefix += fmt.Sprintf("%s=%s ", key, getExternalConfigDirectiveValue(val, opts, AllowedExternalDirectiveVaultEnv))
+		}
+	}
+	for _, value := range envVars.env {
+		envVarArr := strings.Split(value, "=")
+		envPrefix += fmt.Sprintf("%s=%s ", envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts, AllowedExternalDirectiveVault))
+		envPrefix += "\n"
+	}
+	return envPrefix + command + " " + strings.Join(args, " ")
 }
 
 func contains(s []string, e string) bool {
@@ -403,24 +433,22 @@ func getExternalConfigDirectiveValue(key string, opts *ConfigOpts, allowedDirect
 	key = replaceVarInString(opts.Vars, key, opts.Logger)
 	opts.Logger.Debug().Str("expanding external key", key).Send()
 
-	if strings.HasPrefix(key, envExternDirectiveStart) {
+	if newKeyStr, directiveFound := strings.CutPrefix(key, envExternDirectiveStart); directiveFound {
 		if IsExternalDirectiveEnv(allowedDirectives) {
 
-			key = strings.TrimPrefix(key, envExternDirectiveStart)
-			key = strings.TrimSuffix(key, externDirectiveEnd)
+			key = strings.TrimSuffix(newKeyStr, externDirectiveEnd)
 			key = os.Getenv(key)
 		} else {
 			opts.Logger.Error().Msgf("Config key with value %s does not support env directive", key)
 		}
 	}
 
-	if strings.HasPrefix(key, externFileDirectiveStart) {
+	if newKeyStr, directiveFound := strings.CutPrefix(key, externFileDirectiveStart); directiveFound {
 		if IsExternalDirectiveFile(allowedDirectives) {
 
 			var err error
 			var keyValue []byte
-			key = strings.TrimPrefix(key, externFileDirectiveStart)
-			key = strings.TrimSuffix(key, externDirectiveEnd)
+			key = strings.TrimSuffix(newKeyStr, externDirectiveEnd)
 			key, err = getFullPathWithHomeDir(key)
 			if err != nil {
 				opts.Logger.Err(err).Send()
@@ -440,11 +468,10 @@ func getExternalConfigDirectiveValue(key string, opts *ConfigOpts, allowedDirect
 		}
 	}
 
-	if strings.HasPrefix(key, vaultExternDirectiveStart) {
+	if newKeyStr, directiveFound := strings.CutPrefix(key, vaultExternDirectiveStart); directiveFound {
 		if IsExternalDirectiveVault(allowedDirectives) {
 
-			key = strings.TrimPrefix(key, vaultExternDirectiveStart)
-			key = strings.TrimSuffix(key, externDirectiveEnd)
+			key = strings.TrimSuffix(newKeyStr, externDirectiveEnd)
 			key = GetVaultKey(key, opts, opts.Logger)
 		} else {
 			opts.Logger.Error().Msgf("Config key with value %s does not support vault directive", key)

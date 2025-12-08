@@ -68,7 +68,8 @@ type (
 
 		RemoteHost *Host `yaml:"-"`
 
-		Args []string `yaml:"args,omitempty"`
+		Args   []string `yaml:"args,omitempty"`
+		ArgStr string
 
 		Dir *string `yaml:"dir,omitempty"`
 

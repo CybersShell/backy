@@ -2,6 +2,8 @@ commands:
   checkDockerNoVersion:
     type: package
     shell: zsh
+    environment:
+      - TEST_ENV=production
     packages: 
       - name: "docker-ce-cli"
       - name: "docker-ce"

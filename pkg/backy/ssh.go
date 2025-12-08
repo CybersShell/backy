@@ -479,6 +479,16 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 	commandSession.Stdout = cmdOutWriters
 	commandSession.Stderr = cmdOutWriters
 
+	command.ArgStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
+	//! environment vars and SSH:
+	//? skip if commandType is not *script*?
+	//? option to use SSH setenv or add to beginning?
+	// Inject environment variables
+	err = injectEnvIntoSSH(envVars, commandSession, opts, cmdCtxLogger)
+	if err != nil {
+		cmdCtxLogger.Info().Err(fmt.Errorf("%v; appending env variables to beginning of command", err)).Send()
+		command.ArgStr = prependEnvVarsToCommand(envVars, opts, command.Cmd, command.Args, cmdCtxLogger)
+	}
 	// Handle command execution based on type
 	switch command.Type {
 	case ScriptCommandType:
@@ -489,21 +499,18 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
 	case PackageCommandType:
 		var remoteHostPackageExecutor RemoteHostPackageExecutor
-		injectEnvIntoSSH(envVars, commandSession, opts, cmdCtxLogger)
 		return remoteHostPackageExecutor.RunCmdOnHost(command, commandSession, cmdCtxLogger, cmdOutBuf)
 	default:
 		if command.Shell != "" {
-			ArgsStr = fmt.Sprintf("%s -c '%s %s'", command.Shell, command.Cmd, ArgsStr)
+			command.ArgStr = fmt.Sprintf("%s -c '%s'", command.Shell, command.ArgStr)
 		} else {
-			ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
-		}
-		cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
+			if command.Env == "" && command.Environment == nil {
+				// command.ArgStr = fmt.Sprintf("/bin/sh -c '%s'", command.ArgStr)
+				command.ArgStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
+			}
 
-		//! environment vars and SSH:
-		//? skip if commandType is not *script*?
-		//? option to use SSH setenv or add to beginning?
-		// Inject environment variables
-		injectEnvIntoSSH(envVars, commandSession, opts, cmdCtxLogger)
+		}
+		// cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
 
 		if command.Type == UserCommandType && command.UserOperation == "password" {
 			// cmdCtxLogger.Debug().Msgf("adding stdin")
@@ -526,6 +533,7 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 			}
 
 			ArgsStr = fmt.Sprintf("cat %s | chpasswd", passFilePath)
+			command.ArgStr = ArgsStr
 			defer passFile.Close()
 
 			rmFileFunc := func() {
@@ -534,7 +542,7 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 
 			defer rmFileFunc()
 		}
-		if err := commandSession.Run(ArgsStr); err != nil {
+		if err := commandSession.Run(command.ArgStr); err != nil {
 			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
 		}
 
@@ -610,11 +618,10 @@ func checkPackageVersion(cmdCtxLogger zerolog.Logger, command *Command, commandS
 	for _, v := range command.Args {
 		ArgsStr += fmt.Sprintf(" %s", v)
 	}
-
 	var err error
 	var cmdOut []byte
 
-	if cmdOut, err = commandSession.CombinedOutput(ArgsStr); err != nil {
+	if cmdOut, err = commandSession.CombinedOutput(command.ArgStr); err != nil {
 		cmdOutBuf.Write(cmdOut)
 
 		_, parseErr := parsePackageVersion(string(cmdOut), cmdCtxLogger, command, cmdOutBuf)
@@ -850,7 +857,7 @@ func (r RemoteHostPackageExecutor) RunCmdOnHost(command *Command, commandSession
 		return checkPackageVersion(cmdCtxLogger, command, commandSession, cmdOutBuf)
 	}
 	if command.Shell != "" {
-		ArgsStr = fmt.Sprintf("%s -c '%s %s'", command.Shell, command.Cmd, ArgsStr)
+		ArgsStr = fmt.Sprintf("%s -c '%s'", command.Shell, command.ArgStr)
 	} else {
 		ArgsStr = fmt.Sprintf("%s %s", command.Cmd, ArgsStr)
 	}

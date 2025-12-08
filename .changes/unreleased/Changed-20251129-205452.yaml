@@ -1,0 +1,3 @@
+kind: Changed
+body: inject ssh env vars by apppending them to the script/command if SSH setenv fails
+time: 2025-11-29T20:54:52.861824741-06:00
