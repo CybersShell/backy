@@ -12,4 +12,4 @@ External directives are for including data that should not be in the config file
 
 See the docs of each command if the field is supported.
 
-If the file path does not begin with a `/`, the config file's directory will be used as the starting point.
+If the file path does not begin with the root directory marker, usually `/`, the config file's directory will be used as the starting point.
