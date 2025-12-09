@@ -7,7 +7,7 @@ commands:
       success:
         - successCmd
 
-  errorCmd:
+  successCmd:
     name: get docker version
     cmd: docker
     getOutput: true
