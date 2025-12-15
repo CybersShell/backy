@@ -46,7 +46,12 @@ func TestIntegration_ExecuteCommandWithConfig(t *testing.T) {
 		t.Fatalf("Config file not found: %s", configFile)
 	}
 
-	cmd := exec.Command("go", "run", "../backy.go", "exec", "--config", configFile, "echoTestSuccess")
+	args := []string{"--config", configFile}
+	hosts := []string{"localhost"}
+
+	execListArgs := setupExecListRunOnHosts([]string{"echoTestSuccess"}, hosts, args)
+
+	cmd := exec.Command("go", execListArgs...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -57,5 +62,20 @@ func TestIntegration_ExecuteCommandWithConfig(t *testing.T) {
 		t.Fatal("Expected command output, got none")
 	}
 
-	t.Logf("Command output: %s", string(output))
+	t.Logf("Command output:\n\n%s\n\n", string(output))
+}
+
+func setupExecListRunOnHosts(cmds, hosts, args []string) []string {
+	baseArgs := []string{"run", "../backy.go", "exec", "host"}
+	for _, h := range hosts {
+		hostArg := "-m"
+		hostArg += h
+		baseArgs = append(baseArgs, hostArg)
+	}
+	for _, c := range cmds {
+		cmdArg := "-c"
+		cmdArg += c
+		baseArgs = append(baseArgs, cmdArg)
+	}
+	return append(baseArgs, args...)
 }
