@@ -16,7 +16,6 @@ Note: Backy uses the second field of cron, so add anything except `*` to the beg
 GoCron allows one to configure a server to view the jobs in the scheduler. See [GoCron UI GitHub](https://github.com/go-co-op/gocron-ui).
 GoCron can be configured or left alone for defaults.
 
-
 GoCron configuration:
 
 | key | description | type | required | default
