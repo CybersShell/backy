@@ -169,6 +169,8 @@ func (opts *ConfigOpts) ParseConfigurationFile() *ConfigOpts {
 		logging.ExitWithMSG("No cron fields detected in any command lists", 1, nil)
 	}
 
+	unmarshalConfigIntoStruct(backyKoanf, "goCron", &opts.GoCron, opts.Logger)
+
 	if err := processCmds(opts); err != nil {
 		logging.ExitWithMSG(err.Error(), 1, &opts.Logger)
 	}
@@ -425,6 +427,9 @@ func generateFileFetchErrorString(file, fileType string, err error) string {
 func validateCommandLists(opts *ConfigOpts) {
 	var cmdNotFoundSliceErr []error
 	for cmdListName, cmdList := range opts.CmdConfigLists {
+		if cmdList.Name == "" {
+			cmdList.Name = cmdListName
+		}
 		// if cron is enabled and cron is not set, delete the list
 		if opts.cronEnabled && strings.TrimSpace(cmdList.Cron) == "" {
 			opts.Logger.Debug().Str("cron", "enabled").Str("list", cmdListName).Msg("cron not set, deleting list")

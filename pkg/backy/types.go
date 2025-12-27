@@ -170,6 +170,12 @@ type (
 		Type         string `yaml:"type"`
 	}
 
+	GoCronOpts struct {
+		BindAddress string `yaml:"bindAddress"`
+		UseSeconds  bool   `yaml:"useSeconds"`
+		Port        int    `yaml:"port"`
+	}
+
 	ConfigOpts struct {
 		// Cmds holds the commands for a list.
 		// Key is the name of the command,
@@ -182,6 +188,8 @@ type (
 		// Hosts holds the Host config.
 		// key is the host.
 		Hosts map[string]*Host `yaml:"hosts"`
+
+		GoCron GoCronOpts `yaml:"goCron:"`
 
 		Logger zerolog.Logger
 
