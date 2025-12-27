@@ -1,6 +1,6 @@
 steps:
   build:
-    image: golang
+    image: golang:1.24
     commands:
       - go build
       - go test
