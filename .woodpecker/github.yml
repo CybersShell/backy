@@ -3,10 +3,10 @@ steps:
     image: golang:1.24
     commands:
       - go install github.com/goreleaser/goreleaser/v2@v2.7.0
-      - goreleaser release -f .goreleaser/gitea.yml --release-notes=".changes/$(go run backy.go version -V).md"
+      - goreleaser release -f .goreleaser/github.yml --release-notes=".changes/$(go run backy.go version -V).md"
     environment:
-      GITEA_TOKEN:
-        from_secret: gitea_token
+      GITHUB_TOKEN:
+        from_secret: github_token
         
     when:
       event: tag
