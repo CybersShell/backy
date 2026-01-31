@@ -2,6 +2,7 @@ package backy
 
 import (
 	"bytes"
+	"io/fs"
 	"text/template"
 
 	"strings"
@@ -79,6 +80,8 @@ type (
 
 		ScriptEnvFile string `yaml:"scriptEnvFile"`
 
+		SaveShellHistory bool `yaml:"saveShellHistory,omitempty"`
+
 		Output struct {
 			File   string `yaml:"file,omitempty"`
 			ToLog  bool   `yaml:"toLog,omitempty"`
@@ -138,7 +141,20 @@ type (
 		// stdin only for userOperation = password (for now)
 		stdin *strings.Reader
 
-		// END USER STRUCommandType FIELDS
+		// END USER CommandType FIELDS
+
+		// BEGIN FILE COMMAND FIELDS
+
+		FileOperation   string      `yaml:"fileOperation,omitempty"`
+		Source          string      `yaml:"source,omitempty"`
+		DestinationType string      `yaml:"destinationType,omitempty"`
+		SourceType      string      `yaml:"sourceType,omitempty"`
+		Destination     string      `yaml:"destination,omitempty"`
+		Permissions     fs.FileMode `yaml:"permissions,omitempty"`
+		Owner           string      `yaml:"owner,omitempty"`
+		Group           string      `yaml:"group,omitempty"`
+
+		// END FILE COMMAND FIELDS
 	}
 
 	RemoteSource struct {
@@ -312,6 +328,7 @@ type (
 	CommandType               int
 	PackageOperation          int
 	AllowedExternalDirectives int
+	FileCommandOperation      int
 )
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=CommandType
@@ -322,6 +339,7 @@ const (
 	RemoteScriptCommandType                    // remoteScript
 	PackageCommandType                         // package
 	UserCommandType                            // user
+	FileCommandType                            // file
 )
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=PackageOperation
@@ -333,6 +351,16 @@ const (
 	PackageOperationRemove                               // remove
 	PackageOperationCheckVersion                         // checkVersion
 	PackageOperationIsInstalled                          // isInstalled
+)
+
+//go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=FileCommandOperation
+const (
+	DefaultFCO                 FileCommandOperation = iota //
+	FileCommandOperationCopy                               // copy
+	FileCommandOperationMove                               // move
+	FileCommandOperationDelete                             // delete
+	FileCommandOperationChown                              // chown
+	FileCommandOperationChmod                              // chmod
 )
 
 //go:generate go run github.com/dmarkham/enumer -linecomment -yaml -text -json -type=AllowedExternalDirectives

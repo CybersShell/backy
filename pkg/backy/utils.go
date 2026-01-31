@@ -5,6 +5,7 @@
 package backy
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -173,7 +174,7 @@ errEnvFile:
 }
 
 func prependEnvVarsToCommand(envVars environmentVars, opts *ConfigOpts, command string, args []string, cmdCtxLogger zerolog.Logger) string {
-	var envPrefix string
+	var envPrefix strings.Builder
 	if envVars.file != "" {
 		envPath, envPathErr := getFullPathWithHomeDir(envVars.file)
 		if envPathErr != nil {
@@ -190,15 +191,15 @@ func prependEnvVarsToCommand(envVars environmentVars, opts *ConfigOpts, command 
 			log.Fatal().Str("envFile", envPath).Err(err).Send()
 		}
 		for key, val := range envMap {
-			envPrefix += fmt.Sprintf("%s=%s ", key, getExternalConfigDirectiveValue(val, opts, AllowedExternalDirectiveVaultEnv))
+			fmt.Fprintf(&envPrefix, "%s=%s ", key, getExternalConfigDirectiveValue(val, opts, AllowedExternalDirectiveVaultEnv))
 		}
 	}
 	for _, value := range envVars.env {
 		envVarArr := strings.Split(value, "=")
-		envPrefix += fmt.Sprintf("%s=%s ", envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts, AllowedExternalDirectiveVault))
-		envPrefix += "\n"
+		fmt.Fprintf(&envPrefix, "%s=%s ", envVarArr[0], getExternalConfigDirectiveValue(envVarArr[1], opts, AllowedExternalDirectiveVault))
+		envPrefix.WriteString("\n")
 	}
-	return envPrefix + command + " " + strings.Join(args, " ")
+	return envPrefix.String() + command + " " + strings.Join(args, " ")
 }
 
 func contains(s []string, e string) bool {
@@ -218,6 +219,47 @@ func CheckConfigValues(config *koanf.Koanf, file string) {
 			logging.ExitWithMSG(Sprintf("Config key %s is not defined in %s. Please make sure this value is set and has the appropriate keys set.", key, file), 1, nil)
 		}
 	}
+}
+
+// collectOutput collects output from a buffer and logs it.
+func collectOutput(buf *bytes.Buffer, commandName string, logger zerolog.Logger, wantOutput bool) []string {
+	var outputArr []string
+	scanner := bufio.NewScanner(buf)
+	for scanner.Scan() {
+		line := scanner.Text()
+		clean := sanitizeString(line)
+		outputArr = append(outputArr, clean)
+		if wantOutput {
+			logger.Info().Str("cmd", commandName).Str("output", clean).Send()
+		}
+	}
+	return outputArr
+}
+
+// sanitizeString removes ANSI escape sequences and non-printable control characters
+// while preserving tabs. This helps remove color codes and other terminal control
+// characters from remote command output.
+func sanitizeString(s string) string {
+	// Remove common ANSI CSI sequences like "\x1b[31m" etc.
+	var ansiCSI = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
+	s = ansiCSI.ReplaceAllString(s, "")
+
+	// Remove OSC sequences started by ESC ] and terminated by BEL or ESC\
+	var osc = regexp.MustCompile(`(?s)"].*?(?:|\\)`)
+	s = osc.ReplaceAllString(s, "")
+
+	// Sometimes the ESC has been stripped earlier and we are left with sequences like "]2;title]1;"
+	// Remove leftover bracketed sequences like "]<digits>;<text>"
+	var leftoverOSC = regexp.MustCompile(`\][0-9]+[^\]]*`)
+	s = leftoverOSC.ReplaceAllString(s, "")
+
+	var b strings.Builder
+	for _, r := range s {
+		if r == '\t' || (r >= 0x20 && r != 0x7f) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func testFile(c string) error {

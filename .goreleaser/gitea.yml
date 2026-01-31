@@ -34,6 +34,8 @@ snapshot:
   version_template: "{{ incpatch .Version }}-next"
 changelog:
   disable: false
+release:
+  prerelease: auto
 
 gitea_urls:
   api: https://git.andrewnw.xyz/api/v1

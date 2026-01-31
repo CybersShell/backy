@@ -31,6 +31,8 @@ archives:
       formats: [zip]
 checksum:
   name_template: 'checksums.txt'
+release:
+  prerelease: auto
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 changelog:

@@ -5,7 +5,6 @@
 package backy
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -472,10 +471,25 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 	defer commandSession.Close()
 
 	// Set output writers
-	cmdOutWriters = io.MultiWriter(&cmdOutBuf)
-	if IsCmdStdOutEnabled() {
-		cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
+	var file *os.File
+	if !IsHostLocal(command.Host) && command.Output.File != "" {
+		command.Output.File = fmt.Sprintf("%s_%s", command.RemoteHost.Host, command.Output.File)
 	}
+
+	cmdOutWriters, file, err = makeCmdOutWriters(&cmdOutBuf, command.Output.File)
+	if err != nil {
+		return nil, fmt.Errorf("error creating command output writers: %w", err)
+	}
+	defer func() {
+		if file != nil {
+			file.Close()
+		}
+	}()
+	// cmdOutWriters = logging.SetLoggingWriterForCommand(&cmdOutBuf, command.Output.File, IsCmdStdOutEnabled())
+	cmdCtxLogger = zerolog.New(cmdOutWriters).With().Timestamp().Logger()
+	cmdCtxLogger = command.GenerateLoggerForCmd(cmdCtxLogger)
+
+	// cmdCtxLogger.Info().Msgf("Executing %s", command.Cmd)
 	commandSession.Stdout = cmdOutWriters
 	commandSession.Stderr = cmdOutWriters
 
@@ -496,7 +510,9 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 	case RemoteScriptCommandType:
 		return command.runRemoteScript(commandSession, cmdCtxLogger, &cmdOutBuf)
 	case ScriptFileCommandType:
-		return command.runScriptFile(commandSession, cmdCtxLogger, &cmdOutBuf)
+		commandSession.Stdout = nil
+		commandSession.Stderr = nil
+		return command.runScriptFile(commandSession, cmdCtxLogger, opts.Logger, &cmdOutBuf)
 	case PackageCommandType:
 		var remoteHostPackageExecutor RemoteHostPackageExecutor
 		return remoteHostPackageExecutor.RunCmdOnHost(command, commandSession, cmdCtxLogger, cmdOutBuf)
@@ -662,22 +678,56 @@ func (command *Command) runScript(session *ssh.Session, cmdCtxLogger zerolog.Log
 }
 
 // runScriptFile handles the execution of script files.
-func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger zerolog.Logger, outputBuf *bytes.Buffer) ([]string, error) {
+func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger, globalLogger zerolog.Logger, outputBuf *bytes.Buffer) ([]string, error) {
 	script, err := command.prepareScriptFileBuffer()
 	if err != nil {
 		return nil, err
 	}
-	session.Stdin = script
+	// session.Stdin = script
+
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          0,
+		ssh.ECHOCTL:       0,
+		ssh.TTY_OP_ISPEED: 14400,
+		ssh.TTY_OP_OSPEED: 14400,
+	}
+
+	session.RequestPty("xterm", 80, 40, modes)
+
+	stdin, _ := session.StdinPipe()
+	stdout, stdOutErr := session.StdoutPipe()
+	if stdOutErr != nil {
+		return nil, fmt.Errorf("error getting stdout pipe: %w", stdOutErr)
+	}
 
 	if err := session.Shell(); err != nil {
 		return nil, fmt.Errorf("error starting shell: %w", err)
 	}
-
-	if err := session.Wait(); err != nil {
-		return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error waiting for shell: %w", err)
+	var LogOutputToFile bool
+	if command.Output.File != "" || command.Output.ToLog {
+		if command.Output.File != "" {
+			globalLogger.Info().Str("file", command.Output.File).Msg("Writing script output to file")
+		}
+		LogOutputToFile = true
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
+	stdin.Write(script.Bytes())
+
+	stdOutput, stdoOutReadErr := io.ReadAll(stdout)
+	if err := session.Wait(); err != nil {
+		stdOutBuff := bytes.NewBuffer(stdOutput)
+		// outputBuf.Write(stdOutBuff.Bytes())
+		// Read output
+		return collectOutput(stdOutBuff, command.Name, cmdCtxLogger, LogOutputToFile), fmt.Errorf("error waiting for shell: %w", err)
+	}
+
+	// Read output
+	if stdoOutReadErr != nil {
+		return collectOutput(outputBuf, command.Name, cmdCtxLogger, LogOutputToFile), fmt.Errorf("error reading stdout after shell error: %w", stdoOutReadErr)
+	}
+	stdOutBuff := bytes.NewBuffer(stdOutput)
+
+	return collectOutput(stdOutBuff, command.Name, cmdCtxLogger, LogOutputToFile), nil
 }
 
 // prepareScriptBuffer prepares a buffer for inline scripts.
@@ -685,7 +735,7 @@ func (command *Command) prepareScriptBuffer() (*bytes.Buffer, error) {
 	var buffer bytes.Buffer
 
 	for _, envVar := range command.Environment {
-		buffer.WriteString(fmt.Sprintf("export %s", envVar))
+		fmt.Fprintf(&buffer, "export %s", envVar)
 		buffer.WriteByte('\n')
 	}
 
@@ -710,8 +760,12 @@ func (command *Command) prepareScriptBuffer() (*bytes.Buffer, error) {
 func (command *Command) prepareScriptFileBuffer() (*bytes.Buffer, error) {
 	var buffer bytes.Buffer
 
+	if !command.SaveShellHistory {
+		buffer.WriteString("unset HISTFILE\nexport HISTSIZE=0\nexport SAVEHIST=0\n")
+	}
+
 	for _, envVar := range command.Environment {
-		buffer.WriteString(fmt.Sprintf("export %s", envVar))
+		fmt.Fprintf(&buffer, "export %s", envVar)
 		buffer.WriteByte('\n')
 	}
 
@@ -772,20 +826,6 @@ func readFileToBuffer(filePath string) (*bytes.Buffer, error) {
 	}
 
 	return &buffer, nil
-}
-
-// collectOutput collects output from a buffer and logs it.
-func collectOutput(buf *bytes.Buffer, commandName string, logger zerolog.Logger, wantOutput bool) []string {
-	var outputArr []string
-	scanner := bufio.NewScanner(buf)
-	for scanner.Scan() {
-		line := scanner.Text()
-		outputArr = append(outputArr, line)
-		if wantOutput {
-			logger.Info().Str("cmd", commandName).Str("output", line).Send()
-		}
-	}
-	return outputArr
 }
 
 // createSSHSession attempts to create a new SSH session and retries on failure.

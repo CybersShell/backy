@@ -549,7 +549,6 @@ func processCmds(opts *ConfigOpts) error {
 		}
 
 		if !IsHostLocal(cmd.Host) {
-
 			cmdHost := replaceVarInString(opts.Vars, cmd.Host, opts.Logger)
 			if cmdHost != cmd.Host {
 				cmd.Host = cmdHost

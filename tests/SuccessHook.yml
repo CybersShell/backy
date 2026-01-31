@@ -10,7 +10,8 @@ commands:
   successCmd:
     name: get docker version
     cmd: docker
-    getOutput: true
-    outputToLog: true
+    output:
+      file: docker_version_success.txt
+      toLog: true
     Args:
       - "-v"

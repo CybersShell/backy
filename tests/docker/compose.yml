@@ -1,0 +1,8 @@
+services:
+  ssh_server:
+    build: .
+    image: backy_ssh_server:latest
+    container_name: backy_ssh_server
+    ports:
+      - "2222:22"
+    restart: "no"

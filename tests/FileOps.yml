@@ -1,0 +1,12 @@
+commands:
+  copyFile:
+    type: file
+    fileOperation: copy
+    source: /home/andrew/Projects/backy/tests/data/fileops/source.txt
+    destination: /home/andrew/Projects/backy/tests/data/fileops/destination.txt
+  copyRemoteFile:
+    type: file
+    fileOperation: copy
+    sourceType: rempte
+    source: ssh://backy@localhost:2222/home/backy/remote_source.txt
+    destination: /home/andrew/Projects/backy/tests/data/fileops/remote_destination.txt

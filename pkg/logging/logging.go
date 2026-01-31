@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -61,6 +62,48 @@ func SetLoggingWriters(logFile string) (writers zerolog.LevelWriter) {
 	writers = zerolog.MultiLevelWriter(fileLogger)
 
 	if IsConsoleLoggingEnabled() {
+		writers = zerolog.MultiLevelWriter(console, fileLogger)
+	}
+	return
+}
+
+func SetLoggingWriterForCommand(buf *bytes.Buffer, logFile string, logToConsole bool) (writers zerolog.LevelWriter) {
+
+	console := zerolog.ConsoleWriter{}
+	if logToConsole {
+
+		console = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC1123}
+		console.FormatLevel = func(i interface{}) string {
+			return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+		}
+		console.FormatMessage = func(i any) string {
+			if i == nil {
+				return ""
+			}
+			return fmt.Sprintf("MSG: %s", i)
+		}
+		console.FormatFieldName = func(i interface{}) string {
+			return fmt.Sprintf("%s: ", i)
+		}
+		console.FormatFieldValue = func(i interface{}) string {
+			return fmt.Sprintf("%s", i)
+			// return strings.ToUpper(fmt.Sprintf("%s", i))
+		}
+	}
+
+	fileLogger := &lumberjack.Logger{
+		MaxSize:    50, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28,   //days
+		Compress:   true, // disabled by default
+	}
+	fileLogger.Filename = logFile
+	// UNIX Time is faster and smaller than most timestamps
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	// zerolog.TimeFieldFormat = time.RFC1123
+	writers = zerolog.MultiLevelWriter(fileLogger)
+
+	if logToConsole {
 		writers = zerolog.MultiLevelWriter(console, fileLogger)
 	}
 	return

@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const _CommandTypeName = "scriptscriptFileremoteScriptpackageuser"
+const _CommandTypeName = "scriptscriptFileremoteScriptpackageuserfile"
 
-var _CommandTypeIndex = [...]uint8{0, 0, 6, 16, 28, 35, 39}
+var _CommandTypeIndex = [...]uint8{0, 0, 6, 16, 28, 35, 39, 43}
 
-const _CommandTypeLowerName = "scriptscriptfileremotescriptpackageuser"
+const _CommandTypeLowerName = "scriptscriptfileremotescriptpackageuserfile"
 
 func (i CommandType) String() string {
 	if i < 0 || i >= CommandType(len(_CommandTypeIndex)-1) {
@@ -31,9 +31,10 @@ func _CommandTypeNoOp() {
 	_ = x[RemoteScriptCommandType-(3)]
 	_ = x[PackageCommandType-(4)]
 	_ = x[UserCommandType-(5)]
+	_ = x[FileCommandType-(6)]
 }
 
-var _CommandTypeValues = []CommandType{DefaultCommandType, ScriptCommandType, ScriptFileCommandType, RemoteScriptCommandType, PackageCommandType, UserCommandType}
+var _CommandTypeValues = []CommandType{DefaultCommandType, ScriptCommandType, ScriptFileCommandType, RemoteScriptCommandType, PackageCommandType, UserCommandType, FileCommandType}
 
 var _CommandTypeNameToValueMap = map[string]CommandType{
 	_CommandTypeName[0:0]:        DefaultCommandType,
@@ -48,6 +49,8 @@ var _CommandTypeNameToValueMap = map[string]CommandType{
 	_CommandTypeLowerName[28:35]: PackageCommandType,
 	_CommandTypeName[35:39]:      UserCommandType,
 	_CommandTypeLowerName[35:39]: UserCommandType,
+	_CommandTypeName[39:43]:      FileCommandType,
+	_CommandTypeLowerName[39:43]: FileCommandType,
 }
 
 var _CommandTypeNames = []string{
@@ -57,6 +60,7 @@ var _CommandTypeNames = []string{
 	_CommandTypeName[16:28],
 	_CommandTypeName[28:35],
 	_CommandTypeName[35:39],
+	_CommandTypeName[39:43],
 }
 
 // CommandTypeString retrieves an enum value from the enum constants string name.

@@ -14,10 +14,12 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"embed"
 
 	"github.com/rs/zerolog"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 //go:embed templates/*.txt
@@ -65,10 +67,10 @@ func (e *PackageCommandExecutor) Run(cmd *Command, opts *ConfigOpts, logger zero
 
 		// Execute the package version command
 		execCmd := exec.Command(cmd.Cmd, cmd.Args...)
-		cmdOutWriters = io.MultiWriter(&cmdOutBuf)
-
-		if IsCmdStdOutEnabled() {
-			cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
+		var err error
+		cmdOutWriters, _, err = makeCmdOutWriters(&cmdOutBuf, "")
+		if err != nil {
+			return nil, err
 		}
 		execCmd.Stdout = cmdOutWriters
 		execCmd.Stderr = cmdOutWriters
@@ -143,6 +145,48 @@ func (e *LocalCommandExecutor) Run(cmd *Command, opts *ConfigOpts, logger zerolo
 	}
 
 	return outputArr, nil
+}
+
+// makeCmdOutWriters constructs an io.Writer that writes to the provided buffer,
+// optionally also to stdout and/or a file. If a file path is provided the
+// caller is responsible for closing the returned *os.File when non-nil.
+func makeCmdOutWriters(buf *bytes.Buffer, outputFile string) (io.Writer, *os.File, error) {
+	writers := io.MultiWriter(buf)
+	if IsCmdStdOutEnabled() {
+
+		console := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC1123}
+		console.FormatLevel = func(i interface{}) string {
+			return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+		}
+		console.FormatMessage = func(i any) string {
+			if i == nil {
+				return ""
+			}
+			return fmt.Sprintf("MSG: %s", i)
+		}
+		console.FormatFieldName = func(i interface{}) string {
+			return fmt.Sprintf("%s: ", i)
+		}
+		console.FormatFieldValue = func(i interface{}) string {
+			return fmt.Sprintf("%s", i)
+			// return strings.ToUpper(fmt.Sprintf("%s", i))
+		}
+
+		writers = io.MultiWriter(console, writers)
+	}
+	if outputFile != "" {
+
+		fileLogger := &lumberjack.Logger{
+			MaxSize:    50, // megabytes
+			MaxBackups: 3,
+			MaxAge:     28,    //days
+			Compress:   false, // disabled by default
+		}
+		fileLogger.Filename = outputFile
+
+		writers = io.MultiWriter(fileLogger, writers)
+	}
+	return writers, nil, nil
 }
 
 // ensureRemoteHost ensures localCmd.RemoteHost is set for the given host.
@@ -250,6 +294,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 	}
 
 	if command.Type == UserCommandType {
+
 		if command.UserOperation == "password" {
 			cmdCtxLogger.Info().Str("password", command.UserPassword).Msg("user password to be updated")
 		}
@@ -283,23 +328,13 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 			localCMD = exec.Command(command.Shell, command.Args...)
 			injectEnvIntoLocalCMD(envVars, localCMD, cmdCtxLogger, opts)
 
-			cmdOutWriters = io.MultiWriter(&cmdOutBuf)
-
-			if IsCmdStdOutEnabled() {
-				cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
+			var outFile *os.File
+			cmdOutWriters, outFile, err := makeCmdOutWriters(&cmdOutBuf, command.Output.File)
+			if err != nil {
+				return nil, err
 			}
-			if command.Output.File != "" {
-				file, err := os.Create(command.Output.File)
-				if err != nil {
-					return nil, fmt.Errorf("error creating output file: %w", err)
-				}
-				defer file.Close()
-				cmdOutWriters = io.MultiWriter(file, &cmdOutBuf)
-
-				if IsCmdStdOutEnabled() {
-					cmdOutWriters = io.MultiWriter(os.Stdout, file, &cmdOutBuf)
-				}
-
+			if outFile != nil {
+				defer outFile.Close()
 			}
 
 			localCMD.Stdin = bytes.NewReader(script)
@@ -370,10 +405,9 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 
 		injectEnvIntoLocalCMD(envVars, localCMD, cmdCtxLogger, opts)
 
-		cmdOutWriters = io.MultiWriter(&cmdOutBuf)
-
-		if IsCmdStdOutEnabled() {
-			cmdOutWriters = io.MultiWriter(os.Stdout, &cmdOutBuf)
+		cmdOutWriters, _, err = makeCmdOutWriters(&cmdOutBuf, "")
+		if err != nil {
+			return outputArr, err
 		}
 
 		localCMD.Stdout = cmdOutWriters
@@ -952,6 +986,19 @@ func (cmd *Command) GenerateLogger(opts *ConfigOpts) zerolog.Logger {
 
 	if !IsHostLocal(cmd.Host) {
 		cmdLogger = opts.Logger.With().
+			Str("Backy-cmd", cmd.Name).Str("Host", cmd.Host).
+			Logger()
+	}
+	return cmdLogger
+}
+
+func (cmd *Command) GenerateLoggerForCmd(logger zerolog.Logger) zerolog.Logger {
+	cmdLogger := logger.With().
+		Str("Backy-cmd", cmd.Name).Str("Host", "local machine").
+		Logger()
+
+	if !IsHostLocal(cmd.Host) {
+		cmdLogger = logger.With().
 			Str("Backy-cmd", cmd.Name).Str("Host", cmd.Host).
 			Logger()
 	}
