@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -473,7 +474,13 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 	// Set output writers
 	var file *os.File
 	if !IsHostLocal(command.Host) && command.Output.File != "" {
-		command.Output.File = fmt.Sprintf("%s_%s", command.RemoteHost.Host, command.Output.File)
+		if filepath.IsAbs(command.Output.File) {
+			fileName := filepath.Base(command.Output.File)
+			fileName = fmt.Sprintf("%s_%s", command.RemoteHost.Host, fileName)
+			command.Output.File = filepath.Join(filepath.Dir(command.Output.File), fileName)
+		} else {
+			command.Output.File = fmt.Sprintf("%s_%s", command.RemoteHost.Host, command.Output.File)
+		}
 	}
 
 	cmdOutWriters, file, err = makeCmdOutWriters(&cmdOutBuf, command.Output.File)
