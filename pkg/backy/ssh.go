@@ -690,18 +690,17 @@ func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger, global
 	if err != nil {
 		return nil, err
 	}
-	// session.Stdin = script
+	session.Stdin = script
 
-	modes := ssh.TerminalModes{
-		ssh.ECHO:          0,
-		ssh.ECHOCTL:       0,
-		ssh.TTY_OP_ISPEED: 14400,
-		ssh.TTY_OP_OSPEED: 14400,
-	}
+	// modes := ssh.TerminalModes{
+	// 	ssh.ECHO:          0,
+	// 	ssh.ECHOCTL:       0,
+	// 	ssh.TTY_OP_ISPEED: 14400,
+	// 	ssh.TTY_OP_OSPEED: 14400,
+	// }
 
-	session.RequestPty("xterm", 80, 40, modes)
+	// session.RequestPty("xterm", 80, 40, modes)
 
-	stdin, _ := session.StdinPipe()
 	stdout, stdOutErr := session.StdoutPipe()
 	if stdOutErr != nil {
 		return nil, fmt.Errorf("error getting stdout pipe: %w", stdOutErr)
@@ -717,8 +716,6 @@ func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger, global
 		}
 		LogOutputToFile = true
 	}
-
-	stdin.Write(script.Bytes())
 
 	stdOutput, stdoOutReadErr := io.ReadAll(stdout)
 	if err := session.Wait(); err != nil {
