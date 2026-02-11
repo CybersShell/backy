@@ -73,6 +73,8 @@ func (opts *ConfigOpts) Cron() {
 	srv := server.NewServer(s, opts.GoCron.Port)
 	// srv := server.NewServer(scheduler, 8080, server.WithTitle("My Custom Scheduler")) // with custom title if you want to customize the title of the UI (optional)
 	opts.Logger.Info().Msgf("GoCron UI available at http://%s", opts.GoCron.BindAddress)
-	opts.Logger.Fatal().Msg(http.ListenAndServe(opts.GoCron.BindAddress, srv.Router).Error())
+	if err := http.ListenAndServe(opts.GoCron.BindAddress, srv.Router); err != nil {
+		opts.Logger.Fatal().Msg(err.Error())
+	}
 	select {} // wait forever
 }
