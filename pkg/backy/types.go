@@ -80,8 +80,6 @@ type (
 
 		ScriptEnvFile string `yaml:"scriptEnvFile"`
 
-		SaveShellHistory bool `yaml:"saveShellHistory,omitempty"`
-
 		Output struct {
 			File   string `yaml:"file,omitempty"`
 			ToLog  bool   `yaml:"toLog,omitempty"`

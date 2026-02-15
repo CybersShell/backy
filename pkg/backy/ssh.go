@@ -764,9 +764,9 @@ func (command *Command) prepareScriptBuffer() (*bytes.Buffer, error) {
 func (command *Command) prepareScriptFileBuffer() (*bytes.Buffer, error) {
 	var buffer bytes.Buffer
 
-	if !command.SaveShellHistory {
-		buffer.WriteString("unset HISTFILE\nexport HISTSIZE=0\nexport SAVEHIST=0\n")
-	}
+	// if !command.SaveShellHistory {
+	// 	buffer.WriteString("unset HISTFILE\nexport HISTSIZE=0\nexport SAVEHIST=0\n")
+	// }
 
 	for _, envVar := range command.Environment {
 		fmt.Fprintf(&buffer, "export %s", envVar)
