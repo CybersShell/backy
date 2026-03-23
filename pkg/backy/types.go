@@ -58,6 +58,8 @@ type (
 		// See CommandType enum further down the page for acceptable values
 		Type CommandType `yaml:"type,omitempty"`
 
+		RawOutput bytes.Buffer
+
 		Host  string   `yaml:"host,omitempty"`
 		Hosts []string `yaml:"hosts,omitempty"`
 
@@ -140,6 +142,11 @@ type (
 		stdin *strings.Reader
 
 		// END USER CommandType FIELDS
+
+		cmdLoggers struct {
+			global zerolog.Logger
+			cmdContxt zerolog.Logger
+		}
 
 		// BEGIN FILE COMMAND FIELDS
 
@@ -303,6 +310,7 @@ type (
 	}
 
 	CmdResult struct {
+		HostName string
 		CmdName  string // Name of the command executed
 		ListName string // Name of the command list
 		Error    error  // Error encountered, if any

@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/remotefetcher"
@@ -222,17 +223,23 @@ func CheckConfigValues(config *koanf.Koanf, file string) {
 }
 
 // collectOutput collects output from a buffer and logs it.
-func collectOutput(buf *bytes.Buffer, commandName string, logger zerolog.Logger, wantOutput bool) []string {
+func collectOutput(buf *bytes.Buffer, commandName string, logger, globalLogger zerolog.Logger, wantOutput bool) []string {
 	var outputArr []string
-	scanner := bufio.NewScanner(buf)
+	copyBuf := bytes.NewBuffer(buf.Bytes())
+	scanner := bufio.NewScanner(copyBuf)
 	for scanner.Scan() {
 		line := scanner.Text()
 		clean := sanitizeString(line)
 		outputArr = append(outputArr, clean)
 		if wantOutput {
+			time.Sleep(10 * time.Millisecond)
 			logger.Info().Str("cmd", commandName).Str("output", clean).Send()
+			if IsCmdStdOutEnabled() {
+				globalLogger.Info().Str("cmd", commandName).Str("output", clean).Send()
+			}
 		}
 	}
+	buf.Reset()
 	return outputArr
 }
 
@@ -240,6 +247,7 @@ func collectOutput(buf *bytes.Buffer, commandName string, logger zerolog.Logger,
 // while preserving tabs. This helps remove color codes and other terminal control
 // characters from remote command output.
 func sanitizeString(s string) string {
+
 	// Remove common ANSI CSI sequences like "\x1b[31m" etc.
 	var ansiCSI = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
 	s = ansiCSI.ReplaceAllString(s, "")
@@ -255,7 +263,10 @@ func sanitizeString(s string) string {
 
 	var b strings.Builder
 	for _, r := range s {
-		if r == '\t' || (r >= 0x20 && r != 0x7f) {
+		if r == '\t' {
+			b.WriteString("    ")
+		}
+		if r >= 0x20 && r != 0x7f {
 			b.WriteRune(r)
 		}
 	}
@@ -410,7 +421,7 @@ func parsePackageVersion(output string, cmdCtxLogger zerolog.Logger, command *Co
 	pkgVersionOnSystem, err := command.pkgMan.ParseRemotePackageManagerVersionOutput(output)
 	if err != nil {
 		cmdCtxLogger.Error().AnErr("Error parsing package version output", err).Send()
-		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error parsing package version output: %v", err)
+		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error parsing package version output: %v", err)
 	}
 
 	for _, p := range pkgVersionOnSystem {
@@ -453,9 +464,9 @@ func parsePackageVersion(output string, cmdCtxLogger zerolog.Logger, command *Co
 		}
 	}
 	if errs == nil {
-		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
+		return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), nil
 	}
-	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error parsing package version output: %v", errs)
+	return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error parsing package version output: %v", errs)
 }
 
 func getPackageIndexFromCommand(command *Command, name string) int {

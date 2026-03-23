@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync"
 	"text/template"
-	"time"
 
 	"embed"
 
@@ -152,28 +151,7 @@ func (e *LocalCommandExecutor) Run(cmd *Command, opts *ConfigOpts, logger zerolo
 // caller is responsible for closing the returned *os.File when non-nil.
 func makeCmdOutWriters(buf *bytes.Buffer, outputFile string) (io.Writer, *os.File, error) {
 	writers := io.MultiWriter(buf)
-	if IsCmdStdOutEnabled() {
 
-		console := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC1123}
-		console.FormatLevel = func(i interface{}) string {
-			return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
-		}
-		console.FormatMessage = func(i any) string {
-			if i == nil {
-				return ""
-			}
-			return fmt.Sprintf("MSG: %s", i)
-		}
-		console.FormatFieldName = func(i interface{}) string {
-			return fmt.Sprintf("%s: ", i)
-		}
-		console.FormatFieldValue = func(i interface{}) string {
-			return fmt.Sprintf("%s", i)
-			// return strings.ToUpper(fmt.Sprintf("%s", i))
-		}
-
-		writers = io.MultiWriter(console, writers)
-	}
 	if outputFile != "" {
 
 		fileLogger := &lumberjack.Logger{
@@ -202,7 +180,7 @@ func (opts *ConfigOpts) ensureRemoteHost(localCmd *Command, host string) {
 		}
 	}
 	// fallback: create a minimal Host so RunCmdOnHost sees a non-nil RemoteHost.
-	// This uses host as the address/alias; further fields (user/key) will use defaults.
+	// This uses host as the address/alias; further fields (user/key) will use be looked up as needed.
 	localCmd.RemoteHost = &Host{Host: host}
 }
 
@@ -227,11 +205,13 @@ func (opts *ConfigOpts) ExecCommandOnHostsParallel(cmdName string) ([]CmdResult,
 			// shallow copy to avoid races
 			local := *cmdObj
 			local.Host = h
-			opts.Logger.Debug().Str("host", h).Msg("executing command in parallel on host")
+			opts.Logger.Info().Str("host", h).Msg("executing command in parallel on host")
+			local.cmdLoggers.global = opts.Logger
 
 			var err error
 			if IsHostLocal(h) {
-				_, err := local.RunCmd(local.GenerateLogger(opts), opts)
+				local.GenerateLogger(opts)
+				_, err := local.RunCmd(local.cmdLoggers.cmdContxt, opts)
 				resultsCh <- CmdResult{CmdName: cmdName, ListName: "", Error: err}
 				return
 				// _, err = local.RunCmd(local.GenerateLogger(opts), opts)
@@ -240,9 +220,10 @@ func (opts *ConfigOpts) ExecCommandOnHostsParallel(cmdName string) ([]CmdResult,
 			// ensure RemoteHost is populated before calling RunCmdOnHost
 			opts.ensureRemoteHost(&local, h)
 
-			_, err = local.RunCmdOnHost(local.GenerateLogger(opts), opts)
+			local.GenerateLogger(opts)
+			_, err = local.RunCmdOnHost(local.cmdLoggers.cmdContxt, opts)
 
-			resultsCh <- CmdResult{CmdName: cmdName, ListName: "", Error: err}
+			resultsCh <- CmdResult{CmdName: cmdName, ListName: "", Error: err, HostName: h}
 		}(host)
 	}
 
@@ -252,6 +233,9 @@ func (opts *ConfigOpts) ExecCommandOnHostsParallel(cmdName string) ([]CmdResult,
 	var results []CmdResult
 	for r := range resultsCh {
 		results = append(results, r)
+		if r.Error != nil {
+			opts.Logger.Info().AnErr("error", r.Error).Str("cmd", r.CmdName).Send()
+		}
 	}
 	return results, nil
 }
@@ -282,7 +266,11 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 		cmdCtxLogger.Warn().Msg("both 'host' and 'hosts' are set; 'hosts' will be ignored")
 		return nil, fmt.Errorf("both 'host' and 'hosts' are set; please set one or the other")
 	} else if command.Hosts != nil {
-		opts.ExecCommandOnHostsParallel(command.Name)
+		_, err := opts.ExecCommandOnHostsParallel(command.Name)
+		if err != nil {
+			opts.Logger.Err(err).Send()
+			return nil, err
+		}
 		return nil, nil
 	}
 
@@ -296,6 +284,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 	if command.Type == UserCommandType {
 
 		if command.UserOperation == "password" {
+			command.cmdLoggers.global.Info().Str("password", command.UserPassword).Msg("user password to be updated")
 			cmdCtxLogger.Info().Str("password", command.UserPassword).Msg("user password to be updated")
 		}
 	}
@@ -436,7 +425,7 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 					localCMD := exec.Command(fmt.Sprintf("grep \"%s\" /etc/passwd | cut -d: -f6", command.Username))
 					userHome, err = localCMD.CombinedOutput()
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
+						return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
 					}
 
 					command.UserHome = strings.TrimSpace(string(userHome))
@@ -445,33 +434,33 @@ func (command *Command) RunCmd(cmdCtxLogger zerolog.Logger, opts *ConfigOpts) ([
 					if _, err := os.Stat(userSshDir); os.IsNotExist(err) {
 						err := os.MkdirAll(userSshDir, 0700)
 						if err != nil {
-							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating directory %s %v", userSshDir, err)
+							return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error creating directory %s %v", userSshDir, err)
 						}
 					}
 
 					if _, err := os.Stat(fmt.Sprintf("%s/authorized_keys", userSshDir)); os.IsNotExist(err) {
 						_, err := os.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
 						if err != nil {
-							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating file %s/authorized_keys: %v", userSshDir, err)
+							return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error creating file %s/authorized_keys: %v", userSshDir, err)
 						}
 					}
 
 					authorizedKeysFile, err = os.OpenFile(fmt.Sprintf("%s/authorized_keys", userSshDir), 0700, os.ModeAppend)
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+						return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
 					}
 					defer authorizedKeysFile.Close()
 					for _, k := range command.UserSshPubKeys {
 						buf := bytes.NewBufferString(k)
 						cmdCtxLogger.Info().Str("key", k).Msg("adding SSH key")
 						if _, err := authorizedKeysFile.ReadFrom(buf); err != nil {
-							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error adding to authorized keys: %v", err)
+							return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error adding to authorized keys: %v", err)
 						}
 					}
 					localCMD = exec.Command(fmt.Sprintf("chown -R %s:%s %s", command.Username, command.Username, userHome))
 					_, err = localCMD.CombinedOutput()
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), err
+						return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), err
 					}
 
 				}
@@ -495,10 +484,10 @@ func cmdListWorker(msgTemps *msgTemplates, jobs <-chan *CmdList, results chan<- 
 			commandExecuted = cmdToRun
 			currentCmd := cmdToRun.Name
 			fieldsMap["cmd"] = currentCmd
-			cmdLogger = cmdToRun.GenerateLogger(opts)
-			cmdLogger.Info().Fields(fieldsMap).Send()
+			cmdToRun.GenerateLogger(opts)
+			cmdToRun.cmdLoggers.cmdContxt.Info().Fields(fieldsMap).Send()
 
-			outputArr, runErr := cmdToRun.RunCmd(cmdLogger, opts)
+			outputArr, runErr := cmdToRun.RunCmd(cmdToRun.cmdLoggers.cmdContxt, opts)
 			cmdsRan = append(cmdsRan, cmd)
 
 			if runErr != nil {
@@ -559,10 +548,10 @@ func cmdListWorkerWithHosts(msgTemps *msgTemplates, jobs <-chan *CmdList, hosts 
 				commandExecuted = cmdToRun
 				currentCmd := cmdToRun.Name
 				fieldsMap["cmd"] = currentCmd
-				cmdLogger = cmdToRun.GenerateLogger(opts)
-				cmdLogger.Info().Fields(fieldsMap).Send()
+				cmdToRun.GenerateLogger(opts)
+				cmdToRun.cmdLoggers.cmdContxt.Info().Fields(fieldsMap).Send()
 
-				outputArr, runErr := cmdToRun.RunCmd(cmdLogger, opts)
+				outputArr, runErr := cmdToRun.RunCmd(cmdToRun.cmdLoggers.cmdContxt, opts)
 				cmdsRan = append(cmdsRan, cmd)
 
 				if runErr != nil {
@@ -705,8 +694,8 @@ func cmdListWorkerExecuteCommandsInParallel(msgTemps *msgTemplates, jobs <-chan 
 					cmdToRun.Host = host.Host
 					cmdToRun.RemoteHost = host
 				}
-				cmdLogger = cmdToRun.GenerateLogger(opts)
-				cmdLogger.Info().Fields(fieldsMap).Send()
+				cmdToRun.GenerateLogger(opts)
+				cmdToRun.cmdLoggers.cmdContxt.Info().Fields(fieldsMap).Send()
 				print("Running cmd on: ", host.Host, "\n")
 
 				go func(cmd string, host *Host) {
@@ -714,7 +703,7 @@ func cmdListWorkerExecuteCommandsInParallel(msgTemps *msgTemplates, jobs <-chan 
 					currentCmd := cmdToRun.Name
 					fieldsMap["cmd"] = currentCmd
 
-					outputArr, runErr := cmdToRun.RunCmd(cmdLogger, opts)
+					outputArr, runErr := cmdToRun.RunCmd(cmdToRun.cmdLoggers.cmdContxt, opts)
 					if runErr != nil {
 						cmdLogger.Err(runErr).Send()
 						cmdToRun.ExecuteHooks("error", opts)
@@ -890,8 +879,8 @@ func (opts *ConfigOpts) ExecuteListOnHosts(lists []string, parallel bool) {
 func (opts *ConfigOpts) ExecuteCmds() {
 	for _, cmd := range opts.executeCmds {
 		cmdToRun := opts.Cmds[cmd]
-		cmdLogger := cmdToRun.GenerateLogger(opts)
-		_, runErr := cmdToRun.RunCmd(cmdLogger, opts)
+		cmdToRun.GenerateLogger(opts)
+		_, runErr := cmdToRun.RunCmd(cmdToRun.cmdLoggers.cmdContxt, opts)
 		if runErr != nil {
 			opts.Logger.Err(runErr).Send()
 			cmdToRun.ExecuteHooks("error", opts)
@@ -979,30 +968,29 @@ func (cmd *Command) ExecuteHooks(hookType string, opts *ConfigOpts) {
 	}
 }
 
-func (cmd *Command) GenerateLogger(opts *ConfigOpts) zerolog.Logger {
-	cmdLogger := opts.Logger.With().
+func (cmd *Command) GenerateLogger(opts *ConfigOpts) {
+	cmd.cmdLoggers.cmdContxt = opts.Logger.With().
 		Str("Backy-cmd", cmd.Name).Str("Host", "local machine").
 		Logger()
 
 	if !IsHostLocal(cmd.Host) {
-		cmdLogger = opts.Logger.With().
+		cmd.cmdLoggers.cmdContxt = opts.Logger.With().
 			Str("Backy-cmd", cmd.Name).Str("Host", cmd.Host).
 			Logger()
 	}
-	return cmdLogger
 }
 
 func (cmd *Command) GenerateLoggerForCmd(logger zerolog.Logger) zerolog.Logger {
-	cmdLogger := logger.With().
+	cmd.cmdLoggers.cmdContxt = logger.With().
 		Str("Backy-cmd", cmd.Name).Str("Host", "local machine").
 		Logger()
 
 	if !IsHostLocal(cmd.Host) {
-		cmdLogger = logger.With().
+		cmd.cmdLoggers.cmdContxt = logger.With().
 			Str("Backy-cmd", cmd.Name).Str("Host", cmd.Host).
 			Logger()
 	}
-	return cmdLogger
+	return cmd.cmdLoggers.cmdContxt
 }
 
 func (opts *ConfigOpts) ExecCmdsOnHosts(cmdList []string, hostsList []string) {
@@ -1014,7 +1002,8 @@ func (opts *ConfigOpts) ExecCmdsOnHosts(cmdList []string, hostsList []string) {
 			cmd.RemoteHost = host
 			cmd.Host = h
 			if IsHostLocal(h) {
-				_, err := cmd.RunCmd(cmd.GenerateLogger(opts), opts)
+				cmd.GenerateLogger(opts)
+				_, err := cmd.RunCmd(cmd.cmdLoggers.cmdContxt, opts)
 				if err != nil {
 					opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
 				}
@@ -1022,7 +1011,8 @@ func (opts *ConfigOpts) ExecCmdsOnHosts(cmdList []string, hostsList []string) {
 
 				cmd.Host = host.Host
 				opts.Logger.Info().Str("host", h).Str("cmd", c).Send()
-				_, err := cmd.RunCmdOnHost(cmd.GenerateLogger(opts), opts)
+				cmd.GenerateLogger(opts)
+				_, err := cmd.RunCmdOnHost(cmd.cmdLoggers.cmdContxt, opts)
 				if err != nil {
 					opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
 				}
@@ -1041,7 +1031,8 @@ func (opts *ConfigOpts) ExecCmdsOnHostsInParallel(cmdList []string, hostsList []
 			cmd.RemoteHost = host
 			cmd.Host = h
 			if IsHostLocal(h) {
-				_, err := cmd.RunCmd(cmd.GenerateLogger(opts), opts)
+				cmd.GenerateLogger(opts)
+				_, err := cmd.RunCmd(cmd.cmdLoggers.cmdContxt, opts)
 				if err != nil {
 					opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
 				}
@@ -1049,7 +1040,8 @@ func (opts *ConfigOpts) ExecCmdsOnHostsInParallel(cmdList []string, hostsList []
 
 				cmd.Host = host.Host
 				opts.Logger.Info().Str("host", h).Str("cmd", c).Send()
-				_, err := cmd.RunCmdOnHost(cmd.GenerateLogger(opts), opts)
+				cmd.GenerateLogger(opts)
+				_, err := cmd.RunCmdOnHost(cmd.cmdLoggers.cmdContxt, opts)
 				if err != nil {
 					opts.Logger.Err(err).Str("host", h).Str("cmd", c).Send()
 				}

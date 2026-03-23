@@ -1,0 +1,5 @@
+#!/bin/bash
+go install .
+systemctl --user stop backy
+cp ~/go/bin/backy ~/prodConfigs/backups/backy/backy
+systemctl --user start backy

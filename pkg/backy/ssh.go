@@ -472,7 +472,7 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 	defer commandSession.Close()
 
 	// Set output writers
-	var file *os.File
+	// var file *os.File
 	if !IsHostLocal(command.Host) && command.Output.File != "" {
 		if filepath.IsAbs(command.Output.File) {
 			fileName := filepath.Base(command.Output.File)
@@ -483,19 +483,19 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 		}
 	}
 
-	cmdOutWriters, file, err = makeCmdOutWriters(&cmdOutBuf, command.Output.File)
+	cmdOutWriters, _, err = makeCmdOutWriters(&cmdOutBuf, command.Output.File)
 	if err != nil {
 		return nil, fmt.Errorf("error creating command output writers: %w", err)
 	}
-	defer func() {
-		if file != nil {
-			file.Close()
-		}
-	}()
+	// defer func() {
+	// 	if file != nil {
+	// 		file.Close()
+	// 	}
+	// }()
 	// cmdOutWriters = logging.SetLoggingWriterForCommand(&cmdOutBuf, command.Output.File, IsCmdStdOutEnabled())
 	cmdCtxLogger = zerolog.New(cmdOutWriters).With().Timestamp().Logger()
-	cmdCtxLogger = command.GenerateLoggerForCmd(cmdCtxLogger)
-
+	// cmdCtxLogger = command.GenerateLoggerForCmd(cmdCtxLogger)
+	command.cmdLoggers.cmdContxt = cmdCtxLogger
 	// cmdCtxLogger.Info().Msgf("Executing %s", command.Cmd)
 	commandSession.Stdout = cmdOutWriters
 	commandSession.Stderr = cmdOutWriters
@@ -513,13 +513,13 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 	// Handle command execution based on type
 	switch command.Type {
 	case ScriptCommandType:
-		return command.runScript(commandSession, cmdCtxLogger, &cmdOutBuf)
+		return command.runScript(commandSession, &cmdOutBuf)
 	case RemoteScriptCommandType:
-		return command.runRemoteScript(commandSession, cmdCtxLogger, &cmdOutBuf)
+		return command.runRemoteScript(commandSession, &cmdOutBuf)
 	case ScriptFileCommandType:
-		commandSession.Stdout = nil
-		commandSession.Stderr = nil
-		return command.runScriptFile(commandSession, cmdCtxLogger, opts.Logger, &cmdOutBuf)
+		// commandSession.Stdout = nil
+		// commandSession.Stderr = nil
+		return command.runScriptFile(commandSession, &cmdOutBuf)
 	case PackageCommandType:
 		var remoteHostPackageExecutor RemoteHostPackageExecutor
 		return remoteHostPackageExecutor.RunCmdOnHost(command, commandSession, cmdCtxLogger, cmdOutBuf)
@@ -541,18 +541,18 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 			userNamePass := fmt.Sprintf("%s:%s", command.Username, command.UserPassword)
 			client, err := sftp.NewClient(command.RemoteHost.SshClient)
 			if err != nil {
-				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating sftp client: %v", err)
+				return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error creating sftp client: %v", err)
 			}
 			uuidFile := uuid.New()
 			passFilePath := fmt.Sprintf("/tmp/%s", uuidFile.String())
 			passFile, passFileErr := client.Create(passFilePath)
 			if passFileErr != nil {
-				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating file /tmp/%s: %v", uuidFile.String(), passFileErr)
+				return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error creating file /tmp/%s: %v", uuidFile.String(), passFileErr)
 			}
 
 			_, err = passFile.Write([]byte(userNamePass))
 			if err != nil {
-				return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error writing to file /tmp/%s: %v", uuidFile.String(), err)
+				return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error writing to file /tmp/%s: %v", uuidFile.String(), err)
 			}
 
 			ArgsStr = fmt.Sprintf("cat %s | chpasswd", passFilePath)
@@ -566,7 +566,7 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 			defer rmFileFunc()
 		}
 		if err := commandSession.Run(command.ArgStr); err != nil {
-			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
+			return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
 		}
 
 		if command.Type == UserCommandType {
@@ -587,41 +587,41 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 					commandSession, _ = command.RemoteHost.createSSHSession(opts)
 					userHome, err = commandSession.CombinedOutput(fmt.Sprintf("grep \"%s\" /etc/passwd | cut -d: -f6", command.Username))
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
+						return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error finding user home from /etc/passwd: %v", err)
 					}
 
 					command.UserHome = strings.TrimSpace(string(userHome))
 					userSshDir := fmt.Sprintf("%s/.ssh", command.UserHome)
 					client, err = sftp.NewClient(command.RemoteHost.SshClient)
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating sftp client: %v", err)
+						return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error creating sftp client: %v", err)
 					}
 
 					err = client.MkdirAll(userSshDir)
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error creating directory %s: %v", userSshDir, err)
+						return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error creating directory %s: %v", userSshDir, err)
 					}
 					_, err = client.Create(fmt.Sprintf("%s/authorized_keys", userSshDir))
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+						return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
 					}
 					f, err = client.OpenFile(fmt.Sprintf("%s/authorized_keys", userSshDir), os.O_APPEND|os.O_CREATE|os.O_WRONLY)
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
+						return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error opening file %s/authorized_keys: %v", userSshDir, err)
 					}
 					defer f.Close()
 					for _, k := range command.UserSshPubKeys {
 						buf := bytes.NewBufferString(k)
 						cmdCtxLogger.Info().Str("key", k).Msg("adding SSH key")
 						if _, err := f.ReadFrom(buf); err != nil {
-							return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error adding to authorized keys: %v", err)
+							return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error adding to authorized keys: %v", err)
 						}
 					}
 
 					commandSession, _ = command.RemoteHost.createSSHSession(opts)
 					_, err = commandSession.CombinedOutput(fmt.Sprintf("chown -R %s:%s %s", command.Username, command.Username, userHome))
 					if err != nil {
-						return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), err
+						return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), err
 					}
 
 				}
@@ -629,7 +629,7 @@ func (command *Command) RunCmdOnHost(cmdCtxLogger zerolog.Logger, opts *ConfigOp
 		}
 	}
 
-	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
+	return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), nil
 }
 
 func checkPackageVersion(cmdCtxLogger zerolog.Logger, command *Command, commandSession *ssh.Session, cmdOutBuf bytes.Buffer) ([]string, error) {
@@ -649,9 +649,9 @@ func checkPackageVersion(cmdCtxLogger zerolog.Logger, command *Command, commandS
 
 		_, parseErr := parsePackageVersion(string(cmdOut), cmdCtxLogger, command, cmdOutBuf)
 		if parseErr != nil {
-			return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error: packages %v not listed: %w", command.Packages, err)
+			return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error: packages %v not listed: %w", command.Packages, err)
 		}
-		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running %s: %w", ArgsStr, err)
+		return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error running %s: %w", ArgsStr, err)
 	}
 
 	return parsePackageVersion(string(cmdOut), cmdCtxLogger, command, cmdOutBuf)
@@ -666,7 +666,7 @@ func getCommandTypeAndSetCommandInfoLabel(commandType CommandType) string {
 }
 
 // runScript handles the execution of inline scripts.
-func (command *Command) runScript(session *ssh.Session, cmdCtxLogger zerolog.Logger, outputBuf *bytes.Buffer) ([]string, error) {
+func (command *Command) runScript(session *ssh.Session, outputBuf *bytes.Buffer) ([]string, error) {
 	script, err := command.prepareScriptBuffer()
 	if err != nil {
 		return nil, err
@@ -678,60 +678,29 @@ func (command *Command) runScript(session *ssh.Session, cmdCtxLogger zerolog.Log
 	}
 
 	if err := session.Wait(); err != nil {
-		return collectOutput(outputBuf, command.Name, cmdCtxLogger, true), fmt.Errorf("error waiting for shell: %w", err)
+		return collectOutput(outputBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error waiting for command: %w", err)
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
+	return collectOutput(outputBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), nil
 }
 
 // runScriptFile handles the execution of script files.
-func (command *Command) runScriptFile(session *ssh.Session, cmdCtxLogger, globalLogger zerolog.Logger, outputBuf *bytes.Buffer) ([]string, error) {
+func (command *Command) runScriptFile(session *ssh.Session, outputBuf *bytes.Buffer) ([]string, error) {
 	script, err := command.prepareScriptFileBuffer()
 	if err != nil {
 		return nil, err
 	}
 	session.Stdin = script
 
-	// modes := ssh.TerminalModes{
-	// 	ssh.ECHO:          0,
-	// 	ssh.ECHOCTL:       0,
-	// 	ssh.TTY_OP_ISPEED: 14400,
-	// 	ssh.TTY_OP_OSPEED: 14400,
-	// }
-
-	// session.RequestPty("xterm", 80, 40, modes)
-
-	stdout, stdOutErr := session.StdoutPipe()
-	if stdOutErr != nil {
-		return nil, fmt.Errorf("error getting stdout pipe: %w", stdOutErr)
-	}
-
 	if err := session.Shell(); err != nil {
 		return nil, fmt.Errorf("error starting shell: %w", err)
 	}
-	var LogOutputToFile bool
-	if command.Output.File != "" || command.Output.ToLog {
-		if command.Output.File != "" {
-			globalLogger.Info().Str("file", command.Output.File).Msg("Writing script output to file")
-		}
-		LogOutputToFile = true
-	}
 
-	stdOutput, stdoOutReadErr := io.ReadAll(stdout)
 	if err := session.Wait(); err != nil {
-		stdOutBuff := bytes.NewBuffer(stdOutput)
-		// outputBuf.Write(stdOutBuff.Bytes())
-		// Read output
-		return collectOutput(stdOutBuff, command.Name, cmdCtxLogger, LogOutputToFile), fmt.Errorf("error waiting for shell: %w", err)
+		return collectOutput(outputBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error waiting for shell: %w", err)
 	}
 
-	// Read output
-	if stdoOutReadErr != nil {
-		return collectOutput(outputBuf, command.Name, cmdCtxLogger, LogOutputToFile), fmt.Errorf("error reading stdout after shell error: %w", stdoOutReadErr)
-	}
-	stdOutBuff := bytes.NewBuffer(stdOutput)
-
-	return collectOutput(stdOutBuff, command.Name, cmdCtxLogger, LogOutputToFile), nil
+	return collectOutput(outputBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), nil
 }
 
 // prepareScriptBuffer prepares a buffer for inline scripts.
@@ -794,7 +763,7 @@ func (command *Command) prepareScriptFileBuffer() (*bytes.Buffer, error) {
 }
 
 // runRemoteScript handles the execution of remote scripts
-func (command *Command) runRemoteScript(session *ssh.Session, cmdCtxLogger zerolog.Logger, outputBuf *bytes.Buffer) ([]string, error) {
+func (command *Command) runRemoteScript(session *ssh.Session, outputBuf *bytes.Buffer) ([]string, error) {
 	script, err := command.Fetcher.Fetch(command.Cmd)
 	if err != nil {
 		return nil, err
@@ -806,10 +775,10 @@ func (command *Command) runRemoteScript(session *ssh.Session, cmdCtxLogger zerol
 	err = session.Run(command.Shell)
 
 	if err != nil {
-		return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running remote script: %w", err)
+		return collectOutput(outputBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error running remote script: %w", err)
 	}
 
-	return collectOutput(outputBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
+	return collectOutput(outputBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), nil
 }
 
 // readFileToBuffer reads a file into a buffer.
@@ -908,7 +877,7 @@ func (r RemoteHostPackageExecutor) RunCmdOnHost(command *Command, commandSession
 	cmdCtxLogger.Debug().Str("cmd + args", ArgsStr).Send()
 	// Run simple command
 	if err := commandSession.Run(ArgsStr); err != nil {
-		return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
+		return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), fmt.Errorf("error running command: %w", err)
 	}
-	return collectOutput(&cmdOutBuf, command.Name, cmdCtxLogger, command.Output.ToLog), nil
+	return collectOutput(&cmdOutBuf, command.Name, command.cmdLoggers.cmdContxt, command.cmdLoggers.global, command.Output.ToLog), nil
 }
