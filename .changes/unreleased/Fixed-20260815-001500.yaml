@@ -1,0 +1,3 @@
+kind: Fixed
+body: Error hooks no longer return after one is executed
+time: 2026-08-15T00:15:00.347036265-05:00
