@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"git.andrewnw.xyz/CyberShell/backy/pkg/backy"
 	"git.andrewnw.xyz/CyberShell/backy/pkg/logging"
 
@@ -29,7 +31,7 @@ func execute(cmd *cobra.Command, args []string) {
 	parseS3Config()
 
 	if len(args) < 1 {
-		logging.ExitWithMSG("Please provide a command to run. Pass --help to see options.", 1, nil)
+		logging.ExitWithMSG(fmt.Sprintf("Please provide a command to run.\n\n%s", cmd.Long), 1, nil)
 	}
 
 	opts := backy.NewConfigOptions(configFile,
