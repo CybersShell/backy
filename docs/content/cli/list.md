@@ -3,7 +3,7 @@ title: List
 ---
 
 
-List commands, lists, or hosts defined in config file
+List commands, lists, or hosts defined in config file. The subcommands take zero or more arguments to print specific commands or lists
 
 Usage:
 ```
@@ -11,8 +11,8 @@ Usage:
 ```
 
 Available Commands:
-  cmds        List commands defined in config file.
-  lists       List lists defined in config file.
+  cmds        Prints commands defined in config file.
+  lists       Prints lists defined in config file.
 
 Flags:
 ```

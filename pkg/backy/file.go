@@ -101,6 +101,10 @@ func (r *RemoteFileCommandExecutor) copyFile(source, destination string, Perms f
 		return nil
 	}
 
+	if sshClient == nil {
+		return fmt.Errorf("SSH Client is nil")
+	}
+
 	client, err := sftp.NewClient(sshClient)
 
 	if err != nil {

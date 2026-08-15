@@ -36,6 +36,8 @@ func (opts *ConfigOpts) ListCommand(cmd string) {
 	// print the command's information
 	if cmdFound {
 
+		print("Backy Command: ")
+		println(cmd)
 		println("Command: ")
 
 		print(cmdInfo.Cmd)
@@ -45,27 +47,62 @@ func (opts *ConfigOpts) ListCommand(cmd string) {
 			print(v)   // print command arg
 		}
 
-		// is it remote or local
-		if !IsHostLocal(cmdInfo.Host) {
+		if cmdInfo.Type.String() != "" {
 			println()
-			print("Host: ", cmdInfo.Host)
+			print("Type: ", cmdInfo.Type.String())
 			println()
+		}
+
+		if cmdInfo.Hosts != nil {
+			for n, h := range cmdInfo.Hosts {
+				println()
+				fmt.Printf("Host %d: %s", n, h)
+				println()
+
+			}
 
 		} else {
 
-			println()
-			print("Host: Runs on Local Machine\n\n")
+			// is it remote or local
+			if !IsHostLocal(cmdInfo.Host) {
+				println()
+				print("Host: ", cmdInfo.Host)
+				println()
 
+			} else {
+
+				println()
+				print("Host: Runs on Local Machine\n\n")
+
+			}
+		}
+
+		if len(cmdInfo.Environment) > 0 {
+			fmt.Print("Environment: ")
+			for _, env := range cmdInfo.Environment {
+				fmt.Printf("%s ", env)
+			}
+			fmt.Println()
+		}
+
+		if cmdInfo.PackageManager != "" {
+			fmt.Printf("\nPackage Manager: %s\n", cmdInfo.PackageManager)
+			if len(cmdInfo.Packages) > 0 {
+				for _, pkg := range cmdInfo.Packages {
+					fmt.Printf("Package: %v\n", pkg)
+				}
+			}
+		}
+
+		if cmdInfo.Username != "" || cmdInfo.UserID != "" {
+			fmt.Println("\nUser Settings:")
+			fmt.Printf("Username: %s\n", cmdInfo.Username)
+			fmt.Printf("UserID: %s\n", cmdInfo.UserID)
 		}
 
 		if cmdInfo.Dir != nil {
 			println()
 			print("Directory: ", *cmdInfo.Dir)
-			println()
-		}
-
-		if cmdInfo.Type.String() != "" {
-			print("Type: ", cmdInfo.Type.String())
 			println()
 		}
 
@@ -100,9 +137,10 @@ func (opts *ConfigOpts) ListCommandList(list string) {
 		println("List: ", list)
 		println()
 
-		for _, v := range listInfo.Order {
+		for n, cmd := range listInfo.Order {
 			println()
-			opts.ListCommand(v)
+			fmt.Printf("Command  %d: \n", n+1)
+			opts.ListCommand(cmd)
 		}
 
 	} else {

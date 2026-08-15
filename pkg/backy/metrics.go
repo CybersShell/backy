@@ -2,6 +2,7 @@ package backy
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 )
@@ -75,6 +76,17 @@ func (metricFile *MetricFile) SaveToFile() error {
 }
 
 func LoadMetricsFromFile(filename string) (*MetricFile, error) {
+	if err := testFile(filename); err != nil {
+
+		_, createErr := os.Create(filename)
+		if createErr != nil {
+			return nil, fmt.Errorf("error creating file and root cause: %w", err)
+		}
+		metricData := NewMetricsFromFile(filename)
+		data, _ := json.MarshalIndent(metricData, "", "  ")
+		os.WriteFile(filename, data, 0600)
+		return metricData, nil
+	}
 	jsonData, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err

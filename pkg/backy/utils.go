@@ -226,6 +226,11 @@ func CheckConfigValues(config *koanf.Koanf, file string) {
 func collectOutput(buf *bytes.Buffer, commandName string, logger, globalLogger zerolog.Logger, wantOutput bool) []string {
 	var outputArr []string
 	copyBuf := bytes.NewBuffer(buf.Bytes())
+	if buf.Len() == 0 {
+		logger.Info().Str("cmd", commandName).Msg("NO OUTPUT!!!!!!!")
+		globalLogger.Info().Str("cmd", commandName).Msg("NO OUTPUT!!!!!!!")
+		return outputArr
+	}
 	scanner := bufio.NewScanner(copyBuf)
 	for scanner.Scan() {
 		line := scanner.Text()

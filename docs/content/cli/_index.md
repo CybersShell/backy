@@ -88,7 +88,7 @@ Usage:
   backy exec [command]
 
 Available Commands:
-  host        Runs command defined in config file on the hosts in order specified.
+  host        Specify command(s) defined in config file on the host in order specified.
   hosts       Runs command defined in config file on the hosts in order specified.
 
 Flags:
@@ -153,14 +153,14 @@ Global Flags:
 ## list
 
 ```
-List commands, lists, or hosts defined in config file
+List commands, lists, or hosts defined in config file. The subcommands take zero or more arguments to print specific commands or lists
 
 Usage:
   backy list [command]
 
 Available Commands:
-  cmds        List commands defined in config file.
-  lists       List lists defined in config file.
+  cmds        Prints commands defined in config file.
+  lists       Prints lists defined in config file.
 
 Flags:
   -h, --help   help for list
@@ -178,7 +178,7 @@ Use "backy list [command] --help" for more information about a command.
 ## list cmds
 
 ```
-List commands defined in config file
+Prints commands defined in config file. Pass no arguments to print all commands
 
 Usage:
   backy list cmds [cmd1 cmd2 cmd3...] [flags]
@@ -197,7 +197,7 @@ Global Flags:
 ## list lists
 
 ```
-List lists defined in config file
+Prints lists defined in config file. Pass no arguments to print all lists
 
 Usage:
   backy list lists [list1 list2 ...] [flags]

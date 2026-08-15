@@ -723,7 +723,8 @@ func (command *Command) prepareScriptBuffer() (*bytes.Buffer, error) {
 
 	buffer.WriteString(command.Cmd)
 	for _, arg := range command.Args {
-		buffer.WriteString(" " + arg)
+		buffer.WriteString(" ")
+		buffer.WriteString(arg)
 	}
 	buffer.WriteByte('\n')
 	return &buffer, nil
@@ -847,7 +848,7 @@ func DoesHostHaveHostName(host string) (bool, string) {
 }
 
 func IsHostLocal(host string) bool {
-	host = strings.ToLower(host)
+	host = strings.ToLower(strings.TrimSpace(host))
 	return host == "127.0.0.1" || host == "localhost" || host == ""
 }
 

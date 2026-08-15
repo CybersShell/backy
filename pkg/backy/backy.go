@@ -944,7 +944,6 @@ func (cmd *Command) ExecuteHooks(hookType string, opts *ConfigOpts) {
 			cmdLogger.Info().Msgf("Running error hook command %s", v)
 			// URGENT: Never returns
 			_, _ = errCmd.RunCmd(cmdLogger, opts)
-			return
 		}
 
 	case "success":

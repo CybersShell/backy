@@ -1,8 +1,8 @@
-# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.14
-# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.14
-[localhost]:2222 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDATufWA1HRnNayIQLjSpA2+P9N6h0WF+jP+abMaINlZkiHFnFVDAoqD5/onVXymskrgQaKEYmBOs+Kv0t+Acvdor2IcvYgFueSm+jkslpSK/uuf1mx0gVJO77S2BIjqyWtUzVv96Iy4Gjt2RsrnalgYNYmi3OyPkG0IUA+3Im+2gztSECCy+nW3R/vaoPLwr4kImpLlrijcSHc4mHOY6BurrcWKNuGrsvTAOKgUZqlya6uDd+yD7fUfsmL1MqBKwZqfP3JAdp/Dd+laNNGcvEM4WhzYFSPfhqblewD0rjbto9MSOSXLyQz5RPmdITj/m5M4lj2ECmcI2gzraDMoj8ZkuJAss50oX6fmVUZestN5jlz7Y7XKEvXuH8qfLHKwaOUTZlcGbfAMz6uSrh8DNT6KzRG4j5nZ9Z5pTn1huz/p6jnJUGuHt2Ez3EK+isM+sHS6TntXavIkebaq7ErcBCO8A1fZFZlhlHoI9o9W62tMY7gbtlGodW8dKxK89+1a88=
-# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.14
-[localhost]:2222 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBK9fEYfiGGgu0Eh7X2JT4jR4+utcfpm6Ee+Cer1x/XbMHzCPZg6YmYy6OaCSms/0VJ/QWxD+0HlsO7sqO5oeO60=
-# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.14
-[localhost]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKT5+Cbi/ynOAPzwv0IaOVBtGFYtW33LIvNUuBKYqqyJ
-# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.14
+# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.16
+[localhost]:2222 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDZi/dbBsgthhSj9kf4SIxTZCX+thRmvSgQ+ogC0yyHvoQrIio0Pu2MA66S779LE7Zng3CJ1lxiesffqdiTdcv8mrlnwHlzshNy4trl85NOawdNpwwlY8aiYQkxifXqAXSoHlgG+AlrbLcZ4q0YbeLnwgB3eEywN+eCHuJdetNr1Lq9NkqiGKltBIVYxHofEkUj+jBTJCyPDcp7/CKSYXhcELCaSw8vBkB7+PfsYYy0+TPXspiu/euLZfiagh6ik2fMcfc0k5P4Yn0GRt5Uk4jr85lob7ucO6Q2VPJpfavSjetcqa/oL6peEOJ4/SQzzrbxmh0I/5Tq76lTtrFT+R+tfqn0+n11FkNhS85IulmpdD2kLPGE6yH+vfjYrYD5TdH0qiOltqfXuiJCekRryoU9oWS/VSDi7aEVPryCQWf0IUqj05F/sa4RRtO0k7UOYL8NwJTS8q02sCt+/W+nX03f6XNoG7K57MZlYnREUGS6scqnvktb9bwKBunDZePMwZk=
+# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.16
+[localhost]:2222 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEy0ReNz4EO68wUiQGHmkKOwLQhAUhY9oCyzpyROUWM0FWQId124SKPPcLD3DcYHQpofdG8h11NZ8Dyk1g/mW8M=
+# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.16
+# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.16
+# localhost:2222 SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.16
+[localhost]:2222 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIArPKqZ3cHWzv0o6RUko8TNpr95olBJAzHRiPIvYD7bH

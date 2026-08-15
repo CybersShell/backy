@@ -1,15 +1,13 @@
-Command list {{.listName }} failed.
+Backy Command: {{.CmdName}}.
 
-The command run was {{.CmdName}}.
+The command executed: {{.Command}} {{ if .Args }} {{- range .Args}} {{.}} {{end}} {{end}}
 
-The command executed was {{.Command}} {{ if .Args }} {{- range .Args}} {{.}} {{end}} {{end}}
+{{ if .Err }} Error: {{ .Err }}{{ end }}
 
-{{ if .Err }} The error was {{ .Err }}{{ end }}
-
-{{ if .Output }} The output was: {{- range .Output}} {{.}} {{end}} {{end}}
+{{ if .Output }} Output: {{- range .Output}} {{.}} {{end}} {{end}}
 
 {{ if .CmdsRan }}
-The following commands ran:
+Commands executed (last one failed):
 {{- range .CmdsRan}}
     - {{. -}}
 {{end}}

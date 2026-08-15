@@ -9,7 +9,7 @@ import (
 var (
 	hostExecCommand = &cobra.Command{
 		Use:   "host [--command=command1 --command=command2 ... | -c command1 -c command2 ...] [--hosts=host1 --hosts=hosts2 ... | -m host1 -m host2 ...] ",
-		Short: "Runs command defined in config file on the hosts in order specified.",
+		Short: "Specify command(s) defined in config file on the host in order specified.",
 		Long:  "Host executes specified commands on the hosts defined in config file.\nUse the --commands or -c flag to choose the commands.",
 		Run:   Host,
 	}
